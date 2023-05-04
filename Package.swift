@@ -1,28 +1,16 @@
-// swift-tools-version: 5.8
-// The swift-tools-version declares the minimum version of Swift required to build this package.
+// swift-tools-version: 5.6
 
 import PackageDescription
 
 let package = Package(
     name: "ConcordiumWalletCrypto",
     products: [
-        // Products define the executables and libraries a package produces, and make them visible to other packages.
         .library(
             name: "ConcordiumWalletCrypto",
-            targets: ["ConcordiumWalletCrypto"]),
+            targets: ["libmobile_wallet"]),
     ],
-    dependencies: [
-        // Dependencies declare other packages that this package depends on.
-        // .package(url: /* package url */, from: "1.0.0"),
-    ],
+    dependencies: [],
     targets: [
-        // Targets are the basic building blocks of a package. A target can define a module or a test suite.
-        // Targets can depend on other targets in this package, and on products in packages this package depends on.
-        .target(
-            name: "ConcordiumWalletCrypto",
-            dependencies: []),
-        .testTarget(
-            name: "ConcordiumWalletCryptoTests",
-            dependencies: ["ConcordiumWalletCrypto"]),
+        .binaryTarget(name: "libmobile_wallet", url: "https://s3.eu-west-1.amazonaws.com/static-libraries.concordium.com/iOS/libmobile_wallet_0.24.0-0.xcframework.zip", checksum: "8051b9681901187537adc76858715d569d51abd4c201c376f292749da0b6eb60")
     ]
 )
