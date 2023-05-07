@@ -14,17 +14,17 @@ The version follows the one of the [Rust sources](https://github.com/Concordium/
 
 Steps for building and releasing a new version `<version>`:
 
-1. Using the appropriate automated job, run [`./build-ios.sh`](https://github.com/Concordium/concordium-base/blob/main/mobile_wallet/scripts/build-ios.sh) from `concordium-base`, archive `ios/build/libmobile_wallet.xcframework` as a compressed zip file named `libmobile_wallet_<version>.xcframework.zip`, and upload this file to S3 bucket/path `static-libraries.concordium.com/iOS`.
+1. Using the appropriate automated job, run [`./build-ios.sh`](https://github.com/Concordium/concordium-base/blob/main/mobile_wallet/scripts/build-ios.sh) from `concordium-base`, archive `ios/build/libmobile_wallet.xcframework` as a compressed zip file named `libmobile_wallet_<version>.xcframework.zip`, and upload this file to S3 bucket/path `static-libraries.concordium.com/iOS/`.
 
 2. Compute checksum of the archive using the command
-   ```
+   ```shell
    swift package compute-checksum libmobile_wallet_<version>.xcframework.zip
    ```
 
-3. Commit a change to [`Package.swift](https://github.com/Concordium/concordium-wallet-crypto-swift/blob/main/Package.swift), updating the `libmobile_wallet` binary target with the new version in the `url` string and the new `checksum`.
+3. Commit a change to [`Package.swift`](https://github.com/Concordium/concordium-wallet-crypto-swift/blob/main/Package.swift), updating the `libmobile_wallet` binary target with the new version in the `url` string and the new `checksum`.
 
 4. Push an annotated tag named by the version for the new commit:
-   ```
+   ```shell
    git tag -a <version>
    ```
    Give the tag a message describing what changed in the new version.
