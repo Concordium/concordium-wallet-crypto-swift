@@ -1,0 +1,17 @@
+name: Publish Binary Framework
+
+on:
+  workflow_dispatch: # trigger manually
+    inputs:
+      version:
+        description: 'Version to publish.'
+        type: string
+        required: true
+
+jobs:
+  build_publish:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Check out sources
+      uses: actions/checkout@v4
