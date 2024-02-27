@@ -44,7 +44,7 @@ Once it's ready for a new release, the steps for building and releasing a new ve
 1. Create and push a tag named `build/<version>-<build-version>`,
    where `<build-version>` is bumped (starting from 0) for each attempt at building `<version>`.
    This is necessary because GitHub requires releases to be tagged and the following workflow uploads a release.
-2. Run the [workflow](./.github/workflows/publish-bindings.yml) for publishing a new version of the binary framework.
+2. Run the [workflow](./.github/workflows/publish-framework.yml) for publishing a new version of the binary framework.
    Use the tag you just created as "branch" to run from and input `<version>` (i.e. without the counter for "Version").
 3. Run [`./build.sh`](./build.sh) locally to regenerate the Swift bridge sources.
    [TODO: Running the "bindgen" step is sufficient.]
