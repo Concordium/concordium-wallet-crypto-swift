@@ -27,9 +27,9 @@ which was built and hosted elsewhere.
 See commit 6b6af29816b0f966598b170d62334e2faf00062b for details.
 
 That package is still available from tag
-[`0.24.0-0`](https://github.com/Concordium/concordium-wallet-crypto-swift/releases/tag/0.24.0-0)
-and in use by the
-[iOS reference wallet](https://github.com/Concordium/concordium-reference-wallet-ios/).
+[`0.24.0-0`](https://github.com/Concordium/concordium-wallet-crypto-swift/releases/tag/0.24.0-0) and
+[in use](https://github.com/Concordium/concordium-reference-wallet-ios/blob/main/ConcordiumWallet.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved)
+by the iOS reference wallet, but it's not expected to receive updates in the future.
 
 ## Versioning
 
@@ -40,13 +40,26 @@ The version is defined by the Rust/Cargo project.
 
 Supported Rust version: 1.72
 
-Once the expected targets to the Rust toolchain have been installed using
+*Prerequisites*
+
+The repository uses git submodules. Make sure that all submodules are checked out correctly using
 
 ```shell
+git submodule update --init
+```
+
+This must be done after the initial clone as well as every time you switch branch.
+
+Ensure that the correct Rust toolchain has been installed with all the expected targets:
+
+```shell
+rustup default 1.72
 rustup target add x86_64-apple-darwin aarch64-apple-darwin aarch64-apple-ios x86_64-apple-ios
 ```
 
-then the library may be built simply by running
+*Build*
+
+Run
 
 ```shell
 ./build.sh
