@@ -11,8 +11,6 @@ on:
 env:
   rust_version: "1.72"
 
-# TODO: Lint/format/test Rust code in separate build script.
-
 jobs:
   build_publish:
     runs-on: macos-13
@@ -21,7 +19,7 @@ jobs:
       - name: Setup Rust
         run: |
           rustup default "${{env.rust_version}}"
-          rustup target install \
+          rustup target add \
             aarch64-apple-darwin \
             aarch64-apple-ios \
             aarch64-apple-ios-sim \
