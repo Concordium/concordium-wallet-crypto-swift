@@ -17,7 +17,7 @@ jobs:
       - name: Setup Rust
         run: |
           rustup default "${{env.rust_version}}"
-          rustup component add rustfmt
+          rustup component add rustfmt clippy
       - name: Check out sources
         uses: actions/checkout@v4
         with:
