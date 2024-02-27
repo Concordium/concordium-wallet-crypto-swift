@@ -11,8 +11,6 @@ on:
 env:
   rust_version: "1.72"
 
-# TODO: Lint/format/test Rust code in separate build script.
-
 jobs:
   build_publish:
     runs-on: macos-13

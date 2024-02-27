@@ -1,0 +1,30 @@
+name: Lint and Test
+
+on:
+  push:
+    branches: main
+  pull_request:
+
+env:
+  rust_version: "1.72"
+
+jobs:
+  lint-and-test:
+    runs-on: macos-13
+
+    steps:
+      # TODO: Consider adding caching.
+      - name: Setup Rust
+        run: |
+          rustup default "${{env.rust_version}}"
+          rustup component add rustfmt
+      - name: Check out sources
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Check formatting
+        run: cargo fmt --check
+      - name: Run linter
+        run: cargo clippy
+      - name: Run tests
+        run: cargo test
