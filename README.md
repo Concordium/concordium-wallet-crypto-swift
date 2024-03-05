@@ -53,8 +53,7 @@ This must be done after the initial clone as well as every time you switch branc
 Ensure that the correct Rust toolchain has been installed with all the expected targets:
 
 ```shell
-rustup default 1.72
-rustup target add x86_64-apple-darwin aarch64-apple-darwin aarch64-apple-ios x86_64-apple-ios aarch64-apple-ios-sim
+make setup
 ```
 
 *Build*

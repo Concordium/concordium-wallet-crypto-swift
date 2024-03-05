@@ -1,4 +1,5 @@
-cargo = cargo +1.72
+rust_toolchain = 1.72
+cargo = cargo +$(rust_toolchain)
 
 # Targets from building the individual components to assembling a complete framework.
 # Cargo already does incremental building so no targets depend on any files.
@@ -7,6 +8,20 @@ cargo = cargo +1.72
 default:
 	# No default target.
 	exit 1
+
+# CONFIGURE #
+
+# Installing targets as dependencies of the actual builds was also an option...
+
+.PHONY: setup
+setup:
+	rustup toolchain install $(rust_toolchain)
+	rustup target add --toolchain=$(rust_toolchain) \
+		x86_64-apple-darwin \
+		aarch64-apple-darwin \
+		aarch64-apple-ios \
+		x86_64-apple-ios \
+		aarch64-apple-ios-sim
 
 # BUILD FRAMEWORK #
 
