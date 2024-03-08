@@ -7,9 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+Functions and associated types for creating identity issuance and recovery requests as well as account credential (deployment).
+
+UDL signatures:
+
+- `string identity_issuance_request_json(IdentityIssuanceRequestParameters params)`
+- `string identity_recovery_request_json(IdentityRecoveryRequestParameters params)`
+- `AccountCredentialResult account_credential(AccountCredentialParameters params)`
+- `string account_credential_deployment_hash_hex(AccountCredential credential, u64 expiry_unix)`
+- `string account_credential_deployment_signed_payload_hex(SignedAccountCredential credential)`
+
+The parameter types mirror the corresponding "input" types from `wallet_library` but use only types supported by UniFFI.
+The values are translated into these library types via JSON encoding/decoding.
+This is in contrast to the Java SDK where the value is passed as a JSON encoded string
+which is then decoded directly into the library input type.
+Doing it this way ensures that type unsafe conversions happen internally in this library where it's easily tested
+rather than at the FFI boundary.
+So it makes the FFI boundary type safe and of course also generates the Swift types that we do need on the SDK side anyway.
+
+The identity request functions return their result as JSON encoded strings
+because the protocol actually is to just send the object as JSON in a URL parameter.
+So there's no point in decoding them into structured types - they would just be converted right back to JSON on the SDK side.
+We do decode the payload in a unit test to verify the format.
+
 ### Changed
 
 - Bump UniFFI from v0.25.x to v0.26.x.
+- Rename functions to match the conventions used on the SDK side.
 
 ## [1.0.0] - 2024-02-06
 

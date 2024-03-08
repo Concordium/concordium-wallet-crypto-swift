@@ -3,25 +3,187 @@ enum ConcordiumWalletCryptoError {
     "CallFailed"
 };
 
+dictionary IdentityIssuanceRequestParameters {
+    IdentityProviderInfo ip_info;
+    GlobalContext global_context;
+    record<u32, AnonymityRevokerInfo> ars_infos;
+    u8 ar_threshold;
+    string prf_key_hex;
+    string id_cred_sec_hex;
+    string blinding_randomness_hex;
+};
+
+dictionary IdentityRecoveryRequestParameters {
+    IdentityProviderInfo ip_info;
+    GlobalContext global_context;
+    u64 timestamp;
+    string id_cred_sec_hex;
+};
+
+dictionary IdentityProviderInfo {
+    u32 identity;
+    Description description;
+    string verify_key_hex;
+    string cdi_verify_key_hex;
+};
+
+dictionary GlobalContext {
+    string on_chain_commitment_key_hex;
+    string bulletproof_generators_hex;
+    string genesis_string;
+};
+
+dictionary AnonymityRevokerInfo {
+    u32 identity;
+    Description description;
+    string public_key_hex;
+};
+
+dictionary Description {
+    string name;
+    string url;
+    string description;
+};
+
+dictionary AccountCredentialParameters {
+    IdentityProviderInfo ip_info;
+    GlobalContext global_context;
+    record<u32, AnonymityRevokerInfo> ars_infos;
+    IdentityObject id_object;
+    sequence<u8> revealed_attributes;
+    u8 cred_number;
+    string id_cred_sec_hex;
+    string prf_key_hex;
+    string blinding_randomness_hex;
+    record<string, string> attribute_randomness_hex;
+    CredentialPublicKeysHex credential_public_keys_hex;
+};
+
+dictionary IdentityObject {
+    PreIdentityObject pre_identity_object;
+    AttributeList attribute_list;
+    string signature_hex;
+};
+
+dictionary CredentialPublicKeysHex {
+    record<u8, string> keys;
+    u8 threshold;
+};
+
+dictionary PreIdentityObject {
+    string id_cred_pub_hex;
+    record<u32, ArData> ip_ar_data;
+    ChoiceArParameters choice_ar_data;
+    string id_cred_sec_commitment_hex;
+    string prf_key_commitment_with_ip_hex;
+    sequence<string> prf_key_sharing_coeff_commitments_hex;
+    string proofs_of_knowledge_hex;
+};
+
+dictionary ChoiceArParameters {
+    sequence<u32> ar_identities;
+    u32 threshold;
+};
+
+dictionary ArData {
+    string enc_prf_key_share_hex;
+    string proof_com_enc_eq_hex;
+};
+
+dictionary AttributeList {
+    string valid_to_year_month;
+    string created_at_year_month;
+    u8 max_accounts;
+    record<string, string> chosen_attributes;
+};
+
+dictionary AccountCredentialResult {
+    Randomness randomness;
+    AccountCredential credential;
+};
+
+dictionary Randomness {
+    record<string, string> attributes_rand_hex;
+    string cred_counter_rand_hex;
+    string id_cred_sec_rand_hex;
+    string max_accounts_rand_hex;
+    string prf_rand_hex;
+};
+
+dictionary AccountCredential {
+    record<u32, ChainArData> ar_data;
+    string cred_id_hex;
+    CredentialPublicKeysWithScheme credential_public_keys;
+    u32 ip_identity;
+    Policy policy;
+    Proofs proofs;
+    u8 revocation_threshold;
+};
+
+dictionary ChainArData {
+    string end_id_cred_pub_share_hex;
+};
+
+dictionary CredentialPublicKeysWithScheme {
+    record<u8, VerifyKeyWithScheme> keys;
+    u8 threshold;
+};
+
+dictionary VerifyKeyWithScheme {
+    string scheme_id;
+    string key_hex;
+};
+
+dictionary Policy {
+    string created_at_year_month;
+    string valid_to_year_month;
+    record<string, string> revealed_attributes;
+};
+
+dictionary Proofs {
+    string challenge_hex;
+    string commitments_hex;
+    string cred_counter_less_than_max_accounts_hex;
+    record<string, string> proof_id_cred_pub_hex;
+    string proof_ip_sig_hex;
+    string proof_reg_id_hex;
+    string signature_hex;
+};
+
+dictionary SignedAccountCredential {
+    AccountCredential credential;
+    record<u8, string> signatures_hex;
+};
+
 namespace crypto {
     [Throws=ConcordiumWalletCryptoError]
-    string get_account_signing_key(string seed_hex, string network, u32 identity_provider_index, u32 identity_index, u32 credential_counter);
+    string account_credential_signing_key_hex(string seed_hex, string network, u32 identity_provider_index, u32 identity_index, u32 credential_counter);
     [Throws=ConcordiumWalletCryptoError]
-    string get_account_public_key(string seed_hex, string network, u32 identity_provider_index, u32 identity_index, u32 credential_counter);
+    string account_credential_public_key_hex(string seed_hex, string network, u32 identity_provider_index, u32 identity_index, u32 credential_counter);
     [Throws=ConcordiumWalletCryptoError]
-    string get_id_cred_sec(string seed_hex, string network, u32 identity_provider_index, u32 identity_index);
+    string id_cred_sec_hex(string seed_hex, string network, u32 identity_provider_index, u32 identity_index);
     [Throws=ConcordiumWalletCryptoError]
-    string get_prf_key(string seed_hex, string network, u32 identity_provider_index, u32 identity_index);
+    string prf_key_hex(string seed_hex, string network, u32 identity_provider_index, u32 identity_index);
     [Throws=ConcordiumWalletCryptoError]
-    string get_credential_id(string seed_hex, string network, u32 identity_provider_index, u32 identity_index, u8 credential_counter, string commitment_key);
+    string account_credential_id_hex(string seed_hex, string network, u32 identity_provider_index, u32 identity_index, u8 credential_counter, string commitment_key);
     [Throws=ConcordiumWalletCryptoError]
-    string get_signature_blinding_randomness(string seed_hex, string network, u32 identity_provider_index, u32 identity_index);
+    string signature_blinding_randomness_hex(string seed_hex, string network, u32 identity_provider_index, u32 identity_index);
     [Throws=ConcordiumWalletCryptoError]
-    string get_attribute_commitment_randomness(string seed_hex, string network, u32 identity_provider_index, u32 identity_index, u32 credential_counter, u8 attribute);
+    string attribute_commitment_randomness_hex(string seed_hex, string network, u32 identity_provider_index, u32 identity_index, u32 credential_counter, u8 attribute);
     [Throws=ConcordiumWalletCryptoError]
-    string get_verifiable_credential_signing_key(string seed_hex, string network, u64 issuer_index, u64 issuer_subindex, u32 verifiable_credential_index);
+    string verifiable_credential_signing_key_hex(string seed_hex, string network, u64 issuer_index, u64 issuer_subindex, u32 verifiable_credential_index);
     [Throws=ConcordiumWalletCryptoError]
-    string get_verifiable_credential_public_key(string seed_hex, string network, u64 issuer_index, u64 issuer_subindex, u32 verifiable_credential_index);
+    string verifiable_credential_public_key_hex(string seed_hex, string network, u64 issuer_index, u64 issuer_subindex, u32 verifiable_credential_index);
     [Throws=ConcordiumWalletCryptoError]
-    string get_verifiable_credential_backup_encryption_key(string seed_hex, string network);
+    string verifiable_credential_backup_encryption_key_hex(string seed_hex, string network);
+    [Throws=ConcordiumWalletCryptoError]
+    string identity_issuance_request_json(IdentityIssuanceRequestParameters params);
+    [Throws=ConcordiumWalletCryptoError]
+    string identity_recovery_request_json(IdentityRecoveryRequestParameters params);
+    [Throws=ConcordiumWalletCryptoError]
+    AccountCredentialResult account_credential(AccountCredentialParameters params);
+    [Throws=ConcordiumWalletCryptoError]
+    string account_credential_deployment_hash_hex(AccountCredential credential, u64 expiry_unix);
+    [Throws=ConcordiumWalletCryptoError]
+    string account_credential_deployment_signed_payload_hex(SignedAccountCredential credential);
 };

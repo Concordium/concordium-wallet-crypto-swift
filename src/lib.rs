@@ -1,9 +1,23 @@
-use wallet_library::wallet::{
-    get_account_public_key_aux, get_account_signing_key_aux,
-    get_attribute_commitment_randomness_aux, get_credential_id_aux, get_id_cred_sec_aux,
-    get_prf_key_aux, get_signature_blinding_randomness_aux,
-    get_verifiable_credential_backup_encryption_key_aux, get_verifiable_credential_public_key_aux,
-    get_verifiable_credential_signing_key_aux,
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use uniffi::deps::anyhow::Context;
+use wallet_library::{
+    credential::{
+        compute_credential_deployment_hash_to_sign, create_unsigned_credential_v1_aux,
+        serialize_credential_deployment_payload, CredentialDeploymentDetails,
+        CredentialDeploymentPayload, UnsignedCredentialInput,
+    },
+    identity::{
+        create_identity_object_request_v1_aux, create_identity_recovery_request_aux,
+        IdentityObjectRequestInput, IdentityRecoveryRequestInput,
+    },
+    wallet::{
+        get_account_public_key_aux, get_account_signing_key_aux,
+        get_attribute_commitment_randomness_aux, get_credential_id_aux, get_id_cred_sec_aux,
+        get_prf_key_aux, get_signature_blinding_randomness_aux,
+        get_verifiable_credential_backup_encryption_key_aux,
+        get_verifiable_credential_public_key_aux, get_verifiable_credential_signing_key_aux,
+    },
 };
 
 // UniFFI book: https://mozilla.github.io/uniffi-rs/udl_file_spec.html
@@ -17,7 +31,7 @@ pub enum ConcordiumWalletCryptoError {
     CallFailed { call: String, msg: String },
 }
 
-pub fn get_account_signing_key(
+pub fn account_credential_signing_key_hex(
     seed_hex: String,
     net: String,
     identity_provider_index: u32,
@@ -26,12 +40,12 @@ pub fn get_account_signing_key(
 ) -> Result<String, ConcordiumWalletCryptoError> {
     get_account_signing_key_aux(seed_hex, net.as_str(), identity_provider_index, identity_index, credential_counter)
         .map_err(|e| ConcordiumWalletCryptoError::CallFailed {
-            call: format!("get_account_signing_key(seed_hex, net={net}, identity_provider_index={identity_provider_index}, identity_index={identity_index}, credential_counter={credential_counter})"),
-            msg: e.to_string(),
+            call: format!("account_credential_signing_key_hex(seed_hex, net={net}, identity_provider_index={identity_provider_index}, identity_index={identity_index}, credential_counter={credential_counter})"),
+            msg: format!("{:#}", e),
         })
 }
 
-pub fn get_account_public_key(
+pub fn account_credential_public_key_hex(
     seed_hex: String,
     net: String,
     identity_provider_index: u32,
@@ -40,12 +54,12 @@ pub fn get_account_public_key(
 ) -> Result<String, ConcordiumWalletCryptoError> {
     get_account_public_key_aux(seed_hex, net.as_str(), identity_provider_index, identity_index, credential_counter)
         .map_err(|e| ConcordiumWalletCryptoError::CallFailed {
-            call: format!("get_account_public_key(seed_hex, net={net}, identity_provider_index={identity_provider_index}, identity_index={identity_index}, credential_counter={credential_counter})"),
-            msg: e.to_string(),
+            call: format!("account_credential_public_key_hex(seed_hex, net={net}, identity_provider_index={identity_provider_index}, identity_index={identity_index}, credential_counter={credential_counter})"),
+            msg: format!("{:#}", e),
         })
 }
 
-pub fn get_id_cred_sec(
+pub fn id_cred_sec_hex(
     seed_hex: String,
     net: String,
     identity_provider_index: u32,
@@ -53,12 +67,12 @@ pub fn get_id_cred_sec(
 ) -> Result<String, ConcordiumWalletCryptoError> {
     get_id_cred_sec_aux(seed_hex, net.as_str(), identity_provider_index, identity_index)
         .map_err(|e| ConcordiumWalletCryptoError::CallFailed {
-            call: format!("get_id_cred_sec(seed_hex, net={net}, identity_provider_index={identity_provider_index}, identity_index={identity_index})"),
-            msg: e.to_string(),
+            call: format!("id_cred_sec_hex(seed_hex, net={net}, identity_provider_index={identity_provider_index}, identity_index={identity_index})"),
+            msg: format!("{:#}", e),
         })
 }
 
-pub fn get_prf_key(
+pub fn prf_key_hex(
     seed_hex: String,
     net: String,
     identity_provider_index: u32,
@@ -66,12 +80,12 @@ pub fn get_prf_key(
 ) -> Result<String, ConcordiumWalletCryptoError> {
     get_prf_key_aux(seed_hex, net.as_str(), identity_provider_index, identity_index)
         .map_err(|e| ConcordiumWalletCryptoError::CallFailed {
-            call: format!("get_prf_key(seed_hex, net={net}, identity_provider_index={identity_provider_index}, identity_index={identity_index})"),
-            msg: e.to_string(),
+            call: format!("prf_key_hex(seed_hex, net={net}, identity_provider_index={identity_provider_index}, identity_index={identity_index})"),
+            msg: format!("{:#}", e),
         })
 }
 
-pub fn get_credential_id(
+pub fn account_credential_id_hex(
     seed_hex: String,
     net: String,
     identity_provider_index: u32,
@@ -81,12 +95,12 @@ pub fn get_credential_id(
 ) -> Result<String, ConcordiumWalletCryptoError> {
     get_credential_id_aux(seed_hex, net.as_str(), identity_provider_index, identity_index, credential_counter, commitment_key.as_str())
         .map_err(|e| ConcordiumWalletCryptoError::CallFailed {
-            call: format!("get_credential_id(seed_hex, net={net}, identity_provider_index={identity_provider_index}, identity_index={identity_index}, credential_counter={credential_counter}, commitment_key={commitment_key})"),
-            msg: e.to_string(),
+            call: format!("account_credential_id_hex(seed_hex, net={net}, identity_provider_index={identity_provider_index}, identity_index={identity_index}, credential_counter={credential_counter}, commitment_key={commitment_key})"),
+            msg: format!("{:#}", e),
         })
 }
 
-pub fn get_signature_blinding_randomness(
+pub fn signature_blinding_randomness_hex(
     seed_hex: String,
     net: String,
     identity_provider_index: u32,
@@ -94,12 +108,12 @@ pub fn get_signature_blinding_randomness(
 ) -> Result<String, ConcordiumWalletCryptoError> {
     get_signature_blinding_randomness_aux(seed_hex, net.as_str(), identity_provider_index, identity_index)
         .map_err(|e| ConcordiumWalletCryptoError::CallFailed {
-            call: format!("get_signature_blinding_randomness(seed_hex, net={net}, identity_provider_index={identity_provider_index}, identity_index={identity_index})"),
-            msg: e.to_string(),
+            call: format!("signature_blinding_randomness_hex(seed_hex, net={net}, identity_provider_index={identity_provider_index}, identity_index={identity_index})"),
+            msg: format!("{:#}", e),
         })
 }
 
-pub fn get_attribute_commitment_randomness(
+pub fn attribute_commitment_randomness_hex(
     seed_hex: String,
     net: String,
     identity_provider_index: u32,
@@ -109,12 +123,12 @@ pub fn get_attribute_commitment_randomness(
 ) -> Result<String, ConcordiumWalletCryptoError> {
     get_attribute_commitment_randomness_aux(seed_hex, net.as_str(), identity_provider_index, identity_index, credential_counter, attribute)
         .map_err(|e| ConcordiumWalletCryptoError::CallFailed {
-            call: format!("get_attribute_commitment_randomness(seed_hex, net={net}, identity_provider_index={identity_provider_index}, identity_index={identity_index}, credential_counter={credential_counter}, attribute={attribute})"),
-            msg: e.to_string(),
+            call: format!("attribute_commitment_randomness_hex(seed_hex, net={net}, identity_provider_index={identity_provider_index}, identity_index={identity_index}, credential_counter={credential_counter}, attribute={attribute})"),
+            msg: format!("{:#}", e),
         })
 }
 
-pub fn get_verifiable_credential_signing_key(
+pub fn verifiable_credential_signing_key_hex(
     seed_hex: String,
     net: String,
     issuer_index: u64,
@@ -123,12 +137,12 @@ pub fn get_verifiable_credential_signing_key(
 ) -> Result<String, ConcordiumWalletCryptoError> {
     get_verifiable_credential_signing_key_aux(seed_hex, net.as_str(), issuer_index, issuer_subindex, verifiable_credential_index)
         .map_err(|e| ConcordiumWalletCryptoError::CallFailed {
-            call: format!("get_verifiable_credential_signing_key(seed_hex, net={net}, issuer_index={issuer_index}, issuer_subindex={issuer_subindex}, verifiable_credential_index={verifiable_credential_index})"),
-            msg: e.to_string(),
+            call: format!("verifiable_credential_signing_key_hex(seed_hex, net={net}, issuer_index={issuer_index}, issuer_subindex={issuer_subindex}, verifiable_credential_index={verifiable_credential_index})"),
+            msg: format!("{:#}", e),
         })
 }
 
-pub fn get_verifiable_credential_public_key(
+pub fn verifiable_credential_public_key_hex(
     seed_hex: String,
     net: String,
     issuer_index: u64,
@@ -137,19 +151,389 @@ pub fn get_verifiable_credential_public_key(
 ) -> Result<String, ConcordiumWalletCryptoError> {
     get_verifiable_credential_public_key_aux(seed_hex, net.as_str(), issuer_index, issuer_subindex, verifiable_credential_index)
         .map_err(|e| ConcordiumWalletCryptoError::CallFailed {
-            call: format!("get_verifiable_credential_public_key(seed_hex, net={net}, issuer_index={issuer_index}, issuer_subindex={issuer_subindex}, verifiable_credential_index={verifiable_credential_index})"),
-            msg: e.to_string(),
+            call: format!("verifiable_credential_public_key_hex(seed_hex, net={net}, issuer_index={issuer_index}, issuer_subindex={issuer_subindex}, verifiable_credential_index={verifiable_credential_index})"),
+            msg: format!("{:#}", e),
         })
 }
 
-pub fn get_verifiable_credential_backup_encryption_key(
+pub fn verifiable_credential_backup_encryption_key_hex(
     seed_hex: String,
     net: String,
 ) -> Result<String, ConcordiumWalletCryptoError> {
     get_verifiable_credential_backup_encryption_key_aux(seed_hex, net.as_str()).map_err(|e| {
         ConcordiumWalletCryptoError::CallFailed {
-            call: format!("get_verifiable_credential_backup_encryption_key(seed_hex, net={net}"),
-            msg: e.to_string(),
+            call: format!("verifiable_credential_backup_encryption_key_hex(seed_hex, net={net}"),
+            msg: format!("{:#}", e),
         }
     })
+}
+
+pub type ArIdentity = u32;
+pub type IpIdentity = u32;
+pub type KeyIndex = u8;
+
+// TODO: Use 'derivative' to implement Debug in a way that doesn't include fields containing secrets
+//       and log the serialized debug string into the error message.
+
+#[derive(Debug, Serialize)]
+pub struct IdentityIssuanceRequestParameters {
+    #[serde(rename = "ipInfo")]
+    pub ip_info: IdentityProviderInfo,
+    #[serde(rename = "globalContext")]
+    pub global_context: GlobalContext,
+    #[serde(rename = "arsInfos")]
+    pub ars_infos: HashMap<ArIdentity, AnonymityRevokerInfo>,
+    #[serde(rename = "arThreshold")]
+    pub ar_threshold: u8,
+    #[serde(rename = "prfKey")]
+    pub prf_key_hex: String,
+    #[serde(rename = "idCredSec")]
+    pub id_cred_sec_hex: String,
+    #[serde(rename = "blindingRandomness")]
+    pub blinding_randomness_hex: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct IdentityRecoveryRequestParameters {
+    #[serde(rename = "ipInfo")]
+    pub ip_info: IdentityProviderInfo,
+    #[serde(rename = "globalContext")]
+    pub global_context: GlobalContext,
+    #[serde(rename = "timestamp")]
+    pub timestamp: u64,
+    #[serde(rename = "idCredSec")]
+    pub id_cred_sec_hex: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct IdentityProviderInfo {
+    #[serde(rename = "ipIdentity")]
+    pub identity: IpIdentity,
+    #[serde(rename = "ipDescription")]
+    pub description: Description,
+    #[serde(rename = "ipVerifyKey")]
+    pub verify_key_hex: String,
+    #[serde(rename = "ipCdiVerifyKey")]
+    pub cdi_verify_key_hex: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct GlobalContext {
+    #[serde(rename = "onChainCommitmentKey")]
+    pub on_chain_commitment_key_hex: String,
+    #[serde(rename = "bulletproofGenerators")]
+    pub bulletproof_generators_hex: String,
+    #[serde(rename = "genesisString")]
+    pub genesis_string: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AnonymityRevokerInfo {
+    #[serde(rename = "arIdentity")]
+    pub identity: ArIdentity,
+    #[serde(rename = "arDescription")]
+    pub description: Description,
+    #[serde(rename = "arPublicKey")]
+    pub public_key_hex: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct Description {
+    #[serde(rename = "name")]
+    pub name: String,
+    #[serde(rename = "url")]
+    pub url: String,
+    #[serde(rename = "description")]
+    pub description: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AccountCredentialParameters {
+    #[serde(rename = "ipInfo")]
+    pub ip_info: IdentityProviderInfo,
+    #[serde(rename = "globalContext")]
+    pub global_context: GlobalContext,
+    #[serde(rename = "arsInfos")]
+    pub ars_infos: HashMap<ArIdentity, AnonymityRevokerInfo>,
+    #[serde(rename = "idObject")]
+    pub id_object: IdentityObject,
+    #[serde(rename = "revealedAttributes")]
+    pub revealed_attributes: Vec<u8>,
+    #[serde(rename = "credNumber")]
+    pub cred_number: u8,
+    #[serde(rename = "idCredSec")]
+    pub id_cred_sec_hex: String,
+    #[serde(rename = "prfKey")]
+    pub prf_key_hex: String,
+    #[serde(rename = "blindingRandomness")]
+    pub blinding_randomness_hex: String,
+    #[serde(rename = "attributeRandomness")]
+    pub attribute_randomness_hex: HashMap<String, String>,
+    #[serde(rename = "credentialPublicKeys")]
+    pub credential_public_keys_hex: CredentialPublicKeysHex,
+}
+
+#[derive(Debug, Serialize)]
+pub struct IdentityObject {
+    #[serde(rename = "preIdentityObject")]
+    pub pre_identity_object: PreIdentityObject,
+    #[serde(rename = "attributeList")]
+    pub attribute_list: AttributeList,
+    #[serde(rename = "signature")]
+    pub signature_hex: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PreIdentityObject {
+    #[serde(rename = "idCredPub")]
+    pub id_cred_pub_hex: String,
+    #[serde(rename = "ipArData")]
+    pub ip_ar_data: HashMap<ArIdentity, ArData>,
+    #[serde(rename = "choiceArData")]
+    pub choice_ar_data: ChoiceArParameters,
+    #[serde(rename = "idCredSecCommitment")]
+    pub id_cred_sec_commitment_hex: String,
+    #[serde(rename = "prfKeyCommitmentWithIP")]
+    pub prf_key_commitment_with_ip_hex: String,
+    #[serde(rename = "prfKeySharingCoeffCommitments")]
+    pub prf_key_sharing_coeff_commitments_hex: Vec<String>,
+    #[serde(rename = "proofsOfKnowledge")]
+    pub proofs_of_knowledge_hex: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
+pub struct ChoiceArParameters {
+    #[serde(rename = "arIdentities")]
+    pub ar_identities: Vec<ArIdentity>,
+    #[serde(rename = "threshold")]
+    pub threshold: u32,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ArData {
+    #[serde(rename = "encPrfKeyShare")]
+    pub enc_prf_key_share_hex: String,
+    #[serde(rename = "proofComEncEq")]
+    pub proof_com_enc_eq_hex: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AttributeList {
+    #[serde(rename = "validTo")]
+    pub valid_to_year_month: String,
+    #[serde(rename = "createdAt")]
+    pub created_at_year_month: String,
+    #[serde(rename = "maxAccounts")]
+    pub max_accounts: u8,
+    #[serde(rename = "chosenAttributes")]
+    pub chosen_attributes: HashMap<String, String>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct CredentialPublicKeys<Key> {
+    #[serde(rename = "keys")]
+    pub keys: HashMap<KeyIndex, Key>,
+    #[serde(rename = "threshold")]
+    pub threshold: u8,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct VerifyKeyWithScheme {
+    #[serde(rename = "schemeId")]
+    pub scheme_id: String,
+    #[serde(rename = "verifyKey")]
+    pub key_hex: String,
+}
+
+pub type CredentialPublicKeysHex = CredentialPublicKeys<String>;
+pub type CredentialPublicKeysWithScheme = CredentialPublicKeys<VerifyKeyWithScheme>;
+
+/* OUTPUTS */
+
+#[derive(Debug, Deserialize)]
+pub struct AccountCredentialResult {
+    #[serde(rename = "randomness")]
+    randomness: Randomness,
+    #[serde(rename = "unsignedCdi")]
+    credential: AccountCredential,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct Randomness {
+    #[serde(rename = "attributesRand")]
+    pub attributes_rand_hex: HashMap<String, String>,
+    #[serde(rename = "credCounterRand")]
+    pub cred_counter_rand_hex: String,
+    #[serde(rename = "idCredSecRand")]
+    pub id_cred_sec_rand_hex: String,
+    #[serde(rename = "maxAccountsRand")]
+    pub max_accounts_rand_hex: String,
+    #[serde(rename = "prfRand")]
+    pub prf_rand_hex: String,
+}
+
+// Response is (versioned) PreIdentityObject encoded as JSON.
+pub fn identity_issuance_request_json(
+    params: IdentityIssuanceRequestParameters,
+) -> Result<String, ConcordiumWalletCryptoError> {
+    serde_json::to_string(&params)
+        .context("cannot encode request object as JSON")
+        .and_then(|json| {
+            serde_json::from_str::<IdentityObjectRequestInput>(&json)
+                .context("cannot decode request object into internal type")
+        })
+        .and_then(|input| {
+            create_identity_object_request_v1_aux(input).context("cannot create identity")
+        })
+        .map_err(|e| ConcordiumWalletCryptoError::CallFailed {
+            call: "identity_issuance_request_json(...)".to_string(),
+            msg: format!("{:#}", e),
+        })
+}
+
+pub fn identity_recovery_request_json(
+    params: IdentityRecoveryRequestParameters,
+) -> Result<String, ConcordiumWalletCryptoError> {
+    serde_json::to_string(&params)
+        .context("cannot encode request object as JSON")
+        .and_then(|json| {
+            serde_json::from_str::<IdentityRecoveryRequestInput>(&json)
+                .context("cannot decode request object into internal type")
+        })
+        .and_then(|input| {
+            create_identity_recovery_request_aux(input).context("cannot create identity")
+        })
+        .map_err(|e| ConcordiumWalletCryptoError::CallFailed {
+            call: "identity_recovery_request_json(...)".to_string(),
+            msg: format!("{:#}", e),
+        })
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct AccountCredential {
+    #[serde(rename = "arData")]
+    pub ar_data: HashMap<ArIdentity, ChainArData>,
+    #[serde(rename = "credId")]
+    pub cred_id_hex: String,
+    #[serde(rename = "credentialPublicKeys")]
+    pub credential_public_keys: CredentialPublicKeysWithScheme,
+    #[serde(rename = "ipIdentity")]
+    pub ip_identity: IpIdentity,
+    #[serde(rename = "policy")]
+    pub policy: Policy,
+    #[serde(rename = "proofs")]
+    pub proofs: Proofs,
+    #[serde(rename = "revocationThreshold")]
+    pub revocation_threshold: u8,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ChainArData {
+    #[serde(rename = "encIdCredPubShare")]
+    pub end_id_cred_pub_share_hex: String,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+pub struct Policy {
+    #[serde(rename = "createdAt")]
+    pub created_at_year_month: String,
+    #[serde(rename = "revealedAttributes")]
+    pub revealed_attributes: HashMap<String, String>,
+    #[serde(rename = "validTo")]
+    pub valid_to_year_month: String,
+}
+
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
+pub struct Proofs {
+    #[serde(rename = "challenge")]
+    pub challenge_hex: String,
+    #[serde(rename = "commitments")]
+    pub commitments_hex: String,
+    #[serde(rename = "credCounterLessThanMaxAccounts")]
+    pub cred_counter_less_than_max_accounts_hex: String,
+    #[serde(rename = "proofIdCredPub")]
+    pub proof_id_cred_pub_hex: HashMap<String, String>,
+    #[serde(rename = "proofIpSig")]
+    pub proof_ip_sig_hex: String,
+    #[serde(rename = "proofRegId")]
+    pub proof_reg_id_hex: String,
+    #[serde(rename = "sig")]
+    pub signature_hex: String,
+}
+
+pub fn account_credential(
+    params: AccountCredentialParameters,
+) -> Result<AccountCredentialResult, ConcordiumWalletCryptoError> {
+    serde_json::to_string(&params)
+        .context("cannot encode request object as JSON")
+        .and_then(|json| {
+            serde_json::from_str::<UnsignedCredentialInput>(&json)
+                .context("cannot decode request object into internal type")
+        })
+        .and_then(|input| {
+            create_unsigned_credential_v1_aux(input).context("cannot create identity")
+        })
+        .and_then(|res| {
+            serde_json::from_str::<AccountCredentialResult>(&res)
+                .context("cannot decode response object into result type")
+        })
+        .map_err(|e| ConcordiumWalletCryptoError::CallFailed {
+            call: "account_credential(...)".to_string(),
+            msg: format!("{:#}", e),
+        })
+}
+
+/// Duplicate of [`CredentialDeploymentDetails`] because that type only supports construction from JSON.
+/// It's only used internally and not exported.
+#[derive(Debug, Serialize)]
+pub struct CredentialDeploymentPayloadHashInput {
+    #[serde(rename = "expiry")]
+    pub expiry_unix: u64,
+    #[serde(rename = "unsignedCdi")]
+    pub credential: AccountCredential,
+}
+
+pub fn account_credential_deployment_hash_hex(
+    credential: AccountCredential,
+    expiry_unix: u64,
+) -> Result<String, ConcordiumWalletCryptoError> {
+    let input = CredentialDeploymentPayloadHashInput {
+        expiry_unix,
+        credential,
+    };
+    serde_json::to_string(&input)
+        .context("cannot encode request object as JSON")
+        .and_then(|json| {
+            serde_json::from_str::<CredentialDeploymentDetails>(&json)
+                .context("cannot decode request object into internal type")
+        })
+        .map(compute_credential_deployment_hash_to_sign)
+        .map_err(|e| ConcordiumWalletCryptoError::CallFailed {
+            call: "account_credential_deployment_hash_hex(...)".to_string(),
+            msg: format!("{:#}", e),
+        })
+}
+
+#[derive(Debug, Serialize)]
+pub struct SignedAccountCredential {
+    #[serde(rename = "unsignedCdi")]
+    pub credential: AccountCredential,
+    #[serde(rename = "signatures")]
+    pub signatures_hex: HashMap<KeyIndex, String>,
+}
+
+pub fn account_credential_deployment_signed_payload_hex(
+    credential: SignedAccountCredential,
+) -> Result<String, ConcordiumWalletCryptoError> {
+    serde_json::to_string(&credential)
+        .context("cannot encode request object as JSON")
+        .and_then(|json| {
+            serde_json::from_str::<CredentialDeploymentPayload>(&json)
+                .context("cannot decode request object into internal type")
+        })
+        .map(serialize_credential_deployment_payload)
+        .map_err(|e| ConcordiumWalletCryptoError::CallFailed {
+            call: "account_credential_deployment_signed_payload_hex(...)".to_string(),
+            msg: format!("{:#}", e),
+        })
 }

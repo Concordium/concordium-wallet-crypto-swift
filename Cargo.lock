@@ -546,6 +546,8 @@ dependencies = [
 name = "concordium-wallet-crypto-uniffi"
 version = "1.0.0"
 dependencies = [
+ "serde",
+ "serde_json",
  "thiserror",
  "uniffi",
  "wallet_library",
