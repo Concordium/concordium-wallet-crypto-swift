@@ -30,7 +30,7 @@ jobs:
         with:
           submodules: recursive
       - name: Build binary framework
-        run: ./build.sh # produces './generated/RustFramework.xcframework'
+        run: make framework # produces './generated/RustFramework.xcframework'
       - name: Archive framework
         working-directory: ./generated
         run: |

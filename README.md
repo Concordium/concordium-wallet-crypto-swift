@@ -53,8 +53,7 @@ This must be done after the initial clone as well as every time you switch branc
 Ensure that the correct Rust toolchain has been installed with all the expected targets:
 
 ```shell
-rustup default 1.72
-rustup target add x86_64-apple-darwin aarch64-apple-darwin aarch64-apple-ios x86_64-apple-ios
+make setup
 ```
 
 *Build*
@@ -62,7 +61,7 @@ rustup target add x86_64-apple-darwin aarch64-apple-darwin aarch64-apple-ios x86
 Run
 
 ```shell
-./build.sh
+make framework
 ```
 
 This script will compile the sources into a framework `./generated/RustFramework.xcframework` that supports
@@ -70,7 +69,8 @@ This script will compile the sources into a framework `./generated/RustFramework
 - iOS: ARM (`aarch64-apple-ios`)
 - iOS simulator: x86_64 (`x86_64-apple-ios`) and ARM (`aarch64-apple-ios-sim`) as a universal binary.
 
-The framework is ready be integrated directly into an XCode project or a SwiftPM project as a binary target in `Package.swift`.
+The makefile is structured such that the targets can be easily combined to build other combinations of architectures.
+The resulting framework is ready be integrated directly into an XCode project or a SwiftPM project as a binary target in `Package.swift`.
 In our [`Package.swift`](./Package.swift), the framework is fetched from a GitHub release as explained above.
 
 ## Development
@@ -98,8 +98,7 @@ The steps for building and releasing a new version `<version>` of the library ar
    This is necessary because GitHub requires releases to be tagged and the following workflow uploads a release.
 3. Run the [workflow](./.github/workflows/publish-framework.yml) for publishing a new version of the binary framework.
    Use the tag you just created as "branch" to run from and input `<version>` (i.e. without the counter for "Version").
-4. Run [`./build.sh`](./build.sh) locally to regenerate the Swift bridge sources.
-   [TODO: Running the "bindgen" step is sufficient.]
+4. Run `make swift-bindings` locally to regenerate the Swift bridge sources.
 5. Update `Package.swift` with the updated `url` and `checksum` of the binary framework.
    The workflow prints the checksum as the last step of its execution.
 6. Commit the changes and push an annotated tag named by the version for the new commit:
