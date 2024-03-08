@@ -31,14 +31,53 @@ pub enum ConcordiumWalletCryptoError {
     CallFailed { call: String, msg: String },
 }
 
+pub fn identity_cred_sec_hex(
+    seed_hex: String,
+    net: String,
+    identity_provider_index: u32,
+    identity_index: u32,
+) -> Result<String, ConcordiumWalletCryptoError> {
+    get_id_cred_sec_aux(seed_hex, net.as_str(), identity_provider_index, identity_index)
+        .map_err(|e| ConcordiumWalletCryptoError::CallFailed {
+            call: format!("identity_cred_sec_hex(seed_hex, net={net}, identity_provider_index={identity_provider_index}, identity_index={identity_index})"),
+            msg: format!("{:#}", e),
+        })
+}
+
+pub fn identity_prf_key_hex(
+    seed_hex: String,
+    net: String,
+    identity_provider_index: u32,
+    identity_index: u32,
+) -> Result<String, ConcordiumWalletCryptoError> {
+    get_prf_key_aux(seed_hex, net.as_str(), identity_provider_index, identity_index)
+        .map_err(|e| ConcordiumWalletCryptoError::CallFailed {
+            call: format!("identity_prf_key_hex(seed_hex, net={net}, identity_provider_index={identity_provider_index}, identity_index={identity_index})"),
+            msg: format!("{:#}", e),
+        })
+}
+
+pub fn identity_attributes_signature_blinding_randomness_hex(
+    seed_hex: String,
+    net: String,
+    identity_provider_index: u32,
+    identity_index: u32,
+) -> Result<String, ConcordiumWalletCryptoError> {
+    get_signature_blinding_randomness_aux(seed_hex, net.as_str(), identity_provider_index, identity_index)
+        .map_err(|e| ConcordiumWalletCryptoError::CallFailed {
+            call: format!("identity_attributes_signature_blinding_randomness_hex(seed_hex, net={net}, identity_provider_index={identity_provider_index}, identity_index={identity_index})"),
+            msg: format!("{:#}", e),
+        })
+}
+
 pub fn account_credential_signing_key_hex(
     seed_hex: String,
     net: String,
     identity_provider_index: u32,
     identity_index: u32,
-    credential_counter: u32,
+    credential_counter: u8,
 ) -> Result<String, ConcordiumWalletCryptoError> {
-    get_account_signing_key_aux(seed_hex, net.as_str(), identity_provider_index, identity_index, credential_counter)
+    get_account_signing_key_aux(seed_hex, net.as_str(), identity_provider_index, identity_index, credential_counter.into())
         .map_err(|e| ConcordiumWalletCryptoError::CallFailed {
             call: format!("account_credential_signing_key_hex(seed_hex, net={net}, identity_provider_index={identity_provider_index}, identity_index={identity_index}, credential_counter={credential_counter})"),
             msg: format!("{:#}", e),
@@ -50,37 +89,11 @@ pub fn account_credential_public_key_hex(
     net: String,
     identity_provider_index: u32,
     identity_index: u32,
-    credential_counter: u32,
+    credential_counter: u8,
 ) -> Result<String, ConcordiumWalletCryptoError> {
-    get_account_public_key_aux(seed_hex, net.as_str(), identity_provider_index, identity_index, credential_counter)
+    get_account_public_key_aux(seed_hex, net.as_str(), identity_provider_index, identity_index, credential_counter.into())
         .map_err(|e| ConcordiumWalletCryptoError::CallFailed {
             call: format!("account_credential_public_key_hex(seed_hex, net={net}, identity_provider_index={identity_provider_index}, identity_index={identity_index}, credential_counter={credential_counter})"),
-            msg: format!("{:#}", e),
-        })
-}
-
-pub fn id_cred_sec_hex(
-    seed_hex: String,
-    net: String,
-    identity_provider_index: u32,
-    identity_index: u32,
-) -> Result<String, ConcordiumWalletCryptoError> {
-    get_id_cred_sec_aux(seed_hex, net.as_str(), identity_provider_index, identity_index)
-        .map_err(|e| ConcordiumWalletCryptoError::CallFailed {
-            call: format!("id_cred_sec_hex(seed_hex, net={net}, identity_provider_index={identity_provider_index}, identity_index={identity_index})"),
-            msg: format!("{:#}", e),
-        })
-}
-
-pub fn prf_key_hex(
-    seed_hex: String,
-    net: String,
-    identity_provider_index: u32,
-    identity_index: u32,
-) -> Result<String, ConcordiumWalletCryptoError> {
-    get_prf_key_aux(seed_hex, net.as_str(), identity_provider_index, identity_index)
-        .map_err(|e| ConcordiumWalletCryptoError::CallFailed {
-            call: format!("prf_key_hex(seed_hex, net={net}, identity_provider_index={identity_provider_index}, identity_index={identity_index})"),
             msg: format!("{:#}", e),
         })
 }
@@ -100,30 +113,17 @@ pub fn account_credential_id_hex(
         })
 }
 
-pub fn signature_blinding_randomness_hex(
+pub fn account_credential_attribute_commitment_randomness_hex(
     seed_hex: String,
     net: String,
     identity_provider_index: u32,
     identity_index: u32,
-) -> Result<String, ConcordiumWalletCryptoError> {
-    get_signature_blinding_randomness_aux(seed_hex, net.as_str(), identity_provider_index, identity_index)
-        .map_err(|e| ConcordiumWalletCryptoError::CallFailed {
-            call: format!("signature_blinding_randomness_hex(seed_hex, net={net}, identity_provider_index={identity_provider_index}, identity_index={identity_index})"),
-            msg: format!("{:#}", e),
-        })
-}
-
-pub fn attribute_commitment_randomness_hex(
-    seed_hex: String,
-    net: String,
-    identity_provider_index: u32,
-    identity_index: u32,
-    credential_counter: u32,
+    credential_counter: u8,
     attribute: u8,
 ) -> Result<String, ConcordiumWalletCryptoError> {
-    get_attribute_commitment_randomness_aux(seed_hex, net.as_str(), identity_provider_index, identity_index, credential_counter, attribute)
+    get_attribute_commitment_randomness_aux(seed_hex, net.as_str(), identity_provider_index, identity_index, credential_counter.into(), attribute)
         .map_err(|e| ConcordiumWalletCryptoError::CallFailed {
-            call: format!("attribute_commitment_randomness_hex(seed_hex, net={net}, identity_provider_index={identity_provider_index}, identity_index={identity_index}, credential_counter={credential_counter}, attribute={attribute})"),
+            call: format!("account_credential_attribute_commitment_randomness_hex(seed_hex, net={net}, identity_provider_index={identity_provider_index}, identity_index={identity_index}, credential_counter={credential_counter}, attribute={attribute})"),
             msg: format!("{:#}", e),
         })
 }

@@ -16,6 +16,36 @@ const COMMITMENT_KEY: &str = "b14cbfe44a02c6b1f78711176d5f437295367aa4f2a8c2551e
  */
 
 #[test]
+fn mainnet_identity_cred_sec() {
+    assert_eq!(
+        identity_cred_sec_hex(SEED.to_string(), MAINNET.to_string(), 2, 115).unwrap(),
+        "33b9d19b2496f59ed853eb93b9d374482d2e03dd0a12e7807929d6ee54781bb1"
+    );
+}
+
+#[test]
+fn mainnet_identity_prf_key() {
+    assert_eq!(
+        identity_prf_key_hex(SEED.to_string(), MAINNET.to_string(), 3, 35).unwrap(),
+        "4409e2e4acffeae641456b5f7406ecf3e1e8bd3472e2df67a9f1e8574f211bc5"
+    );
+}
+
+#[test]
+fn mainnet_attributes_signature_blinding_randomness() {
+    assert_eq!(
+        identity_attributes_signature_blinding_randomness_hex(
+            SEED.to_string(),
+            MAINNET.to_string(),
+            4,
+            5713
+        )
+        .unwrap(),
+        "1e3633af2b1dbe5600becfea0324bae1f4fa29f90bdf419f6fba1ff520cb3167"
+    );
+}
+
+#[test]
 fn mainnet_account_credential_signing_key() {
     assert_eq!(
         account_credential_signing_key_hex(SEED.to_string(), MAINNET.to_string(), 0, 55, 7)
@@ -34,22 +64,6 @@ fn mainnet_account_credential_public_key() {
 }
 
 #[test]
-fn mainnet_id_cred_sec() {
-    assert_eq!(
-        id_cred_sec_hex(SEED.to_string(), MAINNET.to_string(), 2, 115).unwrap(),
-        "33b9d19b2496f59ed853eb93b9d374482d2e03dd0a12e7807929d6ee54781bb1"
-    );
-}
-
-#[test]
-fn mainnet_prf_key() {
-    assert_eq!(
-        prf_key_hex(SEED.to_string(), MAINNET.to_string(), 3, 35).unwrap(),
-        "4409e2e4acffeae641456b5f7406ecf3e1e8bd3472e2df67a9f1e8574f211bc5"
-    );
-}
-
-#[test]
 fn mainnet_account_credential_id() {
     assert_eq!(
             account_credential_id_hex(SEED.to_string(), MAINNET.to_string(), 10, 50, 5, COMMITMENT_KEY.to_string()).unwrap(),
@@ -58,19 +72,48 @@ fn mainnet_account_credential_id() {
 }
 
 #[test]
-fn mainnet_signature_blinding_randomness() {
+fn mainnet_account_credential_attribute_commitment_randomness() {
     assert_eq!(
-        signature_blinding_randomness_hex(SEED.to_string(), MAINNET.to_string(), 4, 5713).unwrap(),
-        "1e3633af2b1dbe5600becfea0324bae1f4fa29f90bdf419f6fba1ff520cb3167"
+        account_credential_attribute_commitment_randomness_hex(
+            SEED.to_string(),
+            MAINNET.to_string(),
+            5,
+            0,
+            4,
+            0
+        )
+        .unwrap(),
+        "6ef6ba6490fa37cd517d2b89a12b77edf756f89df5e6f5597440630cd4580b8f"
     );
 }
 
 #[test]
-fn mainnet_attribute_commitment_randomness() {
+fn testnet_identity_cred_sec() {
     assert_eq!(
-        attribute_commitment_randomness_hex(SEED.to_string(), MAINNET.to_string(), 5, 0, 4, 0)
-            .unwrap(),
-        "6ef6ba6490fa37cd517d2b89a12b77edf756f89df5e6f5597440630cd4580b8f"
+        identity_cred_sec_hex(SEED.to_string(), TESTNET.to_string(), 2, 115).unwrap(),
+        "33c9c538e362c5ac836afc08210f4b5d881ba65a0a45b7e353586dad0a0f56df"
+    );
+}
+
+#[test]
+fn testnet_identity_prf_key() {
+    assert_eq!(
+        identity_prf_key_hex(SEED.to_string(), TESTNET.to_string(), 3, 35).unwrap(),
+        "41d794d0b06a7a31fb79bb76c44e6b87c63e78f9afe8a772fc64d20f3d9e8e82"
+    );
+}
+
+#[test]
+fn testnet_attributes_signature_blinding_randomness() {
+    assert_eq!(
+        identity_attributes_signature_blinding_randomness_hex(
+            SEED.to_string(),
+            TESTNET.to_string(),
+            4,
+            5713
+        )
+        .unwrap(),
+        "079eb7fe4a2e89007f411ede031543bd7f687d50341a5596e015c9f2f4c1f39b"
     );
 }
 
@@ -93,22 +136,6 @@ fn testnet_account_credential_public_key() {
 }
 
 #[test]
-fn testnet_id_cred_sec() {
-    assert_eq!(
-        id_cred_sec_hex(SEED.to_string(), TESTNET.to_string(), 2, 115).unwrap(),
-        "33c9c538e362c5ac836afc08210f4b5d881ba65a0a45b7e353586dad0a0f56df"
-    );
-}
-
-#[test]
-fn testnet_prf_key() {
-    assert_eq!(
-        prf_key_hex(SEED.to_string(), TESTNET.to_string(), 3, 35).unwrap(),
-        "41d794d0b06a7a31fb79bb76c44e6b87c63e78f9afe8a772fc64d20f3d9e8e82"
-    );
-}
-
-#[test]
 fn testnet_account_credential_id() {
     assert_eq!(
             account_credential_id_hex(SEED.to_string(), TESTNET.to_string(), 10, 50, 5, COMMITMENT_KEY.to_string()).unwrap(),
@@ -117,21 +144,22 @@ fn testnet_account_credential_id() {
 }
 
 #[test]
-fn testnet_signature_blinding_randomness() {
+fn testnet_account_credential_attribute_commitment_randomness() {
     assert_eq!(
-        signature_blinding_randomness_hex(SEED.to_string(), TESTNET.to_string(), 4, 5713).unwrap(),
-        "079eb7fe4a2e89007f411ede031543bd7f687d50341a5596e015c9f2f4c1f39b"
-    );
-}
-
-#[test]
-fn testnet_attribute_commitment_randomness() {
-    assert_eq!(
-        attribute_commitment_randomness_hex(SEED.to_string(), TESTNET.to_string(), 5, 0, 4, 0)
-            .unwrap(),
+        account_credential_attribute_commitment_randomness_hex(
+            SEED.to_string(),
+            TESTNET.to_string(),
+            5,
+            0,
+            4,
+            0
+        )
+        .unwrap(),
         "409fa90314ec8fb4a2ae812fd77fe58bfac81765cad3990478ff7a73ba6d88ae"
     );
 }
+
+/* Verifiable credentials tests. */
 
 #[test]
 fn mainnet_verifiable_credential_signing_key() {
