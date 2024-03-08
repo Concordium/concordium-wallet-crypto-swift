@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Bump UniFFI from v0.25.x to v0.26.x.
+
 ## [1.0.0] - 2024-02-06
 
 Migrate crypto library from `ConcordiumSwiftSdk`.
