@@ -64,14 +64,17 @@ Run
 make framework
 ```
 
-This script will compile the sources into a framework `./generated/RustFramework.xcframework` that supports
+This script will compile the sources into a framework `./generated/ConcordiumWalletCrypto.xcframework`
+that supports the following platforms:
+
 - macOS: x86_64 (`x86_64-apple-darwin`) and ARM (`aarch64-apple-darwin`) as a universal binary
 - iOS: ARM (`aarch64-apple-ios`)
 - iOS simulator: x86_64 (`x86_64-apple-ios`) and ARM (`aarch64-apple-ios-sim`) as a universal binary.
 
 The makefile is structured such that the targets can be easily combined to build other combinations of architectures.
-The resulting framework is ready be integrated directly into an XCode project or a SwiftPM project as a binary target in `Package.swift`.
-In our [`Package.swift`](./Package.swift), the framework is fetched from a GitHub release as explained above.
+The resulting framework is ready be integrated directly into an XCode project or a SwiftPM project as a binary target
+in the project's `Package.swift` file.
+In our [`Package.swift`](./Package.swift), the framework is referring to a GitHub release as explained above.
 
 ## Development
 
@@ -101,7 +104,9 @@ The steps for building and releasing a new version `<version>` of the library ar
 4. Run `make swift-bindings` locally to regenerate the Swift bridge sources.
 5. Update `Package.swift` with the updated `url` and `checksum` of the binary framework.
    The workflow prints the checksum as the last step of its execution.
-6. Commit the changes and push an annotated tag named by the version for the new commit:
+6. Commit the changes to `Sources/ConcordiumWalletCrypto/crypto.swift` and `Package.swift`
+   (no other files should have changes)
+   and push an annotated tag named by the version for the new commit:
    ```shell
    git tag -a <version>
    ```
