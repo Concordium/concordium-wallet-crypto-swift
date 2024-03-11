@@ -30,10 +30,20 @@ let package = Package(
 )
 
 func overridableFrameworkTarget(name: String, url: String, checksum: String) -> Target {
-    if let p = getEnv("CONCORDIUM_WALLET_CRYPTO_FRAMEWORK_PATH"), !p.isEmpty {
+    if let p = providedFrameworkPath(), !p.isEmpty {
         return .binaryTarget(name: name, path: p)
     }
     return .binaryTarget(name: name, url: url, checksum: checksum)
+}
+
+func providedFrameworkPath() -> String? {
+    if let p = getEnv("CONCORDIUM_WALLET_CRYPTO_FRAMEWORK_PATH") {
+        return p
+    }
+    if let _ = getEnv("CONCORDIUM_WALLET_CRYPTO_PATH") {
+        return "./generated/ConcordiumWalletCrypto.xcframework"
+    }
+    return nil
 }
 
 func getEnv(_ key: String) -> String? {
