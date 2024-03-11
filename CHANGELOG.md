@@ -34,6 +34,8 @@ We do decode the payload in a unit test to verify the format.
 
 ### Changed
 
+- Rename crate from "crypto" to "concordium-wallet-crypto-uniffi".
+- Rename generated framework from "RustFramework" to "ConcordiumWalletCrypto".
 - Bump UniFFI from v0.25.x to v0.26.x.
 - Rename functions to match the conventions used on the SDK side.
 

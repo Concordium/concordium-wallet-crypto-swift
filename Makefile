@@ -25,13 +25,13 @@ setup:
 
 # BUILD FRAMEWORK #
 
-.PHONY: framework # produces './generated/RustFramework.xcframework'
+.PHONY: framework # produces './generated/ConcordiumWalletCrypto.xcframework'
 framework: clean-generated swift-bindings lib-darwin lib-ios lib-ios-sim
 	xcodebuild -create-xcframework \
 	  -library ./generated/target/universal-darwin/libconcordium_wallet_crypto_uniffi.a -headers ./generated/bindings \
 	  -library ./target/aarch64-apple-ios/release/libconcordium_wallet_crypto_uniffi.a -headers ./generated/bindings \
 	  -library ./generated/target/universal-ios/libconcordium_wallet_crypto_uniffi.a -headers ./generated/bindings \
-	  -output ./generated/RustFramework.xcframework
+	  -output ./generated/ConcordiumWalletCrypto.xcframework
 
 # GENERATE BINDINGS #
 

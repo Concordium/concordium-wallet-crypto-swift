@@ -30,17 +30,17 @@ jobs:
         with:
           submodules: recursive
       - name: Build binary framework
-        run: make framework # produces './generated/RustFramework.xcframework'
+        run: make framework # produces './generated/ConcordiumWalletCrypto.xcframework'
       - name: Archive framework
         working-directory: ./generated
         run: |
-          zip -r ./RustFramework.xcframework.zip ./RustFramework.xcframework
-          swift package compute-checksum ./RustFramework.xcframework.zip > ./CHECKSUM
+          zip -r ./ConcordiumWalletCrypto.xcframework.zip ./ConcordiumWalletCrypto.xcframework
+          swift package compute-checksum ./ConcordiumWalletCrypto.xcframework.zip > ./CHECKSUM
       - name: Upload package as GitHub release
         uses: softprops/action-gh-release@v1
         with:
             files: |
-              ./generated/RustFramework.xcframework.zip
+              ./generated/ConcordiumWalletCrypto.xcframework.zip
               ./generated/CHECKSUM
             name: '${{github.event.inputs.version}}'
             generate_release_notes: true
