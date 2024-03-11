@@ -15,16 +15,27 @@ let package = Package(
         ),
     ],
     targets: [
-        .binaryTarget(
-            name: "RustFramework",
+        overridableFrameworkTarget(
+            name: "ConcordiumWalletCryptoFramework",
             url: "https://github.com/Concordium/concordium-wallet-crypto-swift/releases/download/build%2F1.0.0-1/RustFramework.xcframework.zip",
             checksum: "edc2628d1721697b555891316dac3be1490072c1649d040fff8f3c160b2d0e09"
         ),
         .target(
             name: "ConcordiumWalletCrypto",
             dependencies: [
-                .target(name: "RustFramework"),
+                .target(name: "ConcordiumWalletCryptoFramework"),
             ]
         ),
     ]
 )
+
+func overridableFrameworkTarget(name: String, url: String, checksum: String) -> Target {
+    if let p = getEnv("CONCORDIUM_WALLET_CRYPTO_FRAMEWORK_PATH"), !p.isEmpty {
+        return .binaryTarget(name: name, path: p)
+    }
+    return .binaryTarget(name: name, url: url, checksum: checksum)
+}
+
+func getEnv(_ key: String) -> String? {
+    ProcessInfo.processInfo.environment[key]
+}
