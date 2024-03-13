@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Build-time environment variable `CONCORDIUM_WALLET_CRYPTO_FRAMEWORK_PATH`
+  for resolving the framework to a path instead of using the released one.
+
 ### Changed
 
 - Rename crate from "crypto" to "concordium-wallet-crypto-uniffi"
