@@ -9,8 +9,15 @@ jobs:
   lint-and-test:
     strategy:
       matrix:
-        runner: [macos-13, ubuntu-latest, windows-latest]
-        rust-version: ["1.72"]
+        runner:
+          - macos-11
+          - macos-12
+          - macos-13
+          - macos-14
+          - ubuntu-latest
+          - windows-latest
+        rust-version:
+          - "1.72"
 
     runs-on: "${{matrix.runner}}"
 
