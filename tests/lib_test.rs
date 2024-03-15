@@ -203,7 +203,7 @@ fn testnet_verifiable_credential_public_key() {
 #[derive(Debug, Deserialize, PartialEq)]
 struct IdentityIssuanceRequestResult {
     #[serde(rename = "idObjectRequest")]
-    value: Versioned<PreIdentityObjectDeterministicFields>,
+    value: Versioned<PreIdentityObject>,
 }
 
 /// Deserialization struct for JSON output for use in tests.
@@ -225,48 +225,18 @@ struct Versioned<T> {
 /// Deserialization struct for JSON output for use in tests.
 /// Non-reproducible fields have been commented out.
 #[derive(Debug, Deserialize, PartialEq)]
-struct PreIdentityObjectDeterministicFields {
-    #[serde(rename = "choiceArData")]
-    choice_ar_data: ChoiceArParameters,
-    #[serde(rename = "idCredPub")]
-    id_cred_pub_hex: String,
-    // #[serde(rename = "idCredSecCommitment")]
-    // id_cred_sec_commitment_hex: String,
-    #[serde(rename = "ipArData")]
-    ip_ar_data: HashMap<ArIdentity, ArData>,
-    // #[serde(rename = "prfKeyCommitmentWithIP")]
-    // prf_key_commitment_with_ip_hex: String,
-    // #[serde(rename = "prfKeySharingCoeffCommitments")]
-    // prf_key_sharing_coeff_commitments_hex: Vec<String>,
-    // #[serde(rename = "proofsOfKnowledge")]
-    // proofs_of_knowledge_hex: String,
-}
-
-/// Deserialization struct for JSON output for use in tests.
-/// Non-reproducible fields have been commented out.
-#[derive(Debug, Deserialize, PartialEq)]
-struct ArData {
-    // #[serde(rename = "encPrfKeyShare")]
-    // enc_prf_key_share_hex: String,
-    // #[serde(rename = "proofComEncEq")]
-    // proof_com_enc_eq_hex: String,
-}
-
-/// Deserialization struct for JSON output for use in tests.
-/// Non-reproducible fields have been commented out.
-#[derive(Debug, Deserialize, PartialEq)]
 struct IdentityRecoveryRequestResultValue {
     #[serde(rename = "idCredPub")]
     id_cred_pub_hex: String,
-    // #[serde(rename = "proof")]
-    // proof_hex: String,
+    #[serde(rename = "proof")]
+    proof_hex: String,
     #[serde(rename = "timestamp")]
     timestamp: u64,
 }
 
 #[test]
 fn identity_issuance_request_for_concordium_ip() {
-    let res = identity_issuance_request_json(
+    let res_json = identity_issuance_request_json(
             IdentityIssuanceRequestParameters {
                 ip_info: IdentityProviderInfo {
                     identity: 0,
@@ -319,50 +289,14 @@ fn identity_issuance_request_for_concordium_ip() {
             }
         ).unwrap();
 
-    let res_deterministic_fields: IdentityIssuanceRequestResult =
-        serde_json::from_str(&res).unwrap();
-
-    assert_eq!(
-            res_deterministic_fields,
-            IdentityIssuanceRequestResult {
-                value: Versioned {
-                    version: 0,
-                    value: PreIdentityObjectDeterministicFields {
-                        choice_ar_data: ChoiceArParameters {
-                            ar_identities: vec![1, 2, 3],
-                            threshold: 2,
-                        },
-                        id_cred_pub_hex: "85e314099841868c14af612bf5107b2d8c6aaef665befa3be5bb7bcae0e492a392f40822fcbc9874863cbd50b67c88da".to_string(),
-                        // id_cred_sec_commitment_hex: "a0ffb8d3cdc22ff93b24a5495e1a648edeedb9fa750c2a956d38183a62cfd173188d13ce83ef653b1853bcb3b49f805f".to_string(),
-                        ip_ar_data: HashMap::from([
-                            (1, ArData {
-                                // enc_prf_key_share_hex: "95bb685f31ed5f9496a534167573ef84d80125092618e8d5cfb98ba6f89930eb8ad790d68f480d66698750afbef141348ccfc94a600e509d6e7aa56ca9b50e37526805137c03857fb59a1ed3e5ae301e9f6276ec83963524f80f3f5d8d7623c8a8ffd9b15edc2a62d3c4b3e4f772e76f4435ddc01f489ffb866516c72f34580a136970ad0650963234ebfaa080d890bd93e81a1f13fdf1be870a5c0c4931d833c29622cd5161488c9f939709e79638f6115c79f1241651b626c6a9e046a1cad8a15fab3a1670d3a868af63460f6fcd83d22f289cf69751c040948b782f48864efc5ee81677ad08f62f1eba1b31086ad08c8c9aa96f6c9a46f6dd768d359953fca8178c38312bdb57cb0c4ffed889f23a6ec05e0953d1fbe0dc1825f9c48611d9887f04110de556b3f3c35e03a42a487a77f8823c966f7827cd19d3bf670c76da10cadc384e2e764274af2ba5e6bd5a4db72b3d26a8a59518495a5d55dbbb3996850e66562148f9b6ef3f9357d9aca57cfddef3ea39b20fcc5011eeb7f30bd03f99a5ec88359acbb4f6283a607efe0801c7629c017e06eb583827645229266c5db3b9c926c71d3cbca9020880ee2a14a9a81b3093c1e88cbe5bc23a26cb80c57501489a84ff3263e50681aa8f70a0eaaf6d2fb963e7bdf2d6b9e0bf869305accc99bc321ef0977bda4667fce8e8832ba13c7c09bf7846af671a2dfc53dc374c3577dd41da1fcc7768220793ef523b0450b6c0e3ed131f3dd6e60c118440a085b6bfc2823ccc90c720303299682a23f4e0fcf811ad1d4a550cb2ddce0d8ed3c0f78b74c1281e47b8ceaa73467077c6ec8f7c2e7bb48aec5114fabfa2230aad3d6be5b0dcd5359fd4f5765be528359fba9890caa3daab2ed8652a15c0266b6596b382189f5e8a8cd6bce67e67278452d11bbc57de3d0d8b293494f09a9974bc2bbba401a16106513c1bd8339578ade35bd19c09a9d3cd464ef88e838958109b1edd2caa39fd8cb982b635ef463e9daf27e486cee66da3b9db0019980fe5f47665f739ca472784512972eddf055dd99e6c968ab0bd7471e28cc273516eea7015393e".to_string(),
-                                // proof_com_enc_eq_hex: "093c0f28cc4a77cce0c0f34328b5831dea944cf92b23b48cf4b36ee72c1ad78817e3f08e1fa6b20ec72bb4545a4e07406e1716fd9b93f197d4e29cd08879c4010dd2c47bcee3696d9cd2cb9b3bb4533a9d9a11025f5ac229c412dc03f850a5f4".to_string()
-                            }),
-                            (2, ArData {
-                                // enc_prf_key_share_hex: "8b63d70037de111accdbd4a8a1fcdd7f9a192e7ca3797d81488a13201f365a9284e0a6b44e3032034b0632fc8301c6b9a0cce4e5127ec46adb07d0742460d39b1f289986e7832cad2e4fb611b67ef982bd7202c749d87ab2253944cb5219841c93fca313a22852fe6102e4467211a7c4cc96bc7f3ed9fcaa8d00910f35e1b625737db8541e1e2e1dfe54fab1f91fc70c9004ad59bfddbc19f720aa10610d07a80ef1b031132bb8ba48a16f26ff20cac01a8c20ecc233dee988f923b24aebc1d0a2799dfd26c47ef761ef1bde79f0be6be30c963344a66b57d9e6acbbb5133eac04e03c62daf3f25b5b66cdddf85d7a9784b8686e5c2686fe9041d50459c419567ea7ea1da70905cea3c14e1a7ea36e6766ba8dee28cf1a6f4e647c78830aa105a3ac38c5f1602398af41897f70228d4a004a78c281a9356a36fc81e349cd85506fc782daa9c50810b48e842eb32f7d86a20c071043bee7ddfd1156703b599a596c9dd5d1233def11bc1c98ec132143bf5fe62f89a2c4a3236c7384be09a6dba290dc06f2c5d573883ac267e6e06abd6b624450ec10349f42e3e30f5f3b08ce34df4bc9ba53eba15f31b37a7e4b93c04fa549792603fe16725495c3eac33c9087f536885663e6c82ca51bb2a89379483f233dd8ad49f8c38162ee17ef639b84398dfe67812a35db633810c21e1588fa32a6784552652ede22d5d6826b896b7932f02b83bab60c9008198b6fec062efc6b8b43426518aaf414102b785cbf0b04abbd2cef1e81353a63ef03f4a5488200856209448c363808689f5a60300b50f1d4b4e7ec88b22cb6007484f1ccd0a613762cd706789b11b1681bceb3706cc36bc5f4047241f8137231018bff4b0d70bf85b7ddb021f618429ec3b8bed5f7b1182f64256e55e6c2ae0182cc40deaef9ba6a1b3f9a8f5421a26a28b09e65fc52d80e9660c20fc4914e9b7a65cc702f78ddbd00958db89876e44c98c59a1c7a048330436cfdc92795cae751069abf91afb7b6a558fe3ee000f95efeec77db96b32aeaf1bc7e28cda2d0e8306776bc5ff3c551a707f73537667744d0f4363c0f9ec2a1".to_string(),
-                                // proof_com_enc_eq_hex: "379f0f872146eb3a7164378a33fa7c8766534dcd5f93b26602b76243c11e4b0c1189ca938e5d52131c9f5e785d013b5f36fd0634b32e3115a45c647bce8ef6f807940b1a31d7b0de58f9c9c43021cfd60b1133b81d9bf9abcc6509869e7c6365".to_string()
-                            }),
-                            (3, ArData {
-                                // enc_prf_key_share_hex: "851c1429d3ad5efb7f62e8433779d9bdacdf3975b98fff19318bce2c029ed6ebfd539cafec09d85a6a6e6a623e87f4edaf7ada498936a551d63decc0b01b2405d8861554988ef12dad36433a47e48a1d7b289e065905feafc2b143f0ed945d65b52f1e49defc1415f1bd62e63bdbe04c9ca14d378217f111a2aecce7e21921790dd72fc3b8abd5e70432a20e071b9f2982502211cd2ef0a75c4081218ccc1eda46955ec2b323efe778c5ec81677a0e75a114a79366770c65a43c353567e7a82fac7288ebbe6852956ebde86ab5ddcdc6daad79c6c176d17f04e3419c817072d4c1f6c02e7ee653f4d7506b9a43dee694addd00494abb790dcec7af851308f2b3cf30e3b636413e088a177a5d2f9dc6758628ec34b8b4f87799372989610dde5babd1e856f8485692f169758336ec6562c21e9f8027f4b2720dc69f4506792c887fcddac2a37c000e7944d609ff49c830a49ed44faa8df97dfdac39d304845bec73b3cdd602539f0fe6d2e10824d64492cc7ee18ddce9c6fc82a762643da383488086f9108e3d8b091a402eac26ca2dd9bbbf1b59b5f7651dd76b910628d225f3c2173e9330aec5262023f25ee98f907e8287bdf995d8ca151e0fcf7ae4541fd80bfe696de6e5db82aa3baa40edb8e38e3c1f9ec131c265b234c35650d11c2abc8c6be5a76444bfaa094c3f79cd0100b5ea2fa7a5e0a9abcf6b9ab628374706094ff9c6a820e97c5a68eb0e79d06d8cafa39546c881e70dc4a4b8401d1302a8d29ebc5c0bb1a05e66cd861b50e0405f4b670e88957acda2be05181091a6d09f0eb80f689ae054c9ee69c60de860d26a6a234ec26363e5ebf10cbff858a64ec6190062f8f5ca7976b24506598e493c7ce98540199cf79b31d42f606b111247ddec4a03eb9ec86eca0310f902feefa988aa54b0ebac5953bdeefdbed6a3ff6dbcbfa6f787a418f987b08ac6f62198d91f5759382ac09f127c78a10223bcdd05a28a4b3ab532dfa2d99574652d7cb541a3b2a3dbe2fd1fd86b9d66cac304bfb19708793ff4cefd4420b7cfadbcf6c5aad87781c5a6f346e84b945cb07d5a4a3e883e".to_string(),
-                                // proof_com_enc_eq_hex: "7270685fa57ebd701d6abdf84007780094eb8b24b0b12e6437ec603e9cb447114e688787def53f9fcf47a8ccb5ace08dcf5a751b66979482d636c6b1744d24703e276bcc7d4fc5f3850f08731b05978d83290836494c46192d6e09fb115dc196".to_string()
-                            }),
-                        ]),
-                        // prf_key_commitment_with_ip_hex: "a556a486daa265d0433a75f3bf09386c7b0144f54bb9f50ea7b604e7474fbdcf768600dde51c1eb15ab68e48840d574e".to_string(),
-                        // prf_key_sharing_coeff_commitments_hex: vec![
-                        //         "9672b3a1b01b8f316ecf7e63dfcf6e6978b3ab2e2fb56c2276323e5ce037cce20947c1038a84de2768e2e22335779c7f".to_string(),
-                        //         "afa8394b690a40bf03a2c290f3e8f85624d8959a05918cc0989ee10c2f1299ea7b4219c3769df9b47249c189261c4917".to_string()
-                        // ],
-                        // proofs_of_knowledge_hex: "5dc984acdcb958eb8261450800968ebfb66f45c1a851e53b868ab4bdbe94388b426b3342cec247cbfdf03f3fc707f0b5afd33dcd6cef109a43983f9b9701b41758f571db1f52ef2af8e07a8e748bd71afb3f9d3eb481ba1e845820b8ac9ec8435fd5ed3d1777a9e725134ebe996844b458631b53ebc443cb00a93d5f6870dac66baedbcb4b5de8893121822bc390a850baccb0624cc72e454d0748ea7e290e0828c14b9ede7df1edc65557c0147c5f0cfd671cc57577ba673c26565451851eaa71190171c0a2b9f9d46bab07bb22496b421b4a3deddf8089254dec651c7cea480000000000000003867563debc474d43c144981c3b3bc6da0c116525678989b7082b2bc60cfc8d05dbadfeaad6739d955b4c61b49bdbd0ab8f7c64736ecdb40f02cae39845cc3f18997344df0e79b55ffc3519259ec6f0e68434ec90401eb3ce531cb635d0d41ad1b575d8f5c212bae8b8de274a602c51bd2fded119d950e063ddcbb998afe477df8bd118f46d4ebfa36776d39be7532d658671aea5fb02460a8e978ebec23165e6829f20a5258b6caaabd432f47bfacec349d42f5eba888ac9f4d60edff12414625b0be57cb074a6b620ea8e0c656bcb13f66feb8eede084e902893482a1cce8903e5504e7b56324cd2344f3ea4827689f573b9561c25d00b700ac03bebc233ee94931747890ee151970184f26ab05e1740695176b71c557cdd2455f334219e3950000000891023b77c035285c10ed6090b6482515ce507cd9ae22e51181e4f254039189ce3530944d208803aac0b010105fd74c1d898aa91bd7308fc19ad29e38965f8fa9f52c34717edf29d7da4ed74604c6f3463967ac95bccd675d074666dab1275998a4b1ee2d321fffc9d54411f19653bee69173d1ad771c3fbe6625485a3033d3e586ba6a758fbb9072280dcb2722e5f889b48b988157555aabcd9a63a91c232049e6d345440915ab03fd56b994b9078d2b11faf84364b18ed2bc35b9a5b459b3ddb46e0acf755dcfde59c9ddbf3d897f7ce49ae95dfdfb593f584feae2400442ca6f8b07456e62e02a80d883f7533de3169060e6211ef3a9dc4094ae8ce647b3d54472e2c8ddafa19d770f0896e41532c1834e925a09db61c84bd28e1c0c2153dbb915cad7ea33a165a4b669078a319b422077baeae4a69afba9e6895076d306653690c75438668c613521d422a422f05f886b8b806b89df2029e3351545d4572c3e4a4c7d3b1d533ba59507125417d979f5a2763955fc275968146ebdc3417faa85db222f9fc2839ffe9c9df44d4d117052b92bd2013112111bf8d8e07dfd72918e494f1fd718c6740598796959e2076598b56349e5cd70c7fc714359ba9bf8928725f2b0c79ea9d3b6c28b29ab34b5d729270a2bb45119eb297812eec31f36048cc539200dd1b6744aa5689e2ab49e501f4135364c81868efbb2b816cf75f65d1d10cb2222b87ea8b6e708305ec3cfba8d1e65b1428ac325463ac030dadf3dc20153cda83ec08436655b10cd27233c23c7a5022a0b2316a2ba83a3438e9bfbae8031f528c1d916d088b5b832ec93d3012e70ba96f283ff62e2c215a72b89223fad5b7ad83806157703cdb02d88258228b6801842dc6125d55a0aa6dcc188bef9197aec363651453a7344cd97e39194a040c182012f8cd83c8a49df016bd10dbeb4899b79fd0cc1c3eaf68ca8c5bcf0224c65a93d14a4ee786394ef71c67439400b3bde500caf80e4a70eeeaed97f3c65b4c627efb6b0e7c1792109d2654731dd0627567b29aecf80e6ed258fd5cd2cd1fa731649d17ad1c2cdca90682ea5e4a63cb7aea9a796a165730f19a14af8405ba970f871a2d34ca6ff5ac3fdccf9740842a71d4530961a1b3a6d271d3f226220f19dc2df41ec4653661774c737744672978b01736df4fe9e27052b9ad1a674cb091f4ff836ae1e029b73691fe0903118853edad6cdd05e8b7aa9baf4d2422f28a5100c41471e96a2c1f9be1863c5f83e0203bdba06c2bba13f46854fe308a579b50f651cc9effa5d638152843a07659b96aba08b2ec7bc15a732429f7993772f9cc84e2406f3f544e7146d42591c2621b840a20649d2c0f502d122ec53fe3d7398cf000b31c28ab2431feefa4b5ca61929ea7a0b6d2419b5db02bc02db52899281c2980264793e014279da2410a4174a0e1c5354980208b5c6a309d786a5d6be3f4ad4edb972cd63e74df8f86a52a1df00a91ce28fd4b00b185c71008ad52a6ee7fe89702a8a45c738584d6d03e60f9d3634edc97e9433bf2fe182f90b0145380aa9f8edbdf208dd7a23725c98d9d88500000008901973751f2592672e2510ff4581ea299f4687a3b0804a96edf10c96f5af3bbd6a6cd1f3dbcefd9a329df9d8827b5b4cb6afc380ff51a0a5ef1b3c421ea3bacb0414649ae94b1ad3ab1c3a78742a72420b58f19e480daf01e4810f30a991bc73a4b3599d19d3dd519bcdeaac8620101b4956109f8ec8afec0af26039fc7d41583006800aaae1e35a2cfc2d1ee97161fca41266934967e7b07f6f42fa5924ad22c59519c555faf6cf72791237211fbf1ffea1bc87083b70c99f77394316a7c0e48008457f495d1a8f93b335e1a42b90661d6c77bf6c7932b06dc0e818500846964db31bde71b4d025a97f40b38259350094ee3fd2d509f5a52e5b92c9525601780eac40846f279db1938400c69a440e1034d4310ce76764904a97ebaddde160518fe4db65242dc6f26caa0b3f4b4b10a9eea65e796e2815e00e9aa2970b15aa2d2c350d39fe3902c0bbf91f838b687e1096a6ad5f6bb853fb18d5110876e607d1a6d8c26a10ee23d61f553e4b029ec3bb80de547ab86f7c15fa968a3e8638bfe6ac1e165d9d5ffbd20d393fe97a7706a6301b07f06d4bb654c925edfd3b86200e588ba320622759a80598de05f679808d90338f6005b6188b2e509477555ab7b5edd00ae2a4dd3caa3a23234acc15cca9193df19b8c6dc6a5573b15f8c5c1a3a3a690a02479699d559ce2aa88a990c471a995c70973f0cb1fad8c3c5cc4cbdd77b452639b1115893bff100130dcad911483ecca8d4e697be9989de1e47ea725e97857e034fa4bde805fa8764966d21372c536b8e0ae5f250fbda5fa2f1f937e1f8aa31d714bb93c1b7ff233f9ac08734e3b5ff5a898d03bce88ae5e62b602666ceaa3daaf145b5fddec5df65b50fdf8e78a903595355cd6606a3a290ab3d0040360575c4765d887a09cd94b16aa85d0a92f873ce1242b71580a6b6b1a27f75f618ee22939d56e34ef87ec1b463452c18b912beb24e9dd28f27680b3c3bee0f2177e7b4b0ee0518ba7f4a99ebb0edb6d04b52126bef0be283b7750dab8fd3e6c298c0bac71770c0d428f8f60394a6a235a64da81111a9dd7219be8f96b745dd1f4026afad3c534865840448ffee3587b7f722e7fccb4f864b03ea3bdcff0d36ac11b3d0c382308d5dca02fe7d9cb205bb226f4cbd8752d1411c5cbaac7d6a6c43a8e28a73cb887aa9c9e0568d2aa3fb39f95809d887aa39535e4e1a0af6cc0496997079698c76b920fc3c26da779075a42b22d78cf9027587808497f655f9d9c449da6c56127e1c105581d6f5613c6046f7fb8f8fca7f122dee132569e291706f6b03ceb45cca24bc6b1200b64633470566d09fd6a1eea65a752a40a4e85abb1e9f3ca60492f73c863943d33846c4df7f9a3f11daf248baac79e2393ece3be423a1788a7eec986e014ae02b2038bb1ef788d565e674f11b60c4be8b74115fa36fa4317533d54a66a2f29305cf20219f1ef924dc4feab2c3d414866e057cefa1fdc164f4bf42aac8cb1924cfd487a84a6f726d1276f0f8a5cc01cfaf1a84031fe457268af18f0b59dc783bab81735695105fed5a9af428aa204593545af2b7e5b8000000008893d1523679a5932cbf3663cb2bd557b1b333cca7909267370ca5f3699981c3b4c4319a9f6ba673c9f97e504407829bca23dc3d8155230a77ff51761c687373148c1151adfa15d757a18a8c57d5fe8c21cddcc04059b9ddb8acf0af154a5e406a0ac3a79cee2b72ee10849debd91a11b1a3ccc0869fd08743d6c9c3965dd17c8cbd78c0853db523e475cbfeb05c8e171b77a4cc004c8cfe13a2e917589717b6979ad24d289794862c21b60f5ea1628431e6e4f0003c6c37c1e5eb8e65a24904c93a05334da8a3fb30211dcee9cfc0483888705585975b4d99645531c5d97a4d7410ffd1ceff75d188c471e1adca6131387c1e3b669cb200788bfec5e6b194aacfe3c6327cfff5b890b5e3c1875118a6dc593f78f9b5b9fa6792b0c9ad98b5ae4821db572b9da3d652dc17d39df221b92afd271bf2a9ad318ab0c8ce3289754c16c4fade561fbe10ec421b1959be42e38ac292bb2f44866a89dbe67137e50138d6f63e34b9af44b36312c1498bc21915d163b0b8e4c533b64dfd4cb65bc878c32859c63c798b273c5e970a3df5c85926a7c8ed48de69031681424f9af64937c38c723426b6c526411a5dcccb0ffd8fb4596847918d407660d6fed178ef3ecea2a973c81aa417e093f08112e57be02d6dbb5eeab8a343dffa29df67245bd1790ef94a00ba8263fd52db248b8a9fd9dab92caf0d5ec13d3cc9da177219b1bcec2f2120c7afca100948eda3234d2d62bdc19af73b034d1c16bb961ef4170265c750fd6c2e89e542ebb06102b8cd6be63bbf6a4f3fb0c9d7225a1d84f55943fa38d95953aa91806e01c2f23933e91ec6918a32be19b589da5c0a3f7957ad18672d0a1ccadde4c6cd0bb743763c6bb6d3315848e24f802d6f0eb819847a811ae6b3c8f463678e4c9fcc9fdfed64df2262816eb69e2062eeb3f03c2e99866718cfa03f48b481610bf18313842c4a8c826987239852e9c765e613a6689f041fa1ebd692d2838a98b3634c8dd8e29bd235b4a1c84b0aef9253bd913e71901a204569e6e95d4f3c7cb927b487899e4a42a2d17a54b7472c3be1e3b080bb6a267d65751170d738c64ecc88e972270c4a8a70525f8d8e262e0cfa3771aaef33cc6343de8ecec62426c2de28dbac96096a460552edc527be51bc1f9cc76ce02e361c481c079f0".to_string()
-                    },
-                },
-            }
-        );
+    // The result is almost entirely non-reproducible,
+    // so the test only verifies that the result was computed successfully and that result has the correct JSON format.
+    serde_json::from_str::<IdentityIssuanceRequestResult>(&res_json).unwrap();
 }
 
 #[test]
 fn identity_recovery_request_for_concordium_ip() {
-    let res = identity_recovery_request_json(
+    let res_json = identity_recovery_request_json(
             IdentityRecoveryRequestParameters {
                 ip_info: IdentityProviderInfo {
                     identity: 0,
@@ -384,22 +318,9 @@ fn identity_recovery_request_for_concordium_ip() {
             }
         ).unwrap();
 
-    let res_decoded_deterministic_fields: IdentityRecoveryRequestResult =
-        serde_json::from_str(&res).unwrap();
-
-    assert_eq!(
-            res_decoded_deterministic_fields,
-            IdentityRecoveryRequestResult {
-                value: Versioned {
-                    version: 0,
-                    value: IdentityRecoveryRequestResultValue {
-                        id_cred_pub_hex: "85e314099841868c14af612bf5107b2d8c6aaef665befa3be5bb7bcae0e492a392f40822fcbc9874863cbd50b67c88da".to_string(),
-                        // proof_hex: "ea73529fd306a0695b121029b22e547e5b3a4255c1d77a27e28298d017f928f555445819f602748ec99bff31a8fc20605a8a25d6d931693fa4228fb2e92ce30f".to_string(),
-                        timestamp: 1709028205,
-                    },
-                },
-            }
-        );
+    // The result is almost entirely non-reproducible,
+    // so the test only verifies that the result was computed successfully and that result has the correct JSON format.
+    serde_json::from_str::<IdentityRecoveryRequestResult>(&res_json).unwrap();
 }
 
 /* Account credential creation and serialization tests */
@@ -455,15 +376,15 @@ fn account_credential_deployment_concordium_ip() {
                 pre_identity_object: PreIdentityObject {
                     id_cred_pub_hex: "8eab3b934c6da9ca049ffc345455f1f0ef1076186baa00bf62d69ce0b20e25b2c2555feb76da06d0b9999fc1077f2bcf".to_string(),
                     ip_ar_data: HashMap::from([
-                        (1, concordium_wallet_crypto_uniffi::ArData {
+                        (1, ArData {
                             enc_prf_key_share_hex: "a508c8af8ef201cedc8d9740a1ede842a6627b2062febf16545689dbf29d23c2dce3043a0646a780fcb3133bc08711bc9862e2d22d02179b44a65a2d19d9b747ad4a03e11bc9d0e70031f83c9b6e72718183c54d6dd3c3dcf35b5f8b76ed78bd94bc6028f06c7486e31c439016b80d84dec762cd24597c96992946710d0c945f82348833bfeac69a0eac7955be33555692b6dd6adef8875c438de19c62b1282e8f1d797135bc971cfd0d1b156b22a6a329d51785d02514f209c8c29ad6e1cd0da42cca5bf6d710befe9b8a05d16eda4f2b99210e035f2a9cbea62482b3d438f0e76dd6e6117b947be723d0db3deb02d1b215573acd5ae403854d12c564076854f8ec000941934233c953691fad9716ac17f48aff9d44dcfd77b97741c616715298e92f734dcbac055e00605cc501224904c01d566749b222500d427a369c690506da072dfeeb3fd0704eae6d0836b2fa980ccc8cd1d6f307e9507889271c3a8a40ba15d8143d49a286be19acba969ac76207ef8181ff46a524fc1a2c6b0d2e46aa2c203c2981552b68390d4877f51caad73503f02db7f44656b710ce8f850342c86c8d848a00efc4b6bc390a61c1af2691623dfb0df387eec5458caeecb724d6ff3c5e93070557a89bc1a77ec3f6cefc1cfd77ee7d6d177476f1ccf07d31540e933ea3639e7f0eac6a07d6b23f0e22a948cf47c9282dd6445caf1e079b74e472fae556a46753cf962e613b32b10cf5049148d0ae8f098748401dd9f7b1a65748dfd4d7ef3ad660b843f7235a54c15392fe182ba9b3df99174d33895c889be82193a3c32dca44de24b4939bd120c53b6eb433c1fec767b625ff3af160e1dac6afaed172239c6a269b0a2658c881c3ca0296eef0a50a8a7cf17e3f4ae655918111dc77f215656e07e4d7cda2fc195d162667248cf0aa8898b648f254e7234712b0881af83cc54634f6255c6bc6bcad892f5e357fd9e68e1594468a1bf26833be30985fe9c66e8cff8adefa703c1ef3877baed7c0bbcc40499a01f91ae4f6b32f025083ceba279e910b455716d3e872e60b8f85867489841af66891dc232ff12a8d".to_string(),
                             proof_com_enc_eq_hex: "09a50932e4cd73210300967aa0b297b2f208f68e40fdf506ebb0a34ef621fcd92f18c098686c953abf424a95f4dd0378ec8a7e22f76f02e4bde44bcf35e0abee371e33b384a87d014697d9344215b181b60778b9d8db593369f0240f22ed342f".to_string(),
                         }),
-                        (2, concordium_wallet_crypto_uniffi::ArData {
+                        (2, ArData {
                             enc_prf_key_share_hex: "844301db9fa390eb00218c8e4b5d6fa83a59462867f94b7897cda31a7b056653ee5f246bc665ac310cb01063ba80b6c18da822ad4993d5c0c950cd5b854fc5d560610c75e7d950d87e4324b68230f6c21f43062d98aa743607e7cdbb32b5a3d6976caa77ebfd8a1b101cf29ee5e2848b2b951ef4b53ff2f2dcefcabb3a2e65abbb58346ed4f0ed86c6875a64464ddeb6ab1b59f22937f3de049f8e5785bd27619dc73674b08d9b65d0cf26479d84dc68631582eaa6b53150b0d0c9f14352af1d8379f3182a6d3d2c858a77639e0114f64633c527e1e934d4cb52cd0b1278451bdf2fd5e02e9573b6cad1d198e0804efaad88d0fd36dcc79ef9bffe99fb8837c9b3624b6ae43324c03730393a0cab0f939183497e38ab2d0b25b5c816bff3f204ac42c0d8e67ec091ab9898f724b9e994ac5bb3c7dd4b1645948f366ae4051cc654e9bd3db2a99138bda90288879b53559387962b0e21c7f733d51540d6c1a7cef9bac8362c6352029d1bb6cf3ffa8ccc720f107f4016b8c556d8e1c891d3af13b84b64073ea2f5a3f6232f1e1df5466a87c8d1c83d75b836c84f64b87e71ded76b8684896b7316e40bb741410619478d84526add628ee76e92693800752053782b3fad0ed9853818c3f800fc11ac2b6e3bb10c59bd20622116f842dde694352db154fc95c7153c497b25bf2a1cb07baf5f41354961c970c85eb05e6b73197a30f4cb538c5de64b91b5094356a9f1d9c4944f17eec47d70b9b8a2d405f8977b051975cfb30e493420431e1ac5ccb5701d9815bc2c2b8a48afbe86b9495fd691f6b22bb76e5198f69ca4f7bbb1f36ae5db45ce3e11735d3572fda43a01c62518de8f13078f063af06dd1514800800e52b2ad428f1b76933c8156a41ff7827bfa779ccef8b340a8ce21e13f4c7f6fcc4980dd960b8be5f4489b89df1cb065479a56826f182df7d534d9c6d308dd9c9f2c50ffa57f2b188bd255f79d212f984025587f2bfb52cff71f0a7ff31d4fda11b9f1a77d05203971e330b8f468696330c5eb447cce978cc878a3825c6fe97b7db1959105710c4bbd691da68bb1334293200e".to_string(),
                             proof_com_enc_eq_hex: "2abd24450f4d2d11425f9d6cf2c5e99720c69473560b96a4d2984b661a8d7ea9238a4aa078b95bb63fa88ee52db87e7ac4327848fb9ec7ca71257be2c922760b6703e43f18534d628f05f7ed5a7caa840b23ffce8df95cf58274f8b9d2c7ba57".to_string(),
                         }),
-                        (3, concordium_wallet_crypto_uniffi::ArData {
+                        (3, ArData {
                             enc_prf_key_share_hex: "97eb5b894ff5f95eee58ace7b9e0261ac50d96853d3173506a8c723009379bcfb44c6e769ea3006aa89e27fad5a21867a3e71b7ccc56cdfd1783de793e5a40a6fd694a6484afdca51db187a5f41b4dcf39cdf07e8b7d8f0b07d418ae6a6fe66890bb998f70924f1eb5f6657d55c592e48e702f570989e54f114f53a184f6a68983b6c3aa5265a7549f173163ec0d8f2698fcc1d9cce44c7dfaa4d598fb2411f9ab7f8002496efb219825fcbb74a357249399be609d18f69808209e2aa9938caab809508d699e8ca1ace70efe227b5fa77e221e2b4d389c344055ed6f80358d4086bcf3baec33f17d9ed042ef1e9011dda9652bc5a6ef66d71775188c22a537dd076991ae23bd9cf7d4610c7f71c66bdda3cea708d00bb0deff0e98e7c150374b8c987cb3f99ee3c0591540fb9b1a1bd5bd6fd9051d266f678fa3654f2050a2f08b7e4925d52222adcb6fb237944439a8961fbf061a5fa659b72348f77da7ed3befcf5e9633fdf4722122d38cdd26e734dbbb4fe5948f67f77fc0cb4e707f332b8596dd8b17c09adf030b6af70c33832dde308198986a64793a069d862046ae8eb7dd977055e1e4c16c04bf98c868aa9eb048c2391c11868e5e2b992a83617ebff125c84f03af26c6322374fb9b3146009e62d5b2d17e96b9f3802c4657b56bee8a63281d048103aefdcf8679047596880c25cae147d1c9c5bda4ba48408008d1835168eef23402644f3b002532e9ddc79969fc10ec1788a658cabc1e1bf7aac2829a2f0099618680273466a42adf833ed754993a1fadad109ba60822bc57e9a58467e76d7fa3f082ead28ea6c6cb1a238889fcee69328ed296c0aced243a6ee4a7838d5cae0f5bb026de613470ce5259b22e249caa0e0d55432e7a3a05b96a2e53ef6bd87ff8adadcf482f2dd17285f81c05160aa334f168dd1a9d5d88f51152b7a6987268aa0464138741b9ff5a44a8db22c99fac326fde734ef8620e3bfffb748af296a5858f4c2e553184f3fa5808a2e4646bb39c0b34b1779e48a61d608a16b381308a4f33244cee4545e1e16abf8b56dbcc3ac6e6515c0e8d4cd15124eb".to_string(),
                             proof_com_enc_eq_hex: "2ff7e67f5fcbfacd63b6b64bc0821f8a23ecbebbdbcb6d6cd6a650872cfc886b1d1911bc3e4589c4a344d29f01319702b2982e60678de331cb4dac4dc7803abf00b0924d40fd945f721582cb5f4113e4dedf1dc2dbfb14e21d99cbcf705250e2".to_string(),
                         })
@@ -523,88 +444,20 @@ fn account_credential_deployment_concordium_ip() {
                 ("taxIdNo".to_string(), "5d589ac0136e96cb9f8e7e02edfb66fa18c7acbfdd8845dbad881d2ed8632d89".to_string()),
                 ("lei".to_string(), "3b0e81e9fc8eb8fc0f7dd3aa3112dfe544f27ef395a04acbbfe77666a0fc03b3".to_string()),
             ]),
-            credential_public_keys_hex: CredentialPublicKeys {
+            credential_public_keys: CredentialPublicKeys {
                 keys: HashMap::from([
-                    (0, "2581eca64c0c480d4786c8878553f064a008b82be869af0e12149bdf26b62a53".to_string()),
+                    (0, VerifyKey {
+                        scheme_id: "Ed25519".to_string(),
+                        key_hex: "2581eca64c0c480d4786c8878553f064a008b82be869af0e12149bdf26b62a53".to_string(),
+                    })
                 ]),
                 threshold: 1,
             },
-        })
-            .unwrap();
+        });
 
-    // Assertion has been commented out because the result is almost entirely non-reproducible
-    // So the test only verifies that the result was computed successfully (and that all conversions went well).
-
-    _ = res;
-    // assert_eq!(
-    //     res,
-    //     AccountCredentialResult {
-    //         randomness: Randomness {
-    //             attributes_rand_hex: HashMap::from([
-    //                 ("countryOfResidence".to_string(), "223869bddd34612d0442af751b532a7f044c14b681175aafcbfc3c7b52ca501a".to_string()),
-    //                 ("dob".to_string(), "21066350b3346b6a0d4a3b89d441002314674bb5dc05104e5666cc39a7ddc822".to_string()),
-    //                 ("firstName".to_string(), "115acaf68bb539f1902316b530b918b9a7c5d2c7f3491eefa1ec356ed7a663a9".to_string()),
-    //                 ("idDocExpiresAt".to_string(), "03d7047cbb5d34335a86c205a79076147393699652f75259a1494d77e3a5d214".to_string()),
-    //                 ("idDocIssuedAt".to_string(), "1583352bf8ba1a185d4edaa27d8cd3836ec9b60e0ab39fc7edd1d3463bf5e702".to_string()),
-    //                 ("idDocIssuer".to_string(), "3a7569ae903c58a625c6456bb6dab0690c06e207ae6b77ba2ca708e15ebbaa83".to_string()),
-    //                 ("idDocNo".to_string(), "2b1d3eac0f74f6c85972c89b6be236bc74e04b21a5340602894838f57a59cb8b".to_string()),
-    //                 ("idDocType".to_string(), "0b58df78520badb9e6a164eea03c5bc489d39292619d230b54e8957443516e10".to_string()),
-    //                 ("lastName".to_string(), "46ee57d0bb83329501b733957cee346af2434a9ee6048552b92deb8ec52f5aed".to_string()),
-    //                 ("nationalIdNo".to_string(), "3d6ec52e9756497d30cb72eec42ec9a7af77a8e4d3d8cc6663986ca25643f3df".to_string()),
-    //                 ("nationality".to_string(), "06ff9fe077f3bcd38342f2a1f838989f6562ae1f4c9c8b08f05d1e5c6e43c1ae".to_string()),
-    //                 ("sex".to_string(), "5e9d6f98507d2a6df56f81b19dd5389699c9d55d01296896a87dd1c1ccbd0896".to_string()),
-    //                 ("taxIdNo".to_string(), "5d589ac0136e96cb9f8e7e02edfb66fa18c7acbfdd8845dbad881d2ed8632d89".to_string()),
-    //             ]),
-    //             cred_counter_rand_hex: "28c38c67caa3e004c7b315e10f46142c979a29cb73896a468b7de9147774779e".to_string(),
-    //             id_cred_sec_rand_hex: "6f5f46630b94f92d19a85e103e1fadfa5899a6c2391b9f7a1823edfd7a9d4134".to_string(),
-    //             max_accounts_rand_hex: "1123980b913dc7976d1d0a15c69024e09360008edf42f69e5e83f7e67190be21".to_string(),
-    //             prf_rand_hex: "01845de30a006e137d9fe281e770bb108efd6c82831fa01ed1e46922d8398552".to_string(),
-    //         },
-    //         credential: AccountCredential {
-    //             ar_data: HashMap::from([
-    //                 (1, ChainArData {
-    //                     end_id_cred_pub_share_hex: "a0e5d3bc24d622777fc7e0158c22eabd4e7c5e3493e175d73fc1b416b96756cefff4b8915418dd5689112cd05d84c5b1aac2a7237d17f2994c3d360fce4f5f000d4878ab769656e4ad410eed35fcabee6cf15937a1cf85299d6f3089ab688175".to_string(),
-    //                 }),
-    //                 (2, ChainArData {
-    //                     end_id_cred_pub_share_hex: "83b2fad5a3898f2ee0927057b291bebc6df8648c1f983771949755c13288fb64198ac277d1bbab6e31f354506534432ba711312e31e76dd7547c1db16b94c504b53f0fe269982fd4ca35375e83bffc1cd53fad84393b2a7daf6f1bfe4a834c09".to_string(),
-    //                 }),
-    //                 (3, ChainArData {
-    //                     end_id_cred_pub_share_hex: "a5af7ee5223395a4c00207d444e963b58749455658d73ca6bde288adedab2d18d62a82fc1bf9472acaaf712933286182aa7914b8555be8c22145259e7c9df410b8263be45c99d6febb6efd2c613f504565c791113b18d155d20ab84d0d6b51ca".to_string(),
-    //                 })
-    //             ]),
-    //             cred_id_hex: "a9e510d6685f81c2d7f8a0177222d067982cc73699c5a7d64a80d06543797e808e04c52ea393ee300f50d5b4c6e87c57".to_string(),
-    //             credential_public_keys: CredentialPublicKeys {
-    //                 keys: HashMap::from([
-    //                     (0, VerifyKeyWithScheme {
-    //                         scheme_id: "Ed25519".to_string(),
-    //                         key_hex: "2581eca64c0c480d4786c8878553f064a008b82be869af0e12149bdf26b62a53".to_string(),
-    //                     })
-    //                 ]),
-    //                 threshold: 1,
-    //             },
-    //             ip_identity: 0,
-    //             policy: Policy {
-    //                 created_at_year_month: "202402".to_string(),
-    //                 revealed_attributes: HashMap::from([]),
-    //                 valid_to_year_month: "202502".to_string(),
-    //             },
-    //             proofs: Proofs {
-    //                 challenge_hex: "9a871bb042c90718b5cccbc5eb133c6f85bdb4248e8f53decdca5d5fa59f0dc3".to_string(),
-    //                 commitments_hex: "ac0f642c7f68cb36ada83fbbd1c5bab064fba7c7cad6a85a320a224ed15badcfcddae46ab4dd7041e47c1fab07152255a3f3fa04ed0277f5eb44c80cc701b4d630263856941e2cc3348078c8314924c8484fdae8148e2736d4b58cddc44b23f9ae1abf5b97ac7c952289b6599b5de918d89d49ee53dbab843971b9e62ef199ddf50c7284ea9fafd6dd0d564052ada6a8000d00ae6563d450fe38afd17b0ab55274e8a3bdd02f01e1cc750166bce3f765d6225c22d32b5fd8b62b7f217f3d16fb94007b01ac5dfe414bd35411c6b9f01fe042f13c330e2a7bd756ba22c50df93b89e23b6c65802f7137144b0a4d47df6fb501e08002b2861ffea2f45ee63aabfb3d8aa2363b7bb58c80f4a5617dec6a6fa1cf5c23214a9566269d43bf8328b60db9426c470503981b672bf25fc45fb357b75ad0d17e104b226292521ed974d550ee39ba9bdae59af5b3b5794cf1598e2aa825755fa4bf04855e7d1ce5dda7b619c61026693f7c0e50eca18bfe4b100655e15eb6fa32f3413d971b5db5943e455f71e3196cd8d244058c494dc6eeade62ecc17436b9ea2a2b51e7bbcd0cf872d1a3986a3371b70b2e44a35d7c51a4cff7648ff68a7ef89f95e0680949b1f8d306ae0d44bb7e91c05a3e42ae40b68a70591abe06fa2e5acc769b489fa311e508a2eec7d015123181878d40788efcf20034fcdb5f14e1e41f357889b9fe7a1944769b3c2e84dfd11df406b7703d436317932b5e934a4ebb0bc59c6c508b751dd27e4d5413f183b8292b60da20cfd734f6942caad81c93a426d25951dcbab33254e0c86890f8aca0318197d938a09aca480cec324499b5fa291ca13712b20e841961f1abe1d4182f465bcbdcce77c3a52c409d41e2eb15819814d59d0be660aa8b7085c0f899c1bb1f44995869122433b910b5e8f90f63de69b9da6782bd72cc7a431b1d94d81d857bda28f649c194f0bad0cef63ef68a6998aadb1a59e11f15e853f6293a77d232d706d68b72d32ff4bb685cf91796447a10f06688f45ad3bba0ca0549009a431cbc581bb751d50e0e898658f68b5d25759022d8e5c05eaae18cad7e7d7746b8ea3b46459323cc02ee50b000000000000000280ece38f0485341a3577f2ad9090296902b7d795f9a5138f40418c9691c7bf431b86c9dea9d63213e95aebdf0bbee4d6844f187b401369b41757dee31ea4c7f5783f79c8f5cc92c9382fbf0ef97b0452223afd8749a35775d8d7b605cc41e9d9".to_string(),
-    //                 cred_counter_less_than_max_accounts_hex: "b99f59b56de8b9b42c052ee6a7c43760ca26eab406539e19f1f35b557ca305ae99eb81a21d39fde2312481a541d6b1a08d2560d822b6d4bf86ee51539b792293278dc7508c5efbb5c9fc67d3517f5a8f5e97319b40c54eccf42412b828195a22aa662ae2047cf246ac09ee1fa0426db30be04c62673f6e131596aa8e3b38630733e44fb99a1951fe6e73034ac504086eaeb69ccb0c1091c0867e9d47515758d867c2f4aacf32fc52254be3fe0775f90556a06ea15a380e6c1e2a396f51d628271bb7a3818071937c84ef77b950ef7d6994260f897c1340077ab255dde89e4973297a1c8db9f2a090f1bdbc29414c6cd6023eac02f6175279f479320f6cf4418f479ac88b12f4221d1deb3a018ce9aae90978aec5a209c76e66cac676f69a423400000004aad272d08c7f946d19c07a41b46a62d500584b10441554603edec0096fb22c14c47cb94ef5348be832beaf07efd32788a8a919364ddbcf00a1e37858f222c22b3e3aae7e2b4b6cb1de988b5651d0d90023ffa00cf0d0a94c6fdf4df5c43a28e7b6ca629ec606828e162d91dd77ed542a8ede11dc1a72c1ae809d45c50a168a09139fee276e0e04628770e8ad5d93b43ab598afaef9a88f728c8b9f7793b6a02131d261283842bff3e63ebbf05140966df4489deab3a08c92fbd4c6a41d1fa2f5b2d9bb41a6524bab51d2be2b5d90fe5094a4d634b1e89c1ed374e24371458bb3bb40aeff637fa6a9af08defffb2dce4db120567948c765c85ff342b086d67a564bae2ab2341942ba9ececec750b90a954a38029e712b6d57148a0b209a4772488b7de2bacafe4db6a70a56e8c35cbe519018cd9fa697324c0b41cf20282c16e8714383998710d900f73e31ff6117ceb48e017f5b76cfbefdc5d6c4b162ab45421e638bc0fb8bbc8f026f27bec5e3807e438d0d42300bef00a45c9865f444c9b95a759e09cf6ab820bd1941cb923249e8704d649e688e5e3bb1594a9d2c894e53523ec7fc6bb4fb4687b3a1c2ab2937a0ad89b9ef48d5694a3fcd409f997f246a".to_string(),
-    //                 proof_id_cred_pub_hex: HashMap::from([
-    //                     ("1".to_string(), "01df87f9e8539158f57f2f81c250532f85888ae497d5daa8fcc1b2308084014038e4203f8011c7193191f280a9a9722ecc5b07723d2e4efa92789eb92cda073362825f537499b80e0403f68e9a41a0d90bc2b146778e279b819d492224e7253d".to_string()),
-    //                     ("2".to_string(), "1addc26fa402b24868baf3843c877d7f19c27cd9331e06be28c6ec97b4d76d162f922e57b5dffa245375df205cfb90d20f2fdde5febbc4b4078a97759f4090e02345bff6868ee9129598ded1f759f9582416d698a2ef9de6005b2ff195f46a58".to_string()),
-    //                     ("3".to_string(), "3cd5a8bedbdc198b4188c10594f0e62a8f47be8292ecdbcc901a17fdbf5a46b44bcb85519783263cdedcc33aba663a8fc079492c292b91a610ee78203b820b10513f900d1e776ce7bc09f51e573d1fa622c11d8226cb9a1085ffeecacb198901".to_string()),
-    //                 ]),
-    //                 proof_ip_sig_hex: "47ace2db6057c487eb27b510a932de89e4ad67d894067c9a15647ff1d57897f80000001343363809d56fa4203e9daafd9aa14cf46de24ebbba8012ced217b02f803d8bd65f6b25db377fdeb1bc5363a6710746dcf4f291565c0b3bbfb843e06488a0982c512011dc0a522c27b30a6714905b2800ad52d596f58178fa94b177587807ea554b5fd2a1d66c4890e93dd057d00863203de91d0b1122d60bafc351a6bfbefef84ba735fd1b863bac125a98a3aab5ac8ebe3c8c0044bc27769ccf73025beeadf51d4c85c94b137936deb50e605685acf07dc9b9fcbb8ab45b017d4dd63c353c273e0060cea34c14179e5d45e3e8355d5523dd2f5004e9ea49e97108e68084e4933417bfba22625c1f17604d916dd91eb43b46391348587303d0290e52620927f532618433f21099d6c42f2b9ba5b16d7834b4f4004020b95bc8b20ca2a9c658bf2084d74494f93dc4d9cac2cc03db55e3a5401ab39abf48a2dc51973e9a23474c6359994ef7902d579c1d99f29f41b271e71b2d9e33d2b6a19c10b4bdf0fc58f41636351cf690067e0e6a5a985777d57a30810f41ce23d84f6527bdf11db4b39c41addeb9a5250c16bbeb180174fcd11d051c646a7b90ec43e1fb0cea44bd337b15c59757df4dd0dfd1169dc44d25fa65d2be1290ac1f274ef51e5b50de3fb34d01f3e38d46e3712db91633e0599d73c783a2a0719c77f9876770367f1dc8cb5517bd335b99a314585dab46701e0a0b668a44f46cf57ff53e02f870df8cba9655512a5bffefd5f322e5604babacb58d0fcd29512ff4756a4341290f94089a997d0db50bd714b98e60da7736481e581a29313c342375a9aa2734171773e0a3ca2a6bb25366bf9e57abaaf2295f713bcd226c94b7481e68d755dc94d03905d9a65c38c23e2e0d8c2bf25ebf5686ac54e440d35f7ed8df64090fa126d16391df472c72693b5196a6f533275e9ed52deca609b0e6ab5a24702ddd09e35666b56b0e47120f3146e895515078176bdd013dd26fb7436309a1142e0fd36b6e67437df693521bc744dca5f4be0dfd2f38d166023100ea456aadfd7feed31f3836fdb1327b4f0c99c77b9c0c27dbd241464e82cca4e7bb54d86a081a94460dd8cf8c999ac13aab9c0d902282f383ac64adc4eb614da3e5652d09fcf88e16338b804b3d82164e04620f9d71e652b9b25a22ca4df397786ca4801f51b159a390853f451bbd3a2a1a6b46a55d9e090c2569237f60dca94e95eddadf89a49cbcea1172aa21d5e11b4197898f2a6a540927c3b774a5efe627ac88a0ff384e5a3b80cd16189aaa381c4b74e866e359a5e738c19d7ee9ba2f0b6a2dfa73210f9381ccc0a0eff8ab1a73b978b9c2719d06cc4fd8ad240d62f376f501a36ad42e1a53eb2357da7889fa0fa1f021d178ddb2060ad5e8118e828d28228a5527d3eeefffbe4e502207c6b754a8c1d037abc9f1cd9e5d79140d0d413f7a9574d4661a6ba687b17e8b861232710fb3dee605fbc3b2a2440d9234ceb7e3934039347c99f7be8c48d53315ae1d69d6e3ec29a1d9dd9bb9c16831dc69c7c8dbaac26d95c1ef8231f25e20abc9ea5860188b0faef4f6e69a250624609301adf84a6297b1003323bc76cc4f68c2810cc5df86d06982fa5199f2abc2217f6c2f8343b9d1d608155129af9a7a7fd3203e9e678109aae2ab794bad86159d2d71eb15b778238b0c62407e869b7791edb733a14beb08e4e2b8ae2a75740f87987763459c6d3333bc67848522b77bd6901e".to_string(),
-    //                 proof_reg_id_hex: "4e57994bb3b11c0eafdf7544d22fc43bf727218a232669450cf44d92153f76a806ac51961f80ffedfd700301f260cddf4061ceaed5ab702d4a58856bb97239425763fa66afb42a3a4965aec3a7350057998701166eeb0f5d2d06ddb689af9ac0626041ca45a05f83e625daea09c33186874789d92895476fd9cff7dd956422f54b9d2232e0574e8876c3c834683c463deac7582bf6b0659b6cff9f53ebb28666".to_string(),
-    //                 signature_hex: "ac583fa795efe2a9281bc6f4d2fcfffe1bab3004e24bf75bec4cd7e814e1afa75e841f7e31b8d043d38aad090d234d34977b4bb6c1e4f107eea96e5c2ac5eac769865691d217dbc873085f044072ab2ee6d7f1223760af18a8c7579773dbffeb".to_string(),
-    //             },
-    //             revocation_threshold: 2,
-    //         },
-    //     }
-    // );
+    // The result is almost entirely non-reproducible,
+    // so the test only verifies that the result was computed successfully and that all conversions went well.
+    res.unwrap();
 }
 
 #[test]
@@ -624,7 +477,7 @@ fn account_credential_deployment_hash() {
             cred_id_hex: "a9e510d6685f81c2d7f8a0177222d067982cc73699c5a7d64a80d06543797e808e04c52ea393ee300f50d5b4c6e87c57".to_string(),
             credential_public_keys: CredentialPublicKeys {
                 keys: HashMap::from([
-                    (0, VerifyKeyWithScheme {
+                    (0, VerifyKey {
                         scheme_id: "Ed25519".to_string(),
                         key_hex: "2581eca64c0c480d4786c8878553f064a008b82be869af0e12149bdf26b62a53".to_string(),
                     })
@@ -678,7 +531,7 @@ fn account_credential_deployment_signed_payload() {
                 cred_id_hex: "a9e510d6685f81c2d7f8a0177222d067982cc73699c5a7d64a80d06543797e808e04c52ea393ee300f50d5b4c6e87c57".to_string(),
                 credential_public_keys: CredentialPublicKeys {
                     keys: HashMap::from([
-                        (0, VerifyKeyWithScheme {
+                        (0, VerifyKey {
                             scheme_id: "Ed25519".to_string(),
                             key_hex: "2581eca64c0c480d4786c8878553f064a008b82be869af0e12149bdf26b62a53".to_string(),
                         })

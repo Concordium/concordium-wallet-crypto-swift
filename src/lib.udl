@@ -56,18 +56,13 @@ dictionary AccountCredentialParameters {
     string prf_key_hex;
     string blinding_randomness_hex;
     record<string, string> attribute_randomness_hex;
-    CredentialPublicKeysHex credential_public_keys_hex;
+    CredentialPublicKeys credential_public_keys;
 };
 
 dictionary IdentityObject {
     PreIdentityObject pre_identity_object;
     AttributeList attribute_list;
     string signature_hex;
-};
-
-dictionary CredentialPublicKeysHex {
-    record<u8, string> keys;
-    u8 threshold;
 };
 
 dictionary PreIdentityObject {
@@ -113,7 +108,7 @@ dictionary Randomness {
 dictionary AccountCredential {
     record<u32, ChainArData> ar_data;
     string cred_id_hex;
-    CredentialPublicKeysWithScheme credential_public_keys;
+    CredentialPublicKeys credential_public_keys;
     u32 ip_identity;
     Policy policy;
     Proofs proofs;
@@ -124,12 +119,12 @@ dictionary ChainArData {
     string end_id_cred_pub_share_hex;
 };
 
-dictionary CredentialPublicKeysWithScheme {
-    record<u8, VerifyKeyWithScheme> keys;
+dictionary CredentialPublicKeys {
+    record<u8, VerifyKey> keys;
     u8 threshold;
 };
 
-dictionary VerifyKeyWithScheme {
+dictionary VerifyKey {
     string scheme_id;
     string key_hex;
 };
@@ -186,7 +181,7 @@ namespace crypto {
     [Throws=ConcordiumWalletCryptoError]
     AccountCredentialResult account_credential(AccountCredentialParameters params);
     [Throws=ConcordiumWalletCryptoError]
-    string account_credential_deployment_hash_hex(AccountCredential credential, u64 expiry_unix);
+    string account_credential_deployment_hash_hex(AccountCredential credential, u64 expiry_unix_secs);
     [Throws=ConcordiumWalletCryptoError]
     string account_credential_deployment_signed_payload_hex(SignedAccountCredential credential);
 };

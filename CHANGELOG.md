@@ -26,9 +26,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   The values are translated into these library types via JSON encoding/decoding.
   This is in contrast to the Java SDK where the value is passed as a JSON encoded string
   which is then decoded directly into the library input type.
-  Doing it this way ensures that type unsafe conversions happen internally in this library where it's easily tested
-  rather than at the FFI boundary.
-  So it makes the FFI boundary type safe and of course also generates the Swift types that we do need on the SDK side anyway.
+  Doing it this way ensures that the conversions that are only checked at runtime happen internally in this library is easily tested,
+  rather than across the FFI boundary.
+  So it makes the FFI boundary statically typed and of course also generates the Swift types that we do need on the SDK side anyway.
   
   The identity request functions return their result as JSON encoded strings
   because the protocol actually is to just send the object as JSON in a URL parameter.

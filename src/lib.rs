@@ -168,10 +168,6 @@ pub fn verifiable_credential_backup_encryption_key_hex(
     })
 }
 
-pub type ArIdentity = u32;
-pub type IpIdentity = u32;
-pub type KeyIndex = u8;
-
 // TODO: Use 'derivative' to implement Debug in a way that doesn't include fields containing secrets
 //       and log the serialized debug string into the error message.
 
@@ -182,7 +178,7 @@ pub struct IdentityIssuanceRequestParameters {
     #[serde(rename = "globalContext")]
     pub global_context: GlobalContext,
     #[serde(rename = "arsInfos")]
-    pub ars_infos: HashMap<ArIdentity, AnonymityRevokerInfo>,
+    pub ars_infos: HashMap<u32, AnonymityRevokerInfo>,
     #[serde(rename = "arThreshold")]
     pub ar_threshold: u8,
     #[serde(rename = "prfKey")]
@@ -208,7 +204,7 @@ pub struct IdentityRecoveryRequestParameters {
 #[derive(Debug, Serialize)]
 pub struct IdentityProviderInfo {
     #[serde(rename = "ipIdentity")]
-    pub identity: IpIdentity,
+    pub identity: u32,
     #[serde(rename = "ipDescription")]
     pub description: Description,
     #[serde(rename = "ipVerifyKey")]
@@ -230,7 +226,7 @@ pub struct GlobalContext {
 #[derive(Debug, Serialize)]
 pub struct AnonymityRevokerInfo {
     #[serde(rename = "arIdentity")]
-    pub identity: ArIdentity,
+    pub identity: u32,
     #[serde(rename = "arDescription")]
     pub description: Description,
     #[serde(rename = "arPublicKey")]
@@ -254,7 +250,7 @@ pub struct AccountCredentialParameters {
     #[serde(rename = "globalContext")]
     pub global_context: GlobalContext,
     #[serde(rename = "arsInfos")]
-    pub ars_infos: HashMap<ArIdentity, AnonymityRevokerInfo>,
+    pub ars_infos: HashMap<u32, AnonymityRevokerInfo>,
     #[serde(rename = "idObject")]
     pub id_object: IdentityObject,
     #[serde(rename = "revealedAttributes")]
@@ -270,7 +266,7 @@ pub struct AccountCredentialParameters {
     #[serde(rename = "attributeRandomness")]
     pub attribute_randomness_hex: HashMap<String, String>,
     #[serde(rename = "credentialPublicKeys")]
-    pub credential_public_keys_hex: CredentialPublicKeysHex,
+    pub credential_public_keys: CredentialPublicKeys,
 }
 
 #[derive(Debug, Serialize)]
@@ -283,12 +279,12 @@ pub struct IdentityObject {
     pub signature_hex: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct PreIdentityObject {
     #[serde(rename = "idCredPub")]
     pub id_cred_pub_hex: String,
     #[serde(rename = "ipArData")]
-    pub ip_ar_data: HashMap<ArIdentity, ArData>,
+    pub ip_ar_data: HashMap<u32, ArData>,
     #[serde(rename = "choiceArData")]
     pub choice_ar_data: ChoiceArParameters,
     #[serde(rename = "idCredSecCommitment")]
@@ -304,12 +300,12 @@ pub struct PreIdentityObject {
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct ChoiceArParameters {
     #[serde(rename = "arIdentities")]
-    pub ar_identities: Vec<ArIdentity>,
+    pub ar_identities: Vec<u32>,
     #[serde(rename = "threshold")]
     pub threshold: u32,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct ArData {
     #[serde(rename = "encPrfKeyShare")]
     pub enc_prf_key_share_hex: String,
@@ -330,23 +326,20 @@ pub struct AttributeList {
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct CredentialPublicKeys<Key> {
+pub struct CredentialPublicKeys {
     #[serde(rename = "keys")]
-    pub keys: HashMap<KeyIndex, Key>,
+    pub keys: HashMap<u8, VerifyKey>,
     #[serde(rename = "threshold")]
     pub threshold: u8,
 }
 
 #[derive(Debug, Deserialize, Serialize)]
-pub struct VerifyKeyWithScheme {
+pub struct VerifyKey {
     #[serde(rename = "schemeId")]
     pub scheme_id: String,
     #[serde(rename = "verifyKey")]
     pub key_hex: String,
 }
-
-pub type CredentialPublicKeysHex = CredentialPublicKeys<String>;
-pub type CredentialPublicKeysWithScheme = CredentialPublicKeys<VerifyKeyWithScheme>;
 
 /* OUTPUTS */
 
@@ -412,13 +405,13 @@ pub fn identity_recovery_request_json(
 #[derive(Debug, Deserialize, Serialize)]
 pub struct AccountCredential {
     #[serde(rename = "arData")]
-    pub ar_data: HashMap<ArIdentity, ChainArData>,
+    pub ar_data: HashMap<u32, ChainArData>,
     #[serde(rename = "credId")]
     pub cred_id_hex: String,
     #[serde(rename = "credentialPublicKeys")]
-    pub credential_public_keys: CredentialPublicKeysWithScheme,
+    pub credential_public_keys: CredentialPublicKeys,
     #[serde(rename = "ipIdentity")]
-    pub ip_identity: IpIdentity,
+    pub ip_identity: u32,
     #[serde(rename = "policy")]
     pub policy: Policy,
     #[serde(rename = "proofs")]
@@ -486,19 +479,19 @@ pub fn account_credential(
 /// Duplicate of [`CredentialDeploymentDetails`] because that type only supports construction from JSON.
 /// It's only used internally and not exported.
 #[derive(Debug, Serialize)]
-pub struct CredentialDeploymentPayloadHashInput {
+struct CredentialDeploymentPayloadHashInput {
     #[serde(rename = "expiry")]
-    pub expiry_unix: u64,
+    expiry_unix_secs: u64,
     #[serde(rename = "unsignedCdi")]
-    pub credential: AccountCredential,
+    credential: AccountCredential,
 }
 
 pub fn account_credential_deployment_hash_hex(
     credential: AccountCredential,
-    expiry_unix: u64,
+    expiry_unix_secs: u64,
 ) -> Result<String, ConcordiumWalletCryptoError> {
     let input = CredentialDeploymentPayloadHashInput {
-        expiry_unix,
+        expiry_unix_secs,
         credential,
     };
     serde_json::to_string(&input)
@@ -519,7 +512,7 @@ pub struct SignedAccountCredential {
     #[serde(rename = "unsignedCdi")]
     pub credential: AccountCredential,
     #[serde(rename = "signatures")]
-    pub signatures_hex: HashMap<KeyIndex, String>,
+    pub signatures_hex: HashMap<u8, String>,
 }
 
 pub fn account_credential_deployment_signed_payload_hex(
