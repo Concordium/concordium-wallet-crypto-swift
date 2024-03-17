@@ -34,7 +34,7 @@ jobs:
       - name: Check formatting
         run: cargo fmt --check
       - name: Run linter
-        run: cargo clippy
+        run: cargo clippy --all-targets --all-features -- -Dwarnings
       - name: Run tests
         run: cargo test
       - name: Build Swift package (macOS/x86_64 only)

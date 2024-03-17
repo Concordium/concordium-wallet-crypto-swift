@@ -17,14 +17,7 @@ jobs:
 
     steps:
       - name: Setup Rust
-        run: |
-          rustup default "${{env.rust_version}}"
-          rustup target add \
-            aarch64-apple-darwin \
-            aarch64-apple-ios \
-            aarch64-apple-ios-sim \
-            x86_64-apple-darwin \
-            x86_64-apple-ios
+        run: make setup
       - name: Check out sources
         uses: actions/checkout@v4
         with:
