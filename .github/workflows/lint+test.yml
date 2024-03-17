@@ -37,3 +37,17 @@ jobs:
         run: cargo clippy
       - name: Run tests
         run: cargo test
+      - name: Build Swift package (macOS only)
+        if: runner.os == 'macOS'
+        run: |
+          # TODO: build for own platform only
+          rustup target add \
+            aarch64-apple-darwin \
+            aarch64-apple-ios \
+            aarch64-apple-ios-sim \
+            x86_64-apple-darwin \
+            x86_64-apple-ios
+          make framework
+          CONCORDIUM_WALLET_CRYPTO_FRAMEWORK_PATH=./generated/ConcordiumWalletCrypto.xcframework \
+            swift build
+          
