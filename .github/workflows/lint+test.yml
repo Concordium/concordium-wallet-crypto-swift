@@ -48,6 +48,6 @@ jobs:
             x86_64-apple-darwin \
             x86_64-apple-ios
           make framework
-          CONCORDIUM_WALLET_CRYPTO_FRAMEWORK_PATH=./generated/ConcordiumWalletCrypto.xcframework \
+          CONCORDIUM_WALLET_CRYPTO_FRAMEWORK_PATH=./generated/ConcordiumWalletCryptoUniffi.xcframework \
             swift build
           
