@@ -5,18 +5,27 @@ on:
     branches: main
   pull_request:
 
-env:
-  rust_version: "1.72"
-
 jobs:
   lint-and-test:
-    runs-on: macos-13
+    strategy:
+      matrix:
+        runner:
+          - macos-11
+          - macos-12
+          - macos-13
+          - macos-14
+          - ubuntu-latest
+          - windows-latest
+        rust-version:
+          - "1.72"
+
+    runs-on: "${{matrix.runner}}"
 
     steps:
       # TODO: Consider adding caching.
       - name: Setup Rust
         run: |
-          rustup default "${{env.rust_version}}"
+          rustup default "${{matrix.rust-version}}"
           rustup component add rustfmt clippy
       - name: Check out sources
         uses: actions/checkout@v4
@@ -25,6 +34,26 @@ jobs:
       - name: Check formatting
         run: cargo fmt --check
       - name: Run linter
-        run: cargo clippy
+        run: cargo clippy --all-targets --all-features -- -Dwarnings
       - name: Run tests
         run: cargo test
+      - name: Build Swift package (macOS/x86_64 only)
+        if: runner.os == 'macOS' && runner.arch == 'X64'
+        run: |
+          make swift-bindings lib-darwin-x86_64 # produces './generated/bindings' and './target/x86_64-apple-darwin/release/libconcordium_wallet_crypto_uniffi.a'
+          xcodebuild -create-xcframework \
+            -library ./target/x86_64-apple-darwin/release/libconcordium_wallet_crypto_uniffi.a -headers ./generated/bindings \
+            -output ./generated/ConcordiumWalletCryptoUniffi.xcframework
+      - name: Build Swift package (macOS/arm64 only)
+        if: runner.os == 'macOS' && runner.arch == 'ARM64'
+        run: |
+          make swift-bindings lib-darwin-aarch64 # produces './generated/bindings' and './target/aarch64-apple-darwin/release/libconcordium_wallet_crypto_uniffi.a'
+          xcodebuild -create-xcframework \
+            -library ./target/aarch64-apple-darwin/release/libconcordium_wallet_crypto_uniffi.a -headers ./generated/bindings \
+            -output ./generated/ConcordiumWalletCryptoUniffi.xcframework
+      - name: Verify that library builds (macOS only)
+        if: runner.os == 'macOS'
+        run: swift build
+        env:
+          # Use the local framework built in previous step.
+          CONCORDIUM_WALLET_CRYPTO_FRAMEWORK_PATH: ./generated/ConcordiumWalletCryptoUniffi.xcframework

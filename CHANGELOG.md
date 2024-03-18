@@ -14,8 +14,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- Rename crate from "crypto" to "concordium-wallet-crypto-uniffi"
-- Rename generated framework from "RustFramework" to "ConcordiumWalletCrypto".
+- Rename crate from "crypto" to "concordium-wallet-crypto-uniffi" and verify on CI that project works on all platforms.
+- Rename generated framework from "RustFramework" to "ConcordiumWalletCryptoUniffi".
+- Ensure that library builds on macOS 11+ and verify on CI.
 - Bump UniFFI from v0.25.x to v0.26.x.
 
 ## [1.0.0] - 2024-02-06

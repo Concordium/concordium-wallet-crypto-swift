@@ -17,30 +17,23 @@ jobs:
 
     steps:
       - name: Setup Rust
-        run: |
-          rustup default "${{env.rust_version}}"
-          rustup target add \
-            aarch64-apple-darwin \
-            aarch64-apple-ios \
-            aarch64-apple-ios-sim \
-            x86_64-apple-darwin \
-            x86_64-apple-ios
+        run: make setup
       - name: Check out sources
         uses: actions/checkout@v4
         with:
           submodules: recursive
       - name: Build binary framework
-        run: make framework # produces './generated/ConcordiumWalletCrypto.xcframework'
+        run: make framework # produces './generated/ConcordiumWalletCryptoUniffi.xcframework'
       - name: Archive framework
         working-directory: ./generated
         run: |
-          zip -r ./ConcordiumWalletCrypto.xcframework.zip ./ConcordiumWalletCrypto.xcframework
-          swift package compute-checksum ./ConcordiumWalletCrypto.xcframework.zip > ./CHECKSUM
+          zip -r ./ConcordiumWalletCryptoUniffi.xcframework.zip ./ConcordiumWalletCryptoUniffi.xcframework
+          swift package compute-checksum ./ConcordiumWalletCryptoUniffi.xcframework.zip > ./CHECKSUM
       - name: Upload package as GitHub release
         uses: softprops/action-gh-release@v1
         with:
             files: |
-              ./generated/ConcordiumWalletCrypto.xcframework.zip
+              ./generated/ConcordiumWalletCryptoUniffi.xcframework.zip
               ./generated/CHECKSUM
             name: '${{github.event.inputs.version}}'
             generate_release_notes: true

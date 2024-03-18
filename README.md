@@ -64,7 +64,7 @@ Run
 make framework
 ```
 
-This script will compile the sources into a framework `./generated/ConcordiumWalletCrypto.xcframework`
+This script will compile the sources into a framework `./generated/ConcordiumWalletCryptoUniffi.xcframework`
 that supports the following platforms:
 
 - macOS: x86_64 (`x86_64-apple-darwin`) and ARM (`aarch64-apple-darwin`) as a universal binary
@@ -94,7 +94,7 @@ the provided path is evaluated relative to the root of this project.
 
 For convenience, if `CONCORDIUM_WALLET_CRYPTO_PATH` is set
 (indicating that we're using a development version of this library)
-then `CONCORDIUM_WALLET_CRYPTO_FRAMEWORK_PATH` will default to `./generated/ConcordiumWalletCrypto.xcframework`.
+then `CONCORDIUM_WALLET_CRYPTO_FRAMEWORK_PATH` will default to `./generated/ConcordiumWalletCryptoUniffi.xcframework`.
 Provide the empty string to that variable to disable this behavior.
 
 ### Rust
