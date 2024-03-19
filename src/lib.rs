@@ -181,7 +181,7 @@ pub fn verifiable_credential_backup_encryption_key_hex(
 /// UniFFI compatible bridge to [`IdentityObjectRequestInput`],
 /// providing the implementation of the UDL declaration of the same name.
 /// The translation is performed using Serde.
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct IdentityIssuanceRequestParameters {
     #[serde(rename = "ipInfo")]
     pub ip_info: IdentityProviderInfo,
@@ -202,7 +202,7 @@ pub struct IdentityIssuanceRequestParameters {
 /// UniFFI compatible bridge to [`IdentityRecoveryRequestInput`],
 /// providing the implementation of the UDL declaration of the same name.
 /// The translation is performed using Serde.
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct IdentityRecoveryRequestParameters {
     #[serde(rename = "ipInfo")]
     pub ip_info: IdentityProviderInfo,
@@ -217,7 +217,7 @@ pub struct IdentityRecoveryRequestParameters {
 /// UniFFI compatible bridge to [`concordium_base::id::types::IpInfo<concordium_base::id::constants::IpPairing>`],
 /// providing the implementation of the UDL declaration of the same name.
 /// The translation is performed using Serde.
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct IdentityProviderInfo {
     #[serde(rename = "ipIdentity")]
     pub identity: u32,
@@ -232,7 +232,7 @@ pub struct IdentityProviderInfo {
 /// UniFFI compatible bridge to [`concordium_base::id::types::GlobalContext<concordium_base::id::constants::ArCurve>`],
 /// providing the implementation of the UDL declaration of the same name.
 /// The translation is performed using Serde.
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct GlobalContext {
     #[serde(rename = "onChainCommitmentKey")]
     pub on_chain_commitment_key_hex: String,
@@ -245,7 +245,7 @@ pub struct GlobalContext {
 /// UniFFI compatible bridge to [`concordium_base::id::types::ArInfo<concordium_base::id::constants::ArCurve>`],
 /// providing the implementation of the UDL declaration of the same name.
 /// The translation is performed using Serde.
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct AnonymityRevokerInfo {
     #[serde(rename = "arIdentity")]
     pub identity: u32,
@@ -258,7 +258,7 @@ pub struct AnonymityRevokerInfo {
 /// UniFFI compatible bridge to [`concordium_base::id::types::Description`],
 /// providing the implementation of the UDL declaration of the same name.
 /// The translation is performed using Serde.
-#[derive(Debug, Serialize)]
+#[derive(Clone, Debug, Serialize)]
 pub struct Description {
     #[serde(rename = "name")]
     pub name: String,
