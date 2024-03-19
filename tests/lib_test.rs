@@ -1,3 +1,4 @@
+use concordium_base::common::Versioned;
 use concordium_wallet_crypto_uniffi::*;
 use serde::Deserialize;
 use std::collections::HashMap;
@@ -211,15 +212,6 @@ struct IdentityIssuanceRequestResult {
 struct IdentityRecoveryRequestResult {
     #[serde(rename = "idRecoveryRequest")]
     value: Versioned<IdentityRecoveryRequestResultValue>,
-}
-
-/// Deserialization struct for JSON output for use in tests.
-#[derive(Debug, Deserialize, PartialEq)]
-struct Versioned<T> {
-    #[serde(rename = "v")]
-    version: u32,
-    #[serde(rename = "value")]
-    value: T,
 }
 
 /// Deserialization struct for JSON output for use in tests.
