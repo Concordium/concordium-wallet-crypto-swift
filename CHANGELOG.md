@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2024-03-20
+
 ### Added
 
 - Build-time environment variable `CONCORDIUM_WALLET_CRYPTO_FRAMEWORK_PATH`
