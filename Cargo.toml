@@ -9,7 +9,14 @@ crate-type = ["staticlib", "lib"]
 [dependencies]
 thiserror = "1"
 uniffi = { version = "0.26", features = ["cli"] }
-wallet_library = { path = "./concordium-base/rust-src/wallet_library" }
+serde = "1.0"
+serde_json = "1.0"
+
+[dependencies.concordium_base]
+path = "./concordium-base/rust-src/concordium_base"
+
+[dependencies.wallet_library]
+path = "./concordium-base/rust-src/wallet_library"
 
 [build-dependencies]
 uniffi = { version = "0.26", features = ["build"] }
