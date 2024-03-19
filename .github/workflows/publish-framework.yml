@@ -16,12 +16,12 @@ jobs:
     runs-on: macos-13
 
     steps:
-      - name: Setup Rust
-        run: make setup
       - name: Check out sources
         uses: actions/checkout@v4
         with:
           submodules: recursive
+      - name: Setup Rust
+        run: make setup
       - name: Build binary framework
         run: make framework # produces './generated/ConcordiumWalletCryptoUniffi.xcframework'
       - name: Archive framework
