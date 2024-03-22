@@ -42,7 +42,7 @@ swift-bindings: # produces './generated/bindings'
 	# Move Swift bridge code to source folder.
 	# The remaining files (header and renamed modulemap) should go into the framework
 	# (the directory is passed to 'xcodebuild -create-xcframework' via '-headers').
-	mv ./generated/bindings/crypto.swift ./Sources/ConcordiumWalletCrypto/crypto.swift
+	mv ./generated/bindings/crypto.swift ./Sources/ConcordiumWalletCrypto/generated.swift
 	mv ./generated/bindings/cryptoFFI.modulemap ./generated/bindings/module.modulemap
 
 # BUILD STATIC LIBRARIES #
