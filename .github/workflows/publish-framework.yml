@@ -35,5 +35,5 @@ jobs:
             files: |
               ./generated/ConcordiumWalletCryptoUniffi.xcframework.zip
               ./generated/CHECKSUM
-            name: '${{github.event.inputs.version}}'
+            name: 'Framework: ${{github.event.inputs.version}}'
             generate_release_notes: true
