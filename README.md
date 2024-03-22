@@ -108,24 +108,38 @@ which is explained in detail below.
 
 ## Release new version
 
-The steps for building and releasing a new version `<version>` of the library are as follows:
+Due to the dual nature of this repository, the release process is a little cumbersome,
+so please follow the instructions below carefully.
 
-1. Bump the version to `<version>` in `Cargo.toml` and insert the changelog header in a separate "release" PR.
-2. Push a tag named `build/<version>-<build-version>` for the commit,
-   where `<build-version>` is bumped (starting from 0) for each attempt at building `<version>`.
-   This is necessary because GitHub requires releases to be tagged and the following workflow uploads a release.
-3. Run the [workflow](./.github/workflows/publish-framework.yml) for publishing a new version of the binary framework.
+The entire process should be done as a single PR;
+see [#11](https://github.com/Concordium/concordium-wallet-crypto-swift/pull/11) for a template.
+To preserve tags, the PR is to be merged without squashing.
+
+Steps for building and releasing a new version `<version>` of the package:
+
+1. Create and checkout a release branch named `release/<version>`.
+2. Bump the version to `<version>` in `Cargo.toml` and
+   [insert the changelog header](https://github.com/Concordium/concordium-wallet-crypto-swift/pull/11/files#diff-06572a96a58dc510037d5efa622f9bec8519bc1beab13c9f251e97e657a9d4ed).
+3. Commit and push the change to the release branch.
+   Create and push an *unannotated* tag named `build/<version>-<build-version>` for the commit,
+   where `<build-version>` starts out at `0`.
+   Tagging is necessary because the workflow to be run in the next step uploads a release.
+   GitHub requires releases to be tagged.
+4. Run the [workflow](./.github/workflows/publish-framework.yml) for publishing a new version of the binary framework.
    Use the tag you just created as "branch" to run from and input `<version>` (i.e. without the counter for "Version").
-4. Run `make swift-bindings` locally to regenerate the Swift bridge sources.
-5. Update `Package.swift` with the updated `url` and `checksum` of the binary framework.
-   The workflow prints the checksum as the last step of its execution.
-6. Commit the changes to `Sources/ConcordiumWalletCrypto/crypto.swift` and `Package.swift`
-   (no other files should have changes)
-   and push an annotated tag named by the version for the new commit:
+5. If the build fails, push a fix to the branch and go to step 3 with `<build-version>` bumped by 1.
+6. Run `make swift-bindings` locally to regenerate the Swift bridge sources.
+7. Update `Package.swift` with the updated `url` and `checksum` of the binary framework.
+   The checksum is part of the release built by the workflow above as the file `CHECKSUM`.
+8. Commit the changes to `Sources/ConcordiumWalletCrypto/generated.swift` and `Package.swift`
+   (no other files should have changes).
+   IMPORTANT: The Swift file is ignored by Git to prevent it from being updated untimely, so it must be force added before committing:
+   ```shell
+   git add -f ./Sources
+   ```
+9. Push an annotated tag named by the version for the new commit:
    ```shell
    git tag -a <version>
    ```
    Give the tag a message describing what changed in the new version.
 
-The entire process should be done as a single PR which,
-in order to preserve the tags, gets merged without squashing.
