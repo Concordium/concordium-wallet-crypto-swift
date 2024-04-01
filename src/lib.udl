@@ -111,7 +111,7 @@ dictionary PreIdentityObject {
 /// Choice of anonymity revocation parameters.
 dictionary ChoiceArParameters {
     sequence<u32> ar_identities;
-    u32 threshold;
+    u8 threshold;
 };
 
 /// The data relating to a single anonymity revoker
@@ -250,43 +250,43 @@ namespace crypto {
     /// Supported values for `network`: "Testnet", "Mainnet".
     /// The result is hex encoded.
     [Throws=ConcordiumWalletCryptoError]
-    string identity_cred_sec_hex(string seed_hex, string network, u32 identity_provider_index, u32 identity_index);
+    string identity_cred_sec_hex(string seed_hex, string network, u32 identity_provider_id, u32 identity_index);
 
     /// Compute the PRF-key for the provided seed and identity indexes.
     /// Supported values for `network`: "Testnet", "Mainnet".
     /// The result is hex encoded.
     [Throws=ConcordiumWalletCryptoError]
-    string identity_prf_key_hex(string seed_hex, string network, u32 identity_provider_index, u32 identity_index);
+    string identity_prf_key_hex(string seed_hex, string network, u32 identity_provider_id, u32 identity_index);
 
     /// Compute the signature blinding randomness for the provided seed and identity indexes.
     /// Supported values for `network`: "Testnet", "Mainnet".
     /// The result is hex encoded.
     [Throws=ConcordiumWalletCryptoError]
-    string identity_attributes_signature_blinding_randomness_hex(string seed_hex, string network, u32 identity_provider_index, u32 identity_index);
+    string identity_attributes_signature_blinding_randomness_hex(string seed_hex, string network, u32 identity_provider_id, u32 identity_index);
 
     /// Compute the account credential signing key for the provided seed, identity indexes, and credential counter.
     /// Supported values for `network`: "Testnet", "Mainnet".
     /// The result is hex encoded.
     [Throws=ConcordiumWalletCryptoError]
-    string account_credential_signing_key_hex(string seed_hex, string network, u32 identity_provider_index, u32 identity_index, u8 credential_counter);
+    string account_credential_signing_key_hex(string seed_hex, string network, u32 identity_provider_id, u32 identity_index, u8 credential_counter);
 
     /// Compute the account credential public key for the provided seed, identity indexes, and credential counter.
     /// Supported values for `network`: "Testnet", "Mainnet".
     /// The result is hex encoded.
     [Throws=ConcordiumWalletCryptoError]
-    string account_credential_public_key_hex(string seed_hex, string network, u32 identity_provider_index, u32 identity_index, u8 credential_counter);
+    string account_credential_public_key_hex(string seed_hex, string network, u32 identity_provider_id, u32 identity_index, u8 credential_counter);
 
     /// Compute the credential ID for the provided seed, identity indexes, credential counter, and the chain's commitment key.
     /// Supported values for `network`: "Testnet", "Mainnet".
     /// The result is hex encoded.
     [Throws=ConcordiumWalletCryptoError]
-    string account_credential_id_hex(string seed_hex, string network, u32 identity_provider_index, u32 identity_index, u8 credential_counter, string commitment_key);
+    string account_credential_id_hex(string seed_hex, string network, u32 identity_provider_id, u32 identity_index, u8 credential_counter, string commitment_key);
 
     /// Compute the attribute commitment randomness for the provided seed, identity indexes, credential counter, and attribute number.
     /// Supported values for `network`: "Testnet", "Mainnet".
     /// The result is hex encoded.
     [Throws=ConcordiumWalletCryptoError]
-    string account_credential_attribute_commitment_randomness_hex(string seed_hex, string network, u32 identity_provider_index, u32 identity_index, u8 credential_counter, u8 attribute);
+    string account_credential_attribute_commitment_randomness_hex(string seed_hex, string network, u32 identity_provider_id, u32 identity_index, u8 credential_counter, u8 attribute);
 
     /// Compute the signing key for the provided seed, issuer indexes, and verifiable credential index.
     /// Supported values for `network`: "Testnet", "Mainnet".

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `ChoiceArParameter` field `threshold`: Change type from `u32` to `u8` as that's the proper type.
+- Rename `identity_provider_index` to `identity_provider_id` in UDL definition for consistency with SDK.
+
 ## [2.0.0] - 2024-03-20
 
 ### Added
