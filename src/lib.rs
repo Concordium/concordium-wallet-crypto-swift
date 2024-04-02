@@ -487,7 +487,7 @@ pub struct AccountCredential {
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ChainArData {
     #[serde(rename = "encIdCredPubShare")]
-    pub end_id_cred_pub_share_hex: String,
+    pub enc_id_cred_pub_share_hex: String,
 }
 
 /// UniFFI compatible bridge to [`concordium_base::id::types::Policy<concordium_base::id::constants::ArCurve,concordium_base::id::constants::AttributeKind> `],

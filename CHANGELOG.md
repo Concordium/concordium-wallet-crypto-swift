@@ -7,10 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-### Changed
+### Changed/fixed
 
 - `ChoiceArParameter` field `threshold`: Change type from `u32` to `u8` as that's the proper type.
 - Rename `identity_provider_index` to `identity_provider_id` in UDL definition for consistency with SDK.
+- `ChainArData` field `end_id_cred_pub_share_hex`: Renamed to `enc_id_cred_pub_share_hex` to fix typo.
 
 ## [2.0.0] - 2024-03-20
 
