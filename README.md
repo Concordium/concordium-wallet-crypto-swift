@@ -3,7 +3,7 @@
 [Swift package](https://developer.apple.com/documentation/xcode/swift-packages) providing bindings for Swift
 of Concordium specific cryptographic functions that are written in Rust.
 
-The project is a core component of [`ConcordiumSwiftSdk`](https://github.com/Concordium/concordium-swift-sdk.git).
+The project is a core component of the [Concordium Swift SDK](https://github.com/Concordium/concordium-swift-sdk.git).
 It has its own repository because of limitations in SwiftPM
 that prevent us from publishing everything in a single complete package.
 In brief, Swift packages must be downloaded straight from git,

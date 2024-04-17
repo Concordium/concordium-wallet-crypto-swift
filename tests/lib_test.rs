@@ -486,13 +486,13 @@ fn account_credential_deployment_hash() {
     let input = AccountCredential {
             ar_data: HashMap::from([
                 (3, ChainArData {
-                    end_id_cred_pub_share_hex: "8af70ed13186d7c332bb894725c99ba9e58405a668cb3c9c48d6e85029284d29a91d8da59dacd0d85c925659426e198396c3f73e791ccec217bc92fbdc618877544b9a2789b4ea89d4cdcceb7df4cdde64284b400374585a59596543ae6c45d6".to_string(),
+                    enc_id_cred_pub_share_hex: "8af70ed13186d7c332bb894725c99ba9e58405a668cb3c9c48d6e85029284d29a91d8da59dacd0d85c925659426e198396c3f73e791ccec217bc92fbdc618877544b9a2789b4ea89d4cdcceb7df4cdde64284b400374585a59596543ae6c45d6".to_string(),
                 }),
                 (2, ChainArData {
-                    end_id_cred_pub_share_hex: "994686187e9568e1076a6a711068dae4bd663f6ca2886fb3f97254ff0cc4e9b17797fd2a19237d8ca94941b697a3d7308b9a8e1a12f3eb856d52d3bb3adc016ba8c8eacbe93339a920f436de86f66ed847a1b03aab3645c1635d956b723442c8".to_string(),
+                    enc_id_cred_pub_share_hex: "994686187e9568e1076a6a711068dae4bd663f6ca2886fb3f97254ff0cc4e9b17797fd2a19237d8ca94941b697a3d7308b9a8e1a12f3eb856d52d3bb3adc016ba8c8eacbe93339a920f436de86f66ed847a1b03aab3645c1635d956b723442c8".to_string(),
                 }),
                 (1, ChainArData {
-                    end_id_cred_pub_share_hex: "a52beef5e3c6491fce7012a268ee5b3ed03aeecdb496abd979bcc60803d6d3c970112599d500690c2f447daefb81223d99de5fd822fdfb7ce4c9fe7253995c639f9037ad64a529393ea5cc7db18b74432469208e0076a80ed2c22f7848b82895".to_string(),
+                    enc_id_cred_pub_share_hex: "a52beef5e3c6491fce7012a268ee5b3ed03aeecdb496abd979bcc60803d6d3c970112599d500690c2f447daefb81223d99de5fd822fdfb7ce4c9fe7253995c639f9037ad64a529393ea5cc7db18b74432469208e0076a80ed2c22f7848b82895".to_string(),
                 }),
             ]),
             cred_id_hex: "a9e510d6685f81c2d7f8a0177222d067982cc73699c5a7d64a80d06543797e808e04c52ea393ee300f50d5b4c6e87c57".to_string(),
@@ -540,13 +540,13 @@ fn account_credential_deployment_signed_payload() {
             credential: AccountCredential {
                 ar_data: HashMap::from([
                     (3, ChainArData {
-                        end_id_cred_pub_share_hex: "8af70ed13186d7c332bb894725c99ba9e58405a668cb3c9c48d6e85029284d29a91d8da59dacd0d85c925659426e198396c3f73e791ccec217bc92fbdc618877544b9a2789b4ea89d4cdcceb7df4cdde64284b400374585a59596543ae6c45d6".to_string(),
+                        enc_id_cred_pub_share_hex: "8af70ed13186d7c332bb894725c99ba9e58405a668cb3c9c48d6e85029284d29a91d8da59dacd0d85c925659426e198396c3f73e791ccec217bc92fbdc618877544b9a2789b4ea89d4cdcceb7df4cdde64284b400374585a59596543ae6c45d6".to_string(),
                     }),
                     (2, ChainArData {
-                        end_id_cred_pub_share_hex: "994686187e9568e1076a6a711068dae4bd663f6ca2886fb3f97254ff0cc4e9b17797fd2a19237d8ca94941b697a3d7308b9a8e1a12f3eb856d52d3bb3adc016ba8c8eacbe93339a920f436de86f66ed847a1b03aab3645c1635d956b723442c8".to_string(),
+                        enc_id_cred_pub_share_hex: "994686187e9568e1076a6a711068dae4bd663f6ca2886fb3f97254ff0cc4e9b17797fd2a19237d8ca94941b697a3d7308b9a8e1a12f3eb856d52d3bb3adc016ba8c8eacbe93339a920f436de86f66ed847a1b03aab3645c1635d956b723442c8".to_string(),
                     }),
                     (1, ChainArData {
-                        end_id_cred_pub_share_hex: "a52beef5e3c6491fce7012a268ee5b3ed03aeecdb496abd979bcc60803d6d3c970112599d500690c2f447daefb81223d99de5fd822fdfb7ce4c9fe7253995c639f9037ad64a529393ea5cc7db18b74432469208e0076a80ed2c22f7848b82895".to_string(),
+                        enc_id_cred_pub_share_hex: "a52beef5e3c6491fce7012a268ee5b3ed03aeecdb496abd979bcc60803d6d3c970112599d500690c2f447daefb81223d99de5fd822fdfb7ce4c9fe7253995c639f9037ad64a529393ea5cc7db18b74432469208e0076a80ed2c22f7848b82895".to_string(),
                     }),
                 ]),
                 cred_id_hex: "a9e510d6685f81c2d7f8a0177222d067982cc73699c5a7d64a80d06543797e808e04c52ea393ee300f50d5b4c6e87c57".to_string(),
