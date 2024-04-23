@@ -1,0 +1,41 @@
+name: Publish release for SwiftPM package tag
+
+on:
+  push:
+    tags: "*.*.*"
+
+jobs:
+  publish-release:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout project
+      uses: actions/checkout@v4
+      with:
+        ref: '${{github.ref}}'
+    - name: Extract version of the crate
+      uses: bisgardo/github-action-echo
+      id: crate-version
+      with:
+        version: |
+          $(cargo metadata --format-version=1 | jq -r '.packages[] | select(.name == "concordium-wallet-crypto-uniffi") | .version')
+    - name: Fail if tag doesn't match crate version
+      if: "steps.crate-version.version != github.ref"
+      run: exit 1
+    - name: Extract tag message
+      uses: bisgardo/github-action-echo@v1
+      id: tag-msg
+      with:
+        msg: '$(git for-each-ref "${{github.ref}}" --format="%(contents)")'
+    - name: Fail if tag is not "annotated" or its message is empty
+      if: "steps.tag-msg.outputs.msg == ''"
+      run: exit 1
+    - name: Upload package as GitHub release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: '${{github.ref}}'
+        name: '${{github.ref}}'
+        # Release body is the message of the annotated tag.
+        body: |
+          ${{steps.tag-msg.outputs.msg}}
+        generate_release_notes: false
