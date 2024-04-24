@@ -3,6 +3,7 @@ name: Publish release for SwiftPM package tag
 on:
   push:
     tags: "*.*.*"
+  workflow_dispatch: # trigger manually (for debugging)
 
 jobs:
   publish-release:
@@ -14,7 +15,7 @@ jobs:
       with:
         ref: '${{github.ref}}'
     - name: Extract version of the crate
-      uses: bisgardo/github-action-echo
+      uses: bisgardo/github-action-echo@v1
       id: crate-version
       with:
         version: |
