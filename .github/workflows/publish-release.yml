@@ -19,6 +19,7 @@ jobs:
       uses: actions/checkout@v4
       with:
         ref: '${{steps.ref.outputs.ref}}'
+        submodules: recursive # necessary to call 'cargo metadata'
     - name: Extract version of the crate
       uses: bisgardo/github-action-echo@v1
       id: crate-version
