@@ -125,21 +125,21 @@ Steps for building and releasing a new version `<version>` of the package:
    where `<build-version>` starts out at `0`.
    Tagging is necessary because the workflow to be run in the next step uploads a release,
    and GitHub requires releases to be tagged.
-4. Run the [workflow](./.github/workflows/publish-framework.yml) for publishing a new version of the binary framework.
-   Use the tag you just created as "branch" to run from and input `<version>` (i.e. without the build number).
-   If the build fails, commit a fix to the branch and return to step 3 with `<build-version>` incremented by 1.
-5. Run `make swift-bindings` locally to regenerate the Swift bridge sources.
-6. Update `Package.swift` with the updated `url` and `checksum` of the binary framework.
+   The pushing of this tag will automatically trigger a [workflow](./.github/workflows/publish-framework.yml)
+   that publishes a new version of the binary framework.
+   If the build fails, commit a fix to the branch and repeat this step with `<build-version>` incremented by 1.
+4. Run `make swift-bindings` locally to regenerate the Swift bridge sources.
+5. Update `Package.swift` with the updated `url` and `checksum` of the binary framework.
    The checksum is part of the release built by the workflow above as the file `CHECKSUM`.
-7. Commit the changes to `Sources/ConcordiumWalletCrypto/generated.swift` and `Package.swift`
+6. Commit the changes to `Sources/ConcordiumWalletCrypto/generated.swift` and `Package.swift`
    (no other files should have changes).
    IMPORTANT: The generated Swift file is ignored by Git to prevent it from being updated untimely,
    so it must be force added before committing:
    ```shell
    git add -f ./Sources
    ```
-8. Merge PR for release branch *without squashing*.
-9. On the resulting *merge commit* into `main`, push an *annotated* tag named by the version:
+7. Merge PR for release branch *without squashing*.
+8. On the resulting *merge commit* into `main`, push an *annotated* tag named by the version:
    ```shell
    git tag -a <version>
    ```

@@ -2,7 +2,7 @@ name: Publish release for SwiftPM package tag
 
 on:
   push:
-    tags: "*.*.*"
+    tags: '*.*.*'
   workflow_dispatch: # trigger manually (for debugging)
 
 jobs:
