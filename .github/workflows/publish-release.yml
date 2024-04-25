@@ -27,10 +27,10 @@ jobs:
           $(cargo metadata --format-version=1 | jq -r '.packages[] | select(.name == "concordium-wallet-crypto-uniffi") | .version')
     - name: 'Debug outputs'
       run: |
-        echo ${{github.ref}}
-        echo ${{steps.ref.outputs.ref}}
-        echo ${{steps.ref.outputs.ref-name}}
-        echo ${{steps.crate-version.outputs.version}}
+        echo "${{github.ref}}"
+        echo "${{steps.ref.outputs.ref}}"
+        echo "${{steps.ref.outputs.ref-name}}"
+        echo "${{steps.crate-version.outputs.version}}"
     - name: Fail if tag doesn't match crate version
       if: "steps.crate-version.outputs.version != steps.ref.outputs.ref-name"
       run: exit 1
