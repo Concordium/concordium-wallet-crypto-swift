@@ -10,32 +10,43 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+    - name: Parse ref
+      uses: bisgardo/github-action-parse-ref@v1
+      id: ref
+      with:
+        ref: '${{github.ref}}'
     - name: Checkout project
       uses: actions/checkout@v4
       with:
-        ref: '${{github.ref}}'
+        ref: '${{steps.ref.outputs.ref}}'
     - name: Extract version of the crate
       uses: bisgardo/github-action-echo@v1
       id: crate-version
       with:
         version: |
           $(cargo metadata --format-version=1 | jq -r '.packages[] | select(.name == "concordium-wallet-crypto-uniffi") | .version')
+    - name: 'Debug outputs'
+      run: |
+        echo ${{github.ref}}
+        echo ${{steps.ref.outputs.ref}}
+        echo ${{steps.ref.outputs.ref-name}}
+        echo ${{steps.crate-version.outputs.version}}
     - name: Fail if tag doesn't match crate version
-      if: "steps.crate-version.version != github.ref"
+      if: "steps.crate-version.outputs.version != steps.ref.outputs.ref-name"
       run: exit 1
     - name: Extract tag message
       uses: bisgardo/github-action-echo@v1
       id: tag-msg
       with:
-        msg: '$(git for-each-ref "${{github.ref}}" --format="%(contents)")'
+        msg: '$(git for-each-ref "${{steps.ref.outputs.ref}}" --format="%(contents)")'
     - name: Fail if tag is not "annotated" or its message is empty
       if: "steps.tag-msg.outputs.msg == ''"
       run: exit 1
     - name: Upload package as GitHub release
       uses: softprops/action-gh-release@v2
       with:
-        tag_name: '${{github.ref}}'
-        name: '${{github.ref}}'
+        tag_name: '${{steps.ref.outputs.ref-name}}'
+        name: '${{steps.ref.outputs.ref-name}}'
         # Release body is the message of the annotated tag.
         body: |
           ${{steps.tag-msg.outputs.msg}}
