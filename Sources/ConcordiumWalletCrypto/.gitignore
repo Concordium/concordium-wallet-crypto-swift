@@ -1,3 +1,0 @@
-# The generated swift file is ignored by default to prevent committing it untimely.
-# Use 'git add -f ./Sources' to bypass this protection when releasing.
-generated.swift
