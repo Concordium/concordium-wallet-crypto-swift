@@ -25,7 +25,7 @@ jobs:
       id: crate-version
       with:
         version: |
-          $(cargo metadata --format-version=1 | jq -r '.packages[] | select(.name == "concordium-wallet-crypto-uniffi") | .version')
+          $(cargo metadata --format-version=1 2>/dev/null | jq -r '.packages[] | select(.name == "concordium-wallet-crypto-uniffi") | .version')
     - name: 'Debug outputs'
       run: |
         echo "${{github.ref}}"
