@@ -9,31 +9,31 @@ on:
         required: true
 
 env:
-  rust_version: "1.72"
+  rust_version: '1.72'
 
 jobs:
   build_publish:
-    runs-on: macos-13
+    runs-on: macos-latest
 
     steps:
-      - name: Check out sources
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-      - name: Setup Rust
-        run: make setup
-      - name: Build binary framework
-        run: make framework # produces './generated/ConcordiumWalletCryptoUniffi.xcframework'
-      - name: Archive framework
-        working-directory: ./generated
-        run: |
-          zip -r ./ConcordiumWalletCryptoUniffi.xcframework.zip ./ConcordiumWalletCryptoUniffi.xcframework
-          swift package compute-checksum ./ConcordiumWalletCryptoUniffi.xcframework.zip > ./CHECKSUM
-      - name: Upload package as GitHub release
-        uses: softprops/action-gh-release@v1
-        with:
-            files: |
-              ./generated/ConcordiumWalletCryptoUniffi.xcframework.zip
-              ./generated/CHECKSUM
-            name: '${{github.event.inputs.version}}'
-            generate_release_notes: true
+    - name: Check out sources
+      uses: actions/checkout@v4
+      with:
+        submodules: recursive
+    - name: Setup Rust
+      run: make setup
+    - name: Build binary framework
+      run: make framework # produces './generated/ConcordiumWalletCryptoUniffi.xcframework'
+    - name: Archive framework
+      working-directory: ./generated
+      run: |
+        ditto -c -k --sequesterRsrc --keepParent ./ConcordiumWalletCryptoUniffi.xcframework ./ConcordiumWalletCryptoUniffi.xcframework.zip
+        swift package compute-checksum ./ConcordiumWalletCryptoUniffi.xcframework.zip > ./CHECKSUM
+    - name: Upload package as GitHub release
+      uses: softprops/action-gh-release@v2
+      with:
+        files: |
+          ./generated/ConcordiumWalletCryptoUniffi.xcframework.zip
+          ./generated/CHECKSUM
+        name: '${{github.event.inputs.version}} (framework)'
+        generate_release_notes: true
