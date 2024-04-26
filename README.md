@@ -125,7 +125,7 @@ Steps for building and releasing a new version `<version>` of the package:
    where `<build-version>` starts out at `0`.
    Tagging is necessary because the workflow to be run in the next step uploads a release,
    and GitHub requires releases to be tagged.
-   The pushing of this tag will automatically trigger a [workflow](./.github/workflows/publish-framework.yml)
+   Pushing this tag will automatically trigger a [workflow](./.github/workflows/publish-framework.yml)
    that publishes a new version of the binary framework.
    If the build fails, commit a fix to the branch and repeat this step with `<build-version>` incremented by 1.
 4. Run `make swift-bindings` locally to regenerate the Swift bridge sources.
