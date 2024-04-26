@@ -24,7 +24,7 @@ jobs:
       uses: bisgardo/github-action-echo@v1
       id: crate-version
       with:
-        version: >
+        version: |-
           $(cargo metadata --format-version=1 2>/dev/null | jq -r '.packages[] | select(.name == "concordium-wallet-crypto-uniffi") | .version')
     - name: 'Print outputs (for debugging)'
       run: |
