@@ -47,7 +47,7 @@ jobs:
         version: |
           $(cargo metadata --format-version=1 | jq -r '.packages[] | select(.name == "concordium-wallet-crypto-uniffi") | .version')
     - name: Fail if version in tag doesn't match crate version
-      if: "steps.crate-version.version != steps.tag.outputs.version"
+      if: "steps.crate-version.outputs.version != steps.tag.outputs.version"
       run: exit 1
     - name: Build binary framework
       run: make framework # produces './generated/ConcordiumWalletCryptoUniffi.xcframework'
