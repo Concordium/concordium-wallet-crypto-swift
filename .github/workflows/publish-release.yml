@@ -2,7 +2,7 @@ name: Publish release for SwiftPM package tag
 
 on:
   push:
-    tags: "*.*.*"
+    tags: '*.*.*'
   workflow_dispatch: # trigger manually (for debugging)
 
 jobs:
@@ -15,6 +15,9 @@ jobs:
       id: ref
       with:
         ref: '${{github.ref}}'
+    - name: Fail if ref is not a tag
+      if: "steps.ref.outputs.ref-type != 'tags'"
+      run: exit 1
     - name: Checkout project
       uses: actions/checkout@v4
       with:
