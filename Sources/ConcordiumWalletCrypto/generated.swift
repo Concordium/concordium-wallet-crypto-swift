@@ -994,27 +994,27 @@ public func FfiConverterTypeAttributeList_lower(_ value: AttributeList) -> RustB
  * Typically a vector of these will be sent to the chain.
  */
 public struct ChainArData {
-    public var endIdCredPubShareHex: String
+    public var encIdCredPubShareHex: String
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(
-        endIdCredPubShareHex: String)
+        encIdCredPubShareHex: String)
     {
-        self.endIdCredPubShareHex = endIdCredPubShareHex
+        self.encIdCredPubShareHex = encIdCredPubShareHex
     }
 }
 
 extension ChainArData: Equatable, Hashable {
     public static func == (lhs: ChainArData, rhs: ChainArData) -> Bool {
-        if lhs.endIdCredPubShareHex != rhs.endIdCredPubShareHex {
+        if lhs.encIdCredPubShareHex != rhs.encIdCredPubShareHex {
             return false
         }
         return true
     }
 
     public func hash(into hasher: inout Hasher) {
-        hasher.combine(endIdCredPubShareHex)
+        hasher.combine(encIdCredPubShareHex)
     }
 }
 
@@ -1022,12 +1022,12 @@ public struct FfiConverterTypeChainArData: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ChainArData {
         return
             try ChainArData(
-                endIdCredPubShareHex: FfiConverterString.read(from: &buf)
+                encIdCredPubShareHex: FfiConverterString.read(from: &buf)
             )
     }
 
     public static func write(_ value: ChainArData, into buf: inout [UInt8]) {
-        FfiConverterString.write(value.endIdCredPubShareHex, into: &buf)
+        FfiConverterString.write(value.encIdCredPubShareHex, into: &buf)
     }
 }
 
@@ -1044,13 +1044,13 @@ public func FfiConverterTypeChainArData_lower(_ value: ChainArData) -> RustBuffe
  */
 public struct ChoiceArParameters {
     public var arIdentities: [UInt32]
-    public var threshold: UInt32
+    public var threshold: UInt8
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(
         arIdentities: [UInt32],
-        threshold: UInt32
+        threshold: UInt8
     ) {
         self.arIdentities = arIdentities
         self.threshold = threshold
@@ -1079,13 +1079,13 @@ public struct FfiConverterTypeChoiceArParameters: FfiConverterRustBuffer {
         return
             try ChoiceArParameters(
                 arIdentities: FfiConverterSequenceUInt32.read(from: &buf),
-                threshold: FfiConverterUInt32.read(from: &buf)
+                threshold: FfiConverterUInt8.read(from: &buf)
             )
     }
 
     public static func write(_ value: ChoiceArParameters, into buf: inout [UInt8]) {
         FfiConverterSequenceUInt32.write(value.arIdentities, into: &buf)
-        FfiConverterUInt32.write(value.threshold, into: &buf)
+        FfiConverterUInt8.write(value.threshold, into: &buf)
     }
 }
 
@@ -2520,13 +2520,13 @@ public func accountCredential(params: AccountCredentialParameters) throws -> Acc
  * Supported values for `network`: "Testnet", "Mainnet".
  * The result is hex encoded.
  */
-public func accountCredentialAttributeCommitmentRandomnessHex(seedHex: String, network: String, identityProviderIndex: UInt32, identityIndex: UInt32, credentialCounter: UInt8, attribute: UInt8) throws -> String {
+public func accountCredentialAttributeCommitmentRandomnessHex(seedHex: String, network: String, identityProviderId: UInt32, identityIndex: UInt32, credentialCounter: UInt8, attribute: UInt8) throws -> String {
     return try FfiConverterString.lift(
         rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
             uniffi_concordium_wallet_crypto_uniffi_fn_func_account_credential_attribute_commitment_randomness_hex(
                 FfiConverterString.lower(seedHex),
                 FfiConverterString.lower(network),
-                FfiConverterUInt32.lower(identityProviderIndex),
+                FfiConverterUInt32.lower(identityProviderId),
                 FfiConverterUInt32.lower(identityIndex),
                 FfiConverterUInt8.lower(credentialCounter),
                 FfiConverterUInt8.lower(attribute), $0
@@ -2569,13 +2569,13 @@ public func accountCredentialDeploymentSignedPayloadHex(credential: SignedAccoun
  * Supported values for `network`: "Testnet", "Mainnet".
  * The result is hex encoded.
  */
-public func accountCredentialIdHex(seedHex: String, network: String, identityProviderIndex: UInt32, identityIndex: UInt32, credentialCounter: UInt8, commitmentKey: String) throws -> String {
+public func accountCredentialIdHex(seedHex: String, network: String, identityProviderId: UInt32, identityIndex: UInt32, credentialCounter: UInt8, commitmentKey: String) throws -> String {
     return try FfiConverterString.lift(
         rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
             uniffi_concordium_wallet_crypto_uniffi_fn_func_account_credential_id_hex(
                 FfiConverterString.lower(seedHex),
                 FfiConverterString.lower(network),
-                FfiConverterUInt32.lower(identityProviderIndex),
+                FfiConverterUInt32.lower(identityProviderId),
                 FfiConverterUInt32.lower(identityIndex),
                 FfiConverterUInt8.lower(credentialCounter),
                 FfiConverterString.lower(commitmentKey), $0
@@ -2589,13 +2589,13 @@ public func accountCredentialIdHex(seedHex: String, network: String, identityPro
  * Supported values for `network`: "Testnet", "Mainnet".
  * The result is hex encoded.
  */
-public func accountCredentialPublicKeyHex(seedHex: String, network: String, identityProviderIndex: UInt32, identityIndex: UInt32, credentialCounter: UInt8) throws -> String {
+public func accountCredentialPublicKeyHex(seedHex: String, network: String, identityProviderId: UInt32, identityIndex: UInt32, credentialCounter: UInt8) throws -> String {
     return try FfiConverterString.lift(
         rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
             uniffi_concordium_wallet_crypto_uniffi_fn_func_account_credential_public_key_hex(
                 FfiConverterString.lower(seedHex),
                 FfiConverterString.lower(network),
-                FfiConverterUInt32.lower(identityProviderIndex),
+                FfiConverterUInt32.lower(identityProviderId),
                 FfiConverterUInt32.lower(identityIndex),
                 FfiConverterUInt8.lower(credentialCounter), $0
             )
@@ -2608,13 +2608,13 @@ public func accountCredentialPublicKeyHex(seedHex: String, network: String, iden
  * Supported values for `network`: "Testnet", "Mainnet".
  * The result is hex encoded.
  */
-public func accountCredentialSigningKeyHex(seedHex: String, network: String, identityProviderIndex: UInt32, identityIndex: UInt32, credentialCounter: UInt8) throws -> String {
+public func accountCredentialSigningKeyHex(seedHex: String, network: String, identityProviderId: UInt32, identityIndex: UInt32, credentialCounter: UInt8) throws -> String {
     return try FfiConverterString.lift(
         rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
             uniffi_concordium_wallet_crypto_uniffi_fn_func_account_credential_signing_key_hex(
                 FfiConverterString.lower(seedHex),
                 FfiConverterString.lower(network),
-                FfiConverterUInt32.lower(identityProviderIndex),
+                FfiConverterUInt32.lower(identityProviderId),
                 FfiConverterUInt32.lower(identityIndex),
                 FfiConverterUInt8.lower(credentialCounter), $0
             )
@@ -2627,13 +2627,13 @@ public func accountCredentialSigningKeyHex(seedHex: String, network: String, ide
  * Supported values for `network`: "Testnet", "Mainnet".
  * The result is hex encoded.
  */
-public func identityAttributesSignatureBlindingRandomnessHex(seedHex: String, network: String, identityProviderIndex: UInt32, identityIndex: UInt32) throws -> String {
+public func identityAttributesSignatureBlindingRandomnessHex(seedHex: String, network: String, identityProviderId: UInt32, identityIndex: UInt32) throws -> String {
     return try FfiConverterString.lift(
         rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
             uniffi_concordium_wallet_crypto_uniffi_fn_func_identity_attributes_signature_blinding_randomness_hex(
                 FfiConverterString.lower(seedHex),
                 FfiConverterString.lower(network),
-                FfiConverterUInt32.lower(identityProviderIndex),
+                FfiConverterUInt32.lower(identityProviderId),
                 FfiConverterUInt32.lower(identityIndex), $0
             )
         }
@@ -2645,13 +2645,13 @@ public func identityAttributesSignatureBlindingRandomnessHex(seedHex: String, ne
  * Supported values for `network`: "Testnet", "Mainnet".
  * The result is hex encoded.
  */
-public func identityCredSecHex(seedHex: String, network: String, identityProviderIndex: UInt32, identityIndex: UInt32) throws -> String {
+public func identityCredSecHex(seedHex: String, network: String, identityProviderId: UInt32, identityIndex: UInt32) throws -> String {
     return try FfiConverterString.lift(
         rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
             uniffi_concordium_wallet_crypto_uniffi_fn_func_identity_cred_sec_hex(
                 FfiConverterString.lower(seedHex),
                 FfiConverterString.lower(network),
-                FfiConverterUInt32.lower(identityProviderIndex),
+                FfiConverterUInt32.lower(identityProviderId),
                 FfiConverterUInt32.lower(identityIndex), $0
             )
         }
@@ -2678,13 +2678,13 @@ public func identityIssuanceRequestJson(params: IdentityIssuanceRequestParameter
  * Supported values for `network`: "Testnet", "Mainnet".
  * The result is hex encoded.
  */
-public func identityPrfKeyHex(seedHex: String, network: String, identityProviderIndex: UInt32, identityIndex: UInt32) throws -> String {
+public func identityPrfKeyHex(seedHex: String, network: String, identityProviderId: UInt32, identityIndex: UInt32) throws -> String {
     return try FfiConverterString.lift(
         rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
             uniffi_concordium_wallet_crypto_uniffi_fn_func_identity_prf_key_hex(
                 FfiConverterString.lower(seedHex),
                 FfiConverterString.lower(network),
-                FfiConverterUInt32.lower(identityProviderIndex),
+                FfiConverterUInt32.lower(identityProviderId),
                 FfiConverterUInt32.lower(identityIndex), $0
             )
         }
@@ -2778,7 +2778,7 @@ private var initializationResult: InitializationResult {
     if uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential() != 28347 {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_attribute_commitment_randomness_hex() != 273 {
+    if uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_attribute_commitment_randomness_hex() != 36552 {
         return InitializationResult.apiChecksumMismatch
     }
     if uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_deployment_hash_hex() != 5211 {
@@ -2787,25 +2787,25 @@ private var initializationResult: InitializationResult {
     if uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_deployment_signed_payload_hex() != 12194 {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_id_hex() != 40956 {
+    if uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_id_hex() != 3361 {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_public_key_hex() != 54614 {
+    if uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_public_key_hex() != 37156 {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_signing_key_hex() != 2501 {
+    if uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_signing_key_hex() != 14900 {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_concordium_wallet_crypto_uniffi_checksum_func_identity_attributes_signature_blinding_randomness_hex() != 16381 {
+    if uniffi_concordium_wallet_crypto_uniffi_checksum_func_identity_attributes_signature_blinding_randomness_hex() != 52576 {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_concordium_wallet_crypto_uniffi_checksum_func_identity_cred_sec_hex() != 33924 {
+    if uniffi_concordium_wallet_crypto_uniffi_checksum_func_identity_cred_sec_hex() != 50297 {
         return InitializationResult.apiChecksumMismatch
     }
     if uniffi_concordium_wallet_crypto_uniffi_checksum_func_identity_issuance_request_json() != 28061 {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_concordium_wallet_crypto_uniffi_checksum_func_identity_prf_key_hex() != 7705 {
+    if uniffi_concordium_wallet_crypto_uniffi_checksum_func_identity_prf_key_hex() != 44691 {
         return InitializationResult.apiChecksumMismatch
     }
     if uniffi_concordium_wallet_crypto_uniffi_checksum_func_identity_recovery_request_json() != 33579 {
