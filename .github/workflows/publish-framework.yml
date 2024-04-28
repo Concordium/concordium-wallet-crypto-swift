@@ -4,14 +4,6 @@ on:
   push:
     tags: 'build/*.*.*-*'
   workflow_dispatch: # trigger manually (for debugging)
-    inputs:
-      tag_override:
-        description: 'Tag'
-        type: string
-        required: false
-
-env:
-  rust_version: '1.72'
 
 jobs:
   build_publish:
@@ -22,8 +14,7 @@ jobs:
       uses: bisgardo/github-action-parse-ref@v1
       id: ref
       with:
-        ref: '${{github.event.inputs.tag_override || github.ref}}'
-        default-ref-type: tags
+        ref: '${{github.ref}}'
     - name: Fail if ref is not a tag
       if: "steps.ref.outputs.ref-type != 'tags'"
       run: exit 1
@@ -44,19 +35,19 @@ jobs:
       uses: bisgardo/github-action-echo@v1
       id: crate-version
       with:
-        version: |
-          $(cargo metadata --format-version=1 | jq -r '.packages[] | select(.name == "concordium-wallet-crypto-uniffi") | .version')
+        version: |-
+          $(cargo metadata --format-version=1 2>/dev/null | jq -r '.packages[] | select(.name == "concordium-wallet-crypto-uniffi") | .version')
     - name: Fail if version in tag doesn't match crate version
       if: "steps.crate-version.outputs.version != steps.tag.outputs.version"
       run: exit 1
     - name: Build binary framework
       run: make framework # produces './generated/ConcordiumWalletCryptoUniffi.xcframework'
-    - name: Archive framework
+    - name: Archive framework and compute checksum
       working-directory: ./generated
       run: |
         ditto -c -k --sequesterRsrc --keepParent ./ConcordiumWalletCryptoUniffi.xcframework ./ConcordiumWalletCryptoUniffi.xcframework.zip
         swift package compute-checksum ./ConcordiumWalletCryptoUniffi.xcframework.zip > ./CHECKSUM
-    - name: Upload package as GitHub release
+    - name: Upload framework as GitHub release
       uses: softprops/action-gh-release@v2
       with:
         files: |
