@@ -1,4 +1,4 @@
-# ConcordiumWalletCrypto
+# `ConcordiumWalletCrypto`
 
 [Swift package](https://developer.apple.com/documentation/xcode/swift-packages) providing bindings for Swift
 of Concordium specific cryptographic functions that are written in Rust.
@@ -8,8 +8,12 @@ It has its own repository because of limitations in SwiftPM
 that prevent us from publishing everything in a single complete package.
 In brief, Swift packages must be downloaded straight from git,
 not a registry to which we can publish a complete build.
-This repository thus serves the dual purpose of hosting the Rust sources
-while simultaneously hosting the Swift package.
+This repository thus serves the dual purpose of hosting both the Swift package
+and the Rust crate `concordium-wallet-crypto-uniffi` that it's built from.
+
+It should be noted that nothing in `concordium-wallet-crypto-uniffi` is actually specific to Swift:
+It compiles on both Mac, Linux, and Windows and can be used from any of the
+[languages that UniFFI supports](https://mozilla.github.io/uniffi-rs/Overview.html#supported-languages).
 
 To avoid storing large binaries in git, a workflow compiles the bindings into an
 [XCFramework](https://developer.apple.com/documentation/xcode/distributing-binary-frameworks-as-swift-packages)
@@ -29,7 +33,7 @@ See commit 6b6af29816b0f966598b170d62334e2faf00062b for details.
 That package is still available from tag
 [`0.24.0-0`](https://github.com/Concordium/concordium-wallet-crypto-swift/releases/tag/0.24.0-0) and
 [in use](https://github.com/Concordium/concordium-reference-wallet-ios/blob/main/ConcordiumWallet.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved)
-by the iOS reference wallet, but it's not expected to receive updates in the future.
+by the iOS reference wallet, but it isn't expected to receive updates in the future.
 
 ## Versioning
 
