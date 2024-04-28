@@ -48,7 +48,7 @@ fn mainnet_attributes_signature_blinding_randomness() {
             4,
             5713,
         )
-            .unwrap(),
+        .unwrap(),
         "1e3633af2b1dbe5600becfea0324bae1f4fa29f90bdf419f6fba1ff520cb3167"
     );
 }
@@ -90,7 +90,7 @@ fn mainnet_account_credential_attribute_commitment_randomness() {
             4,
             0,
         )
-            .unwrap(),
+        .unwrap(),
         "6ef6ba6490fa37cd517d2b89a12b77edf756f89df5e6f5597440630cd4580b8f"
     );
 }
@@ -120,7 +120,7 @@ fn testnet_attributes_signature_blinding_randomness() {
             4,
             5713,
         )
-            .unwrap(),
+        .unwrap(),
         "079eb7fe4a2e89007f411ede031543bd7f687d50341a5596e015c9f2f4c1f39b"
     );
 }
@@ -162,7 +162,7 @@ fn testnet_account_credential_attribute_commitment_randomness() {
             4,
             0,
         )
-            .unwrap(),
+        .unwrap(),
         "409fa90314ec8fb4a2ae812fd77fe58bfac81765cad3990478ff7a73ba6d88ae"
     );
 }
@@ -306,7 +306,7 @@ fn identity_issuance_request_for_concordium_ip() {
             global_context: &context,
         },
     )
-        .unwrap();
+    .unwrap();
 }
 
 #[test]
