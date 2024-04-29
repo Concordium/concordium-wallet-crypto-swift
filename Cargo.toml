@@ -7,6 +7,7 @@ edition = "2021"
 crate-type = ["staticlib", "lib"]
 
 [dependencies]
+derivative = "2.2.0"
 thiserror = "1"
 uniffi = { version = "0.26", features = ["cli"] }
 serde = "1.0"
