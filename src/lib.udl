@@ -245,6 +245,28 @@ dictionary SignedAccountCredential {
     record<u8, string> signatures_hex;
 };
 
+/// An encrypted amount input to transfer from
+dictionary InputEncryptedAmount {
+    /// The aggregated encrypted amount as hex.
+    string agg_encrypted_amount;
+    /// The plaintext corresponding to the aggregated encrypted amount.
+    u64 agg_amount;
+    /// Index such that the `agg_amount` is the sum of all encrypted amounts on an account with indices strictly below `agg_index`.
+    u64 agg_index;
+};
+
+/// The payload data for a TransferToPublic transaction
+dictionary SecToPubTransferData {
+    /// The serialized remaining amount after deducting the amount to transfer
+    sequence<u8> serialized_remaining_amount;
+    /// The amount to transfer
+    u64 transfer_amount;
+    /// The transfer index of the transfer
+    u64 index;
+    /// The serialized proof that the transfer is correct
+    sequence<u8> serialized_proof;
+};
+
 namespace crypto {
     /// Compute the IdCredSec for the provided seed and identity indexes.
     /// Supported values for `network`: "Testnet", "Mainnet".
@@ -330,4 +352,12 @@ namespace crypto {
     /// The result is hex encoded.
     [Throws=ConcordiumWalletCryptoError]
     string account_credential_deployment_signed_payload_hex(SignedAccountCredential credential);
+
+    /// Construct the payload for a TransferToPublic transaction
+    [Throws=ConcordiumWalletCryptoError]
+    SecToPubTransferData sec_to_pub_transfer_data(GlobalContext ctx, string sender_secret_key, InputEncryptedAmount input_amount, u64 to_transfer);
+
+    /// Attempt to deserialize SecToPubTransferData from the supplied bytes. This will fail if the number of bytes does not exactly match the expected number.
+    [Throws=ConcordiumWalletCryptoError]
+    SecToPubTransferData deserialize_sec_to_pub_transfer_data(sequence<u8> bytes);
 };

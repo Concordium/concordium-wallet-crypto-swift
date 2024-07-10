@@ -106,6 +106,10 @@ fmt:
 lint:
 	$(cargo) clippy
 
+.PHONY: lint-fix
+lint-fix:
+	$(cargo) clippy --fix
+
 .PHONY: test
 test:
 	$(cargo) test
