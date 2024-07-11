@@ -1,15 +1,17 @@
 use concordium_base::{
-    common::{Deserial, Serial},
+    base::{AccountThreshold, CredentialRegistrationID},
+    common::{types::CredentialIndex, Deserial, Serial},
     contracts_common::Amount,
     encrypted_transfers::{
         self,
         types::{AggregatedDecryptedAmount, SecToPubAmountTransferData},
     },
-    id::constants::ArCurve,
+    id::constants::{ArCurve, AttributeKind, IpPairing},
+    transactions::AccountCredentialsMap,
 };
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, io::Read};
+use std::collections::{BTreeMap, HashMap};
 use uniffi::deps::anyhow::{self, Context};
 use wallet_library::{
     credential::{
@@ -649,12 +651,10 @@ pub fn account_credential_deployment_signed_payload_hex(
 
 /// UniFFI compatible bridge from [`AggregatedDecryptedAmount<ArCurve>`],
 /// providing the implementation of the UDL declaration of the same name.
-/// The translation is performed using Serde.
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug)]
 pub struct InputEncryptedAmount {
     /// The aggregated encrypted amount as hex.
-    pub agg_encrypted_amount: String,
+    pub agg_encrypted_amount_hex: String,
     /// The plaintext corresponding to the aggregated encrypted amount.
     pub agg_amount: u64,
     /// Index such that the `agg_amount` is the sum of all encrypted amounts
@@ -666,7 +666,7 @@ impl TryFrom<InputEncryptedAmount> for AggregatedDecryptedAmount<ArCurve> {
     type Error = serde_json::Error;
 
     fn try_from(value: InputEncryptedAmount) -> Result<Self, Self::Error> {
-        let agg_encrypted_amount = serde_json::from_str(&value.agg_encrypted_amount)?;
+        let agg_encrypted_amount = serde_json::from_str(&value.agg_encrypted_amount_hex)?;
         let agg_amount = Amount {
             micro_ccd: value.agg_amount,
         };
@@ -681,16 +681,12 @@ impl TryFrom<InputEncryptedAmount> for AggregatedDecryptedAmount<ArCurve> {
 
 /// UniFFI compatible bridge from [`SecToPubAmountTransferData<ArCurve>`],
 /// providing the implementation of the UDL declaration of the same name.
-/// The translation is performed using Serde.
-#[derive(Debug, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug)]
 pub struct SecToPubTransferData {
-    #[serde(rename = "remainingAmount")]
-    serialized_remaining_amount: Vec<u8>,
-    transfer_amount: u64,
-    index: u64,
-    #[serde(rename = "proof")]
-    serialized_proof: Vec<u8>,
+    pub serialized_remaining_amount: Vec<u8>,
+    pub transfer_amount: u64,
+    pub index: u64,
+    pub serialized_proof: Vec<u8>,
 }
 
 impl From<SecToPubAmountTransferData<ArCurve>> for SecToPubTransferData {
@@ -711,6 +707,44 @@ impl From<SecToPubAmountTransferData<ArCurve>> for SecToPubTransferData {
     }
 }
 
+impl SecToPubTransferData {
+    fn create(
+        ctx: GlobalContext,
+        sender_secret_key: String,
+        input_amount: InputEncryptedAmount,
+        to_transfer: u64,
+    ) -> anyhow::Result<SecToPubTransferData> {
+        let ctx = concordium_base::id::types::GlobalContext::try_from(ctx)?;
+        let sk: concordium_base::elgamal::SecretKey<ArCurve> =
+            serde_json::from_str(&sender_secret_key)
+                .context("Failed to parse sender secret key")?;
+        let input_amount = AggregatedDecryptedAmount::try_from(input_amount)
+            .context("Failed to parse input amount")?;
+        let to_transfer = Amount {
+            micro_ccd: to_transfer,
+        };
+        let mut csprng = thread_rng();
+
+        let transfer_data = encrypted_transfers::make_sec_to_pub_transfer_data(
+            &ctx,
+            &sk,
+            &input_amount,
+            to_transfer,
+            &mut csprng,
+        )
+        .context("Failed to create transfer data")?;
+
+        Ok(transfer_data.into())
+    }
+}
+
+pub struct DeserializeResult<V> {
+    value: V,
+    bytes_read: u64,
+}
+
+pub type SecToPubTransferDataDeserializeResult = DeserializeResult<SecToPubTransferData>;
+
 /// Implements UDL definition of the same name.
 pub fn sec_to_pub_transfer_data(
     ctx: GlobalContext,
@@ -718,48 +752,141 @@ pub fn sec_to_pub_transfer_data(
     input_amount: InputEncryptedAmount,
     to_transfer: u64,
 ) -> Result<SecToPubTransferData, ConcordiumWalletCryptoError> {
-    let fn_desc = "sec_to_pub_transfer_data(...)";
-    let ctx = concordium_base::id::types::GlobalContext::try_from(ctx)
-        .map_err(|e| e.to_call_failed(fn_desc))?;
-    let sk: concordium_base::elgamal::SecretKey<ArCurve> =
-        serde_json::from_str(&sender_secret_key).map_err(|e| e.to_call_failed(fn_desc))?;
-    let input_amount =
-        AggregatedDecryptedAmount::try_from(input_amount).map_err(|e| e.to_call_failed(fn_desc))?;
-    let to_transfer = Amount {
-        micro_ccd: to_transfer,
-    };
-    let mut csprng = thread_rng();
-
-    let transfer_data = encrypted_transfers::make_sec_to_pub_transfer_data(
-        &ctx,
-        &sk,
-        &input_amount,
-        to_transfer,
-        &mut csprng,
-    )
-    .ok_or(ConcordiumWalletCryptoError::CallFailed {
-        call: fn_desc.to_string(),
-        msg: "Failed to create transfer data".to_string(),
-    })?;
-
-    Ok(transfer_data.into())
+    SecToPubTransferData::create(ctx, sender_secret_key, input_amount, to_transfer)
+        .map_err(|e| e.to_call_failed("sec_to_pub_transfer_data(...)"))
 }
 
 /// Implements UDL definition of the same name.
+/// Deserialize [`SecToPubTransferData`] from serialization format used by concordium nodes
 pub fn deserialize_sec_to_pub_transfer_data(
     bytes: Vec<u8>,
-) -> Result<SecToPubTransferData, ConcordiumWalletCryptoError> {
-    let fn_name = "deserialize_sec_to_pub_transfer_data(...)";
+) -> Result<DeserializeResult<SecToPubTransferData>, ConcordiumWalletCryptoError> {
+    let fn_name = "deserialize_sec_to_pub_transfer_data";
     let mut bytes = std::io::Cursor::new(bytes);
     let transfer_data =
         SecToPubAmountTransferData::deserial(&mut bytes).map_err(|e| e.to_call_failed(fn_name))?;
 
-    if bytes.bytes().count() != 0 {
-        return Err(ConcordiumWalletCryptoError::CallFailed {
-            call: fn_name.to_string(),
-            msg: "Buffer not exhausted when deserializing type".to_string(),
-        });
-    }
+    let result = DeserializeResult {
+        value: transfer_data.into(),
+        bytes_read: bytes.position(),
+    };
+    Ok(result)
+}
 
-    Ok(transfer_data.into())
+type BaseCredentialDeploymentInfo =
+    concordium_base::id::types::CredentialDeploymentInfo<IpPairing, ArCurve, AttributeKind>;
+
+/// UniFFI compatible bridge to [`concordium_base::id::types::CredentialDeploymentInfo<concordium_base::id::constants::IpPairing,concordium_base::id::constants::ArCurve,concordium_base::id::constants::AttributeKind>`],
+/// providing the implementation of the UDL declaration of the same name.
+/// The translation is performed using Serde.
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CredentialDeploymentInfo {
+    pub ar_data: HashMap<u32, ChainArData>,
+    #[serde(rename = "credId")]
+    pub cred_id_hex: String,
+    pub credential_public_keys: CredentialPublicKeys,
+    pub ip_identity: u32,
+    pub policy: Policy,
+    pub revocation_threshold: u8,
+    #[serde(rename = "proofs")]
+    pub proofs_hex: String,
+}
+
+impl TryFrom<CredentialDeploymentInfo> for BaseCredentialDeploymentInfo {
+    type Error = serde_json::Error;
+
+    fn try_from(value: CredentialDeploymentInfo) -> Result<Self, Self::Error> {
+        serde_json::to_string(&value).and_then(|json| serde_json::from_str::<Self>(&json))
+    }
+}
+
+impl TryFrom<BaseCredentialDeploymentInfo> for CredentialDeploymentInfo {
+    type Error = serde_json::Error;
+
+    fn try_from(value: BaseCredentialDeploymentInfo) -> Result<Self, Self::Error> {
+        serde_json::to_string(&value).and_then(|json| serde_json::from_str::<Self>(&json))
+    }
+}
+
+/// Implements UDL definition of the same name.
+/// Serialize [`CredentialDeploymentInfo`] into serialization format used by concordium nodes
+pub fn serialize_credential_deployment_info(
+    cred_info: CredentialDeploymentInfo,
+) -> Result<Vec<u8>, ConcordiumWalletCryptoError> {
+    let fn_desc = "serialize_credential_deployment_info";
+    let cred_info =
+        BaseCredentialDeploymentInfo::try_from(cred_info).map_err(|e| e.to_call_failed(fn_desc))?;
+
+    let mut bytes = vec![];
+    cred_info.serial(&mut bytes);
+
+    Ok(bytes)
+}
+
+/// UniFFI compatible bridge to [`concordium_base::transactions::Payload::UpdateCredentials`],
+/// providing the implementation of the UDL declaration of the same name.
+/// The translation is performed using Serde.
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct UpdateCredentialsPayload {
+    /// New credentials to add.
+    new_cred_infos: HashMap<u32, CredentialDeploymentInfo>,
+    /// Ids of credentials to remove.
+    #[serde(rename = "removeCredIds")]
+    remove_cred_ids_hex: Vec<String>,
+    /// The new account threshold.
+    new_threshold: u8,
+}
+
+impl
+    TryFrom<(
+        BTreeMap<CredentialIndex, BaseCredentialDeploymentInfo>,
+        Vec<CredentialRegistrationID>,
+        AccountThreshold,
+    )> for UpdateCredentialsPayload
+{
+    type Error = serde_json::Error;
+
+    fn try_from(
+        (new_cred_infos, remove_cred_ids, new_threshold): (
+            BTreeMap<CredentialIndex, BaseCredentialDeploymentInfo>,
+            Vec<CredentialRegistrationID>,
+            AccountThreshold,
+        ),
+    ) -> Result<Self, Self::Error> {
+        let json = serde_json::json!({
+            "newCredInfos": new_cred_infos,
+            "removeCredIds": remove_cred_ids,
+            "newThreshold": new_threshold
+        });
+        serde_json::from_value(json)
+    }
+}
+
+pub type UpdateCredentialsPayloadDeserializeResult = DeserializeResult<UpdateCredentialsPayload>;
+
+/// Implements UDL definition of the same name.
+/// Deserialize [`UpdateCredentialsPayload`] from serialization format used by concordium nodes
+pub fn deserialize_update_credentials_payload(
+    bytes: Vec<u8>,
+) -> Result<DeserializeResult<UpdateCredentialsPayload>, ConcordiumWalletCryptoError> {
+    let fn_name = "deserialize_update_credentials_payload";
+
+    let mut bytes = std::io::Cursor::new(bytes);
+    let cred_infos =
+        AccountCredentialsMap::deserial(&mut bytes).map_err(|e| e.to_call_failed(fn_name))?;
+    let remove_cred_ids = Vec::<CredentialRegistrationID>::deserial(&mut bytes)
+        .map_err(|e| e.to_call_failed(fn_name))?;
+    let new_threshold =
+        AccountThreshold::deserial(&mut bytes).map_err(|e| e.to_call_failed(fn_name))?;
+
+    let payload = UpdateCredentialsPayload::try_from((cred_infos, remove_cred_ids, new_threshold))
+        .map_err(|e| e.to_call_failed(fn_name))?;
+
+    let result = DeserializeResult {
+        value: payload,
+        bytes_read: bytes.position(),
+    };
+    Ok(result)
 }

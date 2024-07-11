@@ -248,7 +248,7 @@ dictionary SignedAccountCredential {
 /// An encrypted amount input to transfer from
 dictionary InputEncryptedAmount {
     /// The aggregated encrypted amount as hex.
-    string agg_encrypted_amount;
+    string agg_encrypted_amount_hex;
     /// The plaintext corresponding to the aggregated encrypted amount.
     u64 agg_amount;
     /// Index such that the `agg_amount` is the sum of all encrypted amounts on an account with indices strictly below `agg_index`.
@@ -265,6 +265,47 @@ dictionary SecToPubTransferData {
     u64 index;
     /// The serialized proof that the transfer is correct
     sequence<u8> serialized_proof;
+};
+
+dictionary SecToPubTransferDataDeserializeResult {
+    SecToPubTransferData value;
+    u64 bytes_read;
+};
+
+/// A credential with attributes, public keys, and proofs that it is
+/// well-formed.
+dictionary CredentialDeploymentInfo {
+    /// List of anonymity revokers which can revoke the identity.
+    /// The order is important since it is the same order as that signed by the identity provider,
+    /// and permuting the list will invalidate the signature from the identity provider.
+    record<u32, ChainArData> ar_data;
+    /// Credential registration ID of the credential serialized as hex.
+    string cred_id_hex;
+    /// Credential keys (i.e. account holder keys).
+    CredentialPublicKeys credential_public_keys;
+    /// Identity of the identity provider who signed the identity object
+    /// from which this credential is derived.
+    u32 ip_identity;
+    /// Policy of this credential object.
+    Policy policy;
+    /// The proofs of ownership serialized as hex
+    string proofs_hex;
+    /// Anonymity revocation threshold. Must be less than the number of entries in `ar_data`.
+    u8 revocation_threshold;
+};
+
+dictionary UpdateCredentialsPayload {
+    /// Credential infos and the respective indices to insert them at
+    record<u32, CredentialDeploymentInfo> new_cred_infos;
+    /// List of credentials to remove
+    sequence<string> remove_cred_ids_hex;
+    /// The new threshold of the account
+    u8 new_threshold;
+};
+
+dictionary UpdateCredentialsPayloadDeserializeResult {
+    UpdateCredentialsPayload value;
+    u64 bytes_read;
 };
 
 namespace crypto {
@@ -359,5 +400,13 @@ namespace crypto {
 
     /// Attempt to deserialize SecToPubTransferData from the supplied bytes. This will fail if the number of bytes does not exactly match the expected number.
     [Throws=ConcordiumWalletCryptoError]
-    SecToPubTransferData deserialize_sec_to_pub_transfer_data(sequence<u8> bytes);
+    SecToPubTransferDataDeserializeResult deserialize_sec_to_pub_transfer_data(bytes bytes);
+
+    /// Attempt to serialize CredentialDeploymentInfo into bytes. This will fail if any of the raw hex representations do not match the corresponding types in concordium-base
+    [Throws=ConcordiumWalletCryptoError]
+    bytes serialize_credential_deployment_info(CredentialDeploymentInfo cred_info);
+
+    /// Attempt to deserialize CredentialDeploymentInfo from the supplied bytes. This will fail if the number of bytes does not exactly match the expected number.
+    [Throws=ConcordiumWalletCryptoError]
+    UpdateCredentialsPayloadDeserializeResult deserialize_update_credentials_payload(bytes bytes);
 };
