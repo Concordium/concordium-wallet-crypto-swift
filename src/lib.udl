@@ -311,6 +311,24 @@ dictionary UpdateCredentialsPayloadDeserializeResult {
     u64 bytes_read;
 };
 
+dictionary BakerKeyPairs {
+    Bytes signature_sign;
+    Bytes signature_verify;
+    Bytes election_sign;
+    Bytes election_verify;
+    Bytes aggregation_sign;
+    Bytes aggregation_verify;
+};
+
+dictionary BakerKeysPayload {
+    Bytes signature_verify_key;
+    Bytes election_verify_key;
+    Bytes aggregation_verify_key;
+    Bytes proof_sig;
+    Bytes proof_election;
+    Bytes proof_aggregation;
+};
+
 namespace crypto {
     /// Compute the IdCredSec for the provided seed and identity indexes.
     /// Supported values for `network`: "Testnet", "Mainnet".
@@ -412,4 +430,8 @@ namespace crypto {
     /// Attempt to deserialize CredentialDeploymentInfo from the supplied bytes. This will fail if the number of bytes does not exactly match the expected number.
     [Throws=ConcordiumWalletCryptoError]
     UpdateCredentialsPayloadDeserializeResult deserialize_update_credentials_payload(bytes bytes);
+
+    /// Attempt to create a BakerKeysPayload for the account and associated baker keys
+    [Throws=ConcordiumWalletCryptoError]
+    BakerKeysPayload make_configure_baker_keys_payload(string account_base58, BakerKeyPairs baker_keys);
 };
