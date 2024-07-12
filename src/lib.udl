@@ -245,10 +245,13 @@ dictionary SignedAccountCredential {
     record<u8, string> signatures_hex;
 };
 
+[Custom]
+typedef bytes Bytes;
+
 /// An encrypted amount input to transfer from
 dictionary InputEncryptedAmount {
-    /// The aggregated encrypted amount as hex.
-    string agg_encrypted_amount_hex;
+    /// The aggregated encrypted amount.
+    Bytes agg_encrypted_amount;
     /// The plaintext corresponding to the aggregated encrypted amount.
     u64 agg_amount;
     /// Index such that the `agg_amount` is the sum of all encrypted amounts on an account with indices strictly below `agg_index`.
@@ -258,13 +261,13 @@ dictionary InputEncryptedAmount {
 /// The payload data for a TransferToPublic transaction
 dictionary SecToPubTransferData {
     /// The serialized remaining amount after deducting the amount to transfer
-    sequence<u8> serialized_remaining_amount;
+    Bytes serialized_remaining_amount;
     /// The amount to transfer
     u64 transfer_amount;
     /// The transfer index of the transfer
     u64 index;
     /// The serialized proof that the transfer is correct
-    sequence<u8> serialized_proof;
+    Bytes serialized_proof;
 };
 
 dictionary SecToPubTransferDataDeserializeResult {
@@ -280,7 +283,7 @@ dictionary CredentialDeploymentInfo {
     /// and permuting the list will invalidate the signature from the identity provider.
     record<u32, ChainArData> ar_data;
     /// Credential registration ID of the credential serialized as hex.
-    string cred_id_hex;
+    Bytes cred_id;
     /// Credential keys (i.e. account holder keys).
     CredentialPublicKeys credential_public_keys;
     /// Identity of the identity provider who signed the identity object
@@ -289,7 +292,7 @@ dictionary CredentialDeploymentInfo {
     /// Policy of this credential object.
     Policy policy;
     /// The proofs of ownership serialized as hex
-    string proofs_hex;
+    Bytes proofs;
     /// Anonymity revocation threshold. Must be less than the number of entries in `ar_data`.
     u8 revocation_threshold;
 };
@@ -298,7 +301,7 @@ dictionary UpdateCredentialsPayload {
     /// Credential infos and the respective indices to insert them at
     record<u32, CredentialDeploymentInfo> new_cred_infos;
     /// List of credentials to remove
-    sequence<string> remove_cred_ids_hex;
+    sequence<Bytes> remove_cred_ids;
     /// The new threshold of the account
     u8 new_threshold;
 };

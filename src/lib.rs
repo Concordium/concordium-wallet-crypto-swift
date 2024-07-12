@@ -1,17 +1,20 @@
 use concordium_base::{
     base::{AccountThreshold, CredentialRegistrationID},
     common::{types::CredentialIndex, Deserial, Serial},
-    contracts_common::Amount,
+    contracts_common::{AccountAddress, Amount},
     encrypted_transfers::{
         self,
         types::{AggregatedDecryptedAmount, SecToPubAmountTransferData},
     },
     id::constants::{ArCurve, AttributeKind, IpPairing},
-    transactions::AccountCredentialsMap,
+    transactions::{AccountCredentialsMap, ConfigureBakerKeysPayload},
 };
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
-use std::collections::{BTreeMap, HashMap};
+use std::{
+    collections::{BTreeMap, HashMap},
+    str::FromStr,
+};
 use uniffi::deps::anyhow::{self, Context};
 use wallet_library::{
     credential::{
@@ -31,6 +34,10 @@ use wallet_library::{
         get_verifiable_credential_public_key_aux, get_verifiable_credential_signing_key_aux,
     },
 };
+
+use crate::helpers::Bytes;
+
+mod helpers;
 
 // UniFFI book: https://mozilla.github.io/uniffi-rs/udl_file_spec.html
 uniffi::include_scaffolding!("lib");
@@ -654,7 +661,7 @@ pub fn account_credential_deployment_signed_payload_hex(
 #[derive(Debug)]
 pub struct InputEncryptedAmount {
     /// The aggregated encrypted amount as hex.
-    pub agg_encrypted_amount_hex: String,
+    pub agg_encrypted_amount: Bytes,
     /// The plaintext corresponding to the aggregated encrypted amount.
     pub agg_amount: u64,
     /// Index such that the `agg_amount` is the sum of all encrypted amounts
@@ -666,7 +673,7 @@ impl TryFrom<InputEncryptedAmount> for AggregatedDecryptedAmount<ArCurve> {
     type Error = serde_json::Error;
 
     fn try_from(value: InputEncryptedAmount) -> Result<Self, Self::Error> {
-        let agg_encrypted_amount = serde_json::from_str(&value.agg_encrypted_amount_hex)?;
+        let agg_encrypted_amount = serde_json::from_str(&hex::encode(value.agg_encrypted_amount))?;
         let agg_amount = Amount {
             micro_ccd: value.agg_amount,
         };
@@ -683,10 +690,10 @@ impl TryFrom<InputEncryptedAmount> for AggregatedDecryptedAmount<ArCurve> {
 /// providing the implementation of the UDL declaration of the same name.
 #[derive(Debug)]
 pub struct SecToPubTransferData {
-    pub serialized_remaining_amount: Vec<u8>,
+    pub serialized_remaining_amount: Bytes,
     pub transfer_amount: u64,
     pub index: u64,
-    pub serialized_proof: Vec<u8>,
+    pub serialized_proof: Bytes,
 }
 
 impl From<SecToPubAmountTransferData<ArCurve>> for SecToPubTransferData {
@@ -699,10 +706,10 @@ impl From<SecToPubAmountTransferData<ArCurve>> for SecToPubTransferData {
         value.proof.serial(&mut serialized_proof);
 
         SecToPubTransferData {
-            serialized_remaining_amount,
+            serialized_remaining_amount: Bytes::from(serialized_remaining_amount),
             transfer_amount: value.transfer_amount.micro_ccd,
             index: value.index.index,
-            serialized_proof,
+            serialized_proof: Bytes::from(serialized_proof),
         }
     }
 }
@@ -783,14 +790,12 @@ type BaseCredentialDeploymentInfo =
 #[serde(rename_all = "camelCase")]
 pub struct CredentialDeploymentInfo {
     pub ar_data: HashMap<u32, ChainArData>,
-    #[serde(rename = "credId")]
-    pub cred_id_hex: String,
+    pub cred_id: Bytes,
     pub credential_public_keys: CredentialPublicKeys,
     pub ip_identity: u32,
     pub policy: Policy,
     pub revocation_threshold: u8,
-    #[serde(rename = "proofs")]
-    pub proofs_hex: String,
+    pub proofs: Bytes,
 }
 
 impl TryFrom<CredentialDeploymentInfo> for BaseCredentialDeploymentInfo {
@@ -833,8 +838,7 @@ pub struct UpdateCredentialsPayload {
     /// New credentials to add.
     new_cred_infos: HashMap<u32, CredentialDeploymentInfo>,
     /// Ids of credentials to remove.
-    #[serde(rename = "removeCredIds")]
-    remove_cred_ids_hex: Vec<String>,
+    remove_cred_ids: Vec<Bytes>,
     /// The new account threshold.
     new_threshold: u8,
 }
@@ -889,4 +893,71 @@ pub fn deserialize_update_credentials_payload(
         bytes_read: bytes.position(),
     };
     Ok(result)
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BakerKeyPairs {
+    pub signature_sign: Bytes,
+    pub signature_verify: Bytes,
+    pub election_sign: Bytes,
+    pub election_verify: Bytes,
+    pub aggregation_sign: Bytes,
+    pub aggregation_verify: Bytes,
+}
+
+impl TryFrom<BakerKeyPairs> for concordium_base::base::BakerKeyPairs {
+    type Error = serde_json::Error;
+
+    fn try_from(value: BakerKeyPairs) -> Result<Self, Self::Error> {
+        serde_json::to_string(&value).and_then(|s| serde_json::from_str(&s))
+    }
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BakerKeysPayload {
+    /// New public key for participating in the election lottery.
+    pub election_verify_key: Bytes,
+    /// New public key for verifying this baker's signatures.
+    pub signature_verify_key: Bytes,
+    /// New public key for verifying this baker's signature on finalization
+    /// records.
+    pub aggregation_verify_key: Bytes,
+    /// Proof of knowledge of the secret key corresponding to the signature
+    /// verification key.
+    pub proof_sig: Bytes,
+    /// Proof of knowledge of the election secret key.
+    pub proof_election: Bytes,
+    /// Proof of knowledge of the secret key for signing finalization
+    /// records.
+    pub proof_aggregation: Bytes,
+}
+
+impl TryFrom<ConfigureBakerKeysPayload> for BakerKeysPayload {
+    type Error = serde_json::Error;
+
+    fn try_from(value: ConfigureBakerKeysPayload) -> Result<Self, Self::Error> {
+        serde_json::to_string(&value).and_then(|s| serde_json::from_str(&s))
+    }
+}
+
+pub fn make_configure_baker_keys_payload(
+    account_base58: String,
+    baker_keys: BakerKeyPairs,
+) -> Result<BakerKeysPayload, ConcordiumWalletCryptoError> {
+    let fn_desc = "make_configure_baker_keys_payload(...)";
+    let account = AccountAddress::from_str(&account_base58).map_err(|e| {
+        ConcordiumWalletCryptoError::CallFailed {
+            call: fn_desc.to_string(),
+            msg: format!("{:#}", e),
+        }
+    })?;
+    let baker_keys = concordium_base::base::BakerKeyPairs::try_from(baker_keys)
+        .map_err(|e| e.to_call_failed(fn_desc))?;
+    let mut csprng = thread_rng();
+    let payload = ConfigureBakerKeysPayload::new(&baker_keys, account, &mut csprng);
+    payload
+        .try_into()
+        .map_err(|e: serde_json::Error| e.to_call_failed(fn_desc))
 }
