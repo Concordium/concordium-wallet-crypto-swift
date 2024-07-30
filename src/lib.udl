@@ -299,7 +299,7 @@ dictionary CredentialDeploymentInfo {
 
 dictionary UpdateCredentialsPayload {
     /// Credential infos and the respective indices to insert them at
-    record<u32, CredentialDeploymentInfo> new_cred_infos;
+    record<u8, CredentialDeploymentInfo> new_cred_infos;
     /// List of credentials to remove
     sequence<Bytes> remove_cred_ids;
     /// The new threshold of the account
@@ -434,4 +434,7 @@ namespace crypto {
     /// Attempt to create a BakerKeysPayload for the account and associated baker keys
     [Throws=ConcordiumWalletCryptoError]
     BakerKeysPayload make_configure_baker_keys_payload(string account_base58, BakerKeyPairs baker_keys);
+
+    /// Create a set of baker keys
+    BakerKeyPairs generate_baker_keys();
 };

@@ -5,7 +5,10 @@ use std::{
 
 use concordium_base::{
     base::{AccountThreshold, CredentialRegistrationID},
-    common::{types::CredentialIndex, Deserial, Serial},
+    common::{
+        deserial_map_no_length, deserial_vector_no_length, types::CredentialIndex, Deserial, Get,
+        Serial,
+    },
     contracts_common::{AccountAddress, Amount},
     encrypted_transfers::{
         self,
@@ -200,7 +203,7 @@ pub fn serialize_credential_deployment_info(
 #[serde(rename_all = "camelCase")]
 pub struct UpdateCredentialsPayload {
     /// New credentials to add.
-    pub new_cred_infos: HashMap<u32, CredentialDeploymentInfo>,
+    pub new_cred_infos: HashMap<u8, CredentialDeploymentInfo>,
     /// Ids of credentials to remove.
     pub remove_cred_ids: Vec<Bytes>,
     /// The new account threshold.
@@ -242,10 +245,16 @@ pub fn deserialize_update_credentials_payload(
     let fn_name = "deserialize_update_credentials_payload";
 
     let mut bytes = std::io::Cursor::new(bytes);
-    let cred_infos =
-        AccountCredentialsMap::deserial(&mut bytes).map_err(|e| e.to_call_failed(fn_name))?;
-    let remove_cred_ids = Vec::<CredentialRegistrationID>::deserial(&mut bytes)
+
+    let cred_infos_len: u8 = bytes.get().map_err(|e| e.to_call_failed(fn_name))?;
+    let cred_infos: AccountCredentialsMap =
+        deserial_map_no_length(&mut bytes, cred_infos_len.into())
+            .map_err(|e| e.to_call_failed(fn_name))?;
+
+    let remove_cred_ids_len: u8 = bytes.get().map_err(|e| e.to_call_failed(fn_name))?;
+    let remove_cred_ids = deserial_vector_no_length(&mut bytes, remove_cred_ids_len.into())
         .map_err(|e| e.to_call_failed(fn_name))?;
+
     let new_threshold =
         AccountThreshold::deserial(&mut bytes).map_err(|e| e.to_call_failed(fn_name))?;
 
@@ -257,25 +266,6 @@ pub fn deserialize_update_credentials_payload(
         bytes_read: bytes.position(),
     };
     Ok(result)
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct BakerKeyPairs {
-    pub signature_sign: Bytes,
-    pub signature_verify: Bytes,
-    pub election_sign: Bytes,
-    pub election_verify: Bytes,
-    pub aggregation_sign: Bytes,
-    pub aggregation_verify: Bytes,
-}
-
-impl TryFrom<BakerKeyPairs> for concordium_base::base::BakerKeyPairs {
-    type Error = serde_json::Error;
-
-    fn try_from(value: BakerKeyPairs) -> Result<Self, Self::Error> {
-        serde_json::to_string(&value).and_then(|s| serde_json::from_str(&s))
-    }
 }
 
 #[derive(Deserialize)]

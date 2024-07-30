@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use crate::UniffiCustomTypeConverter;
+use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 
 /// Error type returned by the bridge functions.
@@ -107,4 +108,43 @@ pub struct VerifyKey {
     pub scheme_id: String,
     #[serde(rename = "verifyKey")]
     pub key_hex: String,
+}
+
+#[derive(Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct BakerKeyPairs {
+    #[serde(rename = "signatureSignKey")]
+    pub signature_sign: Bytes,
+    #[serde(rename = "signatureVerifyKey")]
+    pub signature_verify: Bytes,
+    #[serde(rename = "electionPrivateKey")]
+    pub election_sign: Bytes,
+    #[serde(rename = "electionVerifyKey")]
+    pub election_verify: Bytes,
+    #[serde(rename = "aggregationSignKey")]
+    pub aggregation_sign: Bytes,
+    #[serde(rename = "aggregationVerifyKey")]
+    pub aggregation_verify: Bytes,
+}
+
+impl TryFrom<BakerKeyPairs> for concordium_base::base::BakerKeyPairs {
+    type Error = serde_json::Error;
+
+    fn try_from(value: BakerKeyPairs) -> Result<Self, Self::Error> {
+        serde_json::to_string(&value).and_then(|s| serde_json::from_str(&s))
+    }
+}
+
+impl From<concordium_base::base::BakerKeyPairs> for BakerKeyPairs {
+    fn from(value: concordium_base::base::BakerKeyPairs) -> Self {
+        let ser = serde_json::to_string(&value).expect("Serialization does not fail");
+        serde_json::from_str(&ser).expect("Deserializing known value does not fail")
+    }
+}
+
+/// Generate a set of baker keys
+pub fn generate_baker_keys() -> BakerKeyPairs {
+    let mut csprng = thread_rng();
+    let keys = concordium_base::base::BakerKeyPairs::generate(&mut csprng);
+    keys.into()
 }
