@@ -427,7 +427,7 @@ namespace crypto {
     [Throws=ConcordiumWalletCryptoError]
     bytes serialize_credential_deployment_info(CredentialDeploymentInfo cred_info);
 
-    /// Attempt to deserialize CredentialDeploymentInfo from the supplied bytes. This will fail if the number of bytes does not exactly match the expected number.
+    /// Attempt to deserialize UpdateCredentialsPayloadDeserializeResult from the supplied bytes. This will fail if the number of bytes does not exactly match the expected number.
     [Throws=ConcordiumWalletCryptoError]
     UpdateCredentialsPayloadDeserializeResult deserialize_update_credentials_payload(bytes bytes);
 

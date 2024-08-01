@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `sec_to_pub_transfer_data` and `deserialize_sec_to_pub_transfer_data` functions to support `TransferToPublic` transactions
+- `serialize_credential_deployment_info` and `deserialize_update_credentials_payload` functions to support `UpdateCredentials` transactions
+- `make_configure_baker_keys_payload` function to support `ConfigureBaker` transactions
+- `generate_baker_keys` function to generate a random set of baker keys
+
 ## [3.0.0] - 2024-04-25
 
 ### Changed/fixed
