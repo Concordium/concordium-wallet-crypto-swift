@@ -261,12 +261,14 @@ dictionary InputEncryptedAmount {
 /// The payload data for a TransferToPublic transaction
 dictionary SecToPubTransferData {
     /// The serialized remaining amount after deducting the amount to transfer
+    /// Serialized according to the [`Serial`] implementation of [`concordium_base::encrypted_transfers::types::EncryptedAmount`]
     Bytes serialized_remaining_amount;
     /// The amount to transfer
     u64 transfer_amount;
     /// The transfer index of the transfer
     u64 index;
-    /// The serialized proof that the transfer is correct
+    /// The serialized proof that the transfer is correct.
+    /// Serialized according to the [`Serial`] implementation of [`concordium_base::encrypted_transfers::types::SecToPubAmountTransferProof`]
     Bytes serialized_proof;
 };
 
@@ -282,7 +284,8 @@ dictionary CredentialDeploymentInfo {
     /// The order is important since it is the same order as that signed by the identity provider,
     /// and permuting the list will invalidate the signature from the identity provider.
     record<u32, ChainArData> ar_data;
-    /// Credential registration ID of the credential serialized as hex.
+    /// Credential registration ID of the credential.
+    /// Serialized according to the corresponding `serde::Serialize` implementation in concordium-base.
     Bytes cred_id;
     /// Credential keys (i.e. account holder keys).
     CredentialPublicKeys credential_public_keys;
@@ -291,7 +294,8 @@ dictionary CredentialDeploymentInfo {
     u32 ip_identity;
     /// Policy of this credential object.
     Policy policy;
-    /// The proofs of ownership serialized as hex
+    /// The proofs of ownership.
+    /// Serialized according to the corresponding `serde::Serialize` implementation in concordium-base
     Bytes proofs;
     /// Anonymity revocation threshold. Must be less than the number of entries in `ar_data`.
     u8 revocation_threshold;
@@ -415,9 +419,9 @@ namespace crypto {
     [Throws=ConcordiumWalletCryptoError]
     string account_credential_deployment_signed_payload_hex(SignedAccountCredential credential);
 
-    /// Construct the payload for a TransferToPublic transaction
+    /// Construct the payload for a TransferToPublic transaction. The `to_transfer` amount is specififed in microCCD.
     [Throws=ConcordiumWalletCryptoError]
-    SecToPubTransferData sec_to_pub_transfer_data(GlobalContext ctx, string sender_secret_key, InputEncryptedAmount input_amount, u64 to_transfer);
+    SecToPubTransferData sec_to_pub_transfer_data(GlobalContext ctx, Bytes sender_secret_key, InputEncryptedAmount input_amount, u64 to_transfer);
 
     /// Attempt to deserialize SecToPubTransferData from the supplied bytes. This will fail if the number of bytes does not exactly match the expected number.
     [Throws=ConcordiumWalletCryptoError]

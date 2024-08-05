@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 
 use crate::UniffiCustomTypeConverter;
+use concordium_base::{contracts_common::AccountAddressParseError, id::constants::ArCurve};
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
+use uniffi::deps::anyhow::Context;
 
 /// Error type returned by the bridge functions.
 /// A corresponding Swift type will be generated (via the UDL definition).
@@ -18,9 +20,9 @@ where
     Self: std::fmt::Display,
 {
     /// Convert to [`ConcordiumWalletCryptoError::CallFailed`]
-    fn to_call_failed(&self, fn_description: &'static str) -> ConcordiumWalletCryptoError {
+    fn to_call_failed(&self, fn_description: String) -> ConcordiumWalletCryptoError {
         ConcordiumWalletCryptoError::CallFailed {
-            call: fn_description.to_string(),
+            call: fn_description,
             msg: format!("{:#}", self),
         }
     }
@@ -28,6 +30,7 @@ where
 
 impl ConvertError for serde_json::Error {}
 impl ConvertError for uniffi::deps::anyhow::Error {}
+impl ConvertError for AccountAddressParseError {}
 
 #[repr(transparent)]
 #[derive(Debug, Serialize, Deserialize, derive_more::From)]
@@ -67,6 +70,19 @@ pub struct GlobalContext {
     pub genesis_string: String,
 }
 
+impl TryFrom<GlobalContext> for concordium_base::id::types::GlobalContext<ArCurve> {
+    type Error = uniffi::deps::anyhow::Error;
+
+    fn try_from(value: GlobalContext) -> Result<Self, Self::Error> {
+        serde_json::to_string(&value)
+            .context("cannot encode request object as JSON")
+            .and_then(|json| {
+                serde_json::from_str::<concordium_base::id::types::GlobalContext<ArCurve>>(&json)
+                    .context("cannot decode request object into internal type")
+            })
+    }
+}
+
 /// UniFFI compatible bridge to [`concordium_base::id::types::ChainArData<concordium_base::id::constants::ArCurve>`],
 /// providing the implementation of the UDL declaration of the same name.
 /// The translation is performed using Serde.
@@ -99,6 +115,7 @@ pub struct CredentialPublicKeys {
     #[serde(rename = "threshold")]
     pub threshold: u8,
 }
+
 /// UniFFI compatible bridge to [`concordium_base::id::types::VerifyKey`],
 /// providing the implementation of the UDL declaration of the same name.
 /// The translation is performed using Serde.
@@ -110,8 +127,7 @@ pub struct VerifyKey {
     pub key_hex: String,
 }
 
-#[derive(Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct BakerKeyPairs {
     #[serde(rename = "signatureSignKey")]
     pub signature_sign: Bytes,

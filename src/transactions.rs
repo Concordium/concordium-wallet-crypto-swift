@@ -57,9 +57,11 @@ impl TryFrom<InputEncryptedAmount> for AggregatedDecryptedAmount<ArCurve> {
 /// providing the implementation of the UDL declaration of the same name.
 #[derive(Debug)]
 pub struct SecToPubTransferData {
+    /// Serialized according to the [`Serial`] implementation of [`concordium_base::encrypted_transfers::types::EncryptedAmount`]
     pub serialized_remaining_amount: Bytes,
     pub transfer_amount: u64,
     pub index: u64,
+    /// Serialized according to the [`Serial`] implementation of [`concordium_base::encrypted_transfers::types::SecToPubAmountTransferProof`]
     pub serialized_proof: Bytes,
 }
 
@@ -84,13 +86,14 @@ impl From<SecToPubAmountTransferData<ArCurve>> for SecToPubTransferData {
 impl SecToPubTransferData {
     fn create(
         ctx: GlobalContext,
-        sender_secret_key: String,
+        sender_secret_key: Bytes,
         input_amount: InputEncryptedAmount,
-        to_transfer: u64,
+        to_transfer: u64, // In microCCD
     ) -> anyhow::Result<SecToPubTransferData> {
         let ctx = concordium_base::id::types::GlobalContext::try_from(ctx)?;
         let sk: concordium_base::elgamal::SecretKey<ArCurve> =
-            serde_json::from_str(&sender_secret_key)
+            serde_json::to_string(&sender_secret_key)
+                .and_then(|v| serde_json::from_str(&v))
                 .context("Failed to parse sender secret key")?;
         let input_amount = AggregatedDecryptedAmount::try_from(input_amount)
             .context("Failed to parse input amount")?;
@@ -112,6 +115,7 @@ impl SecToPubTransferData {
     }
 }
 
+/// Used to communicate how many bytes were read during deserialization of the value `V`, which can then be used as part of deserializing an encompassing structure
 pub struct DeserializeResult<V> {
     pub value: V,
     pub bytes_read: u64,
@@ -122,12 +126,12 @@ pub type SecToPubTransferDataDeserializeResult = DeserializeResult<SecToPubTrans
 /// Implements UDL definition of the same name.
 pub fn sec_to_pub_transfer_data(
     ctx: GlobalContext,
-    sender_secret_key: String,
+    sender_secret_key: Bytes,
     input_amount: InputEncryptedAmount,
-    to_transfer: u64,
+    to_transfer: u64, // In microCCD
 ) -> Result<SecToPubTransferData, ConcordiumWalletCryptoError> {
     SecToPubTransferData::create(ctx, sender_secret_key, input_amount, to_transfer)
-        .map_err(|e| e.to_call_failed("sec_to_pub_transfer_data(...)"))
+        .map_err(|e| e.to_call_failed("sec_to_pub_transfer_data(...)".to_string()))
 }
 
 /// Implements UDL definition of the same name.
@@ -137,8 +141,8 @@ pub fn deserialize_sec_to_pub_transfer_data(
 ) -> Result<DeserializeResult<SecToPubTransferData>, ConcordiumWalletCryptoError> {
     let fn_name = "deserialize_sec_to_pub_transfer_data";
     let mut bytes = std::io::Cursor::new(bytes);
-    let transfer_data =
-        SecToPubAmountTransferData::deserial(&mut bytes).map_err(|e| e.to_call_failed(fn_name))?;
+    let transfer_data = SecToPubAmountTransferData::deserial(&mut bytes)
+        .map_err(|e| e.to_call_failed(fn_name.to_string()))?;
 
     let result = DeserializeResult {
         value: transfer_data.into(),
@@ -162,6 +166,7 @@ pub struct CredentialDeploymentInfo {
     pub ip_identity: u32,
     pub policy: Policy,
     pub revocation_threshold: u8,
+    /// Serialized proofs according to the [`serde::Serialize`] implementation of [`concordium_base::id::types::CredDeploymentProofs<concordium_base::id::constants::IpPairing,concordium_base::id::constants::ArCurve>`]
     pub proofs: Bytes,
 }
 
@@ -186,9 +191,9 @@ impl TryFrom<BaseCredentialDeploymentInfo> for CredentialDeploymentInfo {
 pub fn serialize_credential_deployment_info(
     cred_info: CredentialDeploymentInfo,
 ) -> Result<Vec<u8>, ConcordiumWalletCryptoError> {
-    let fn_desc = "serialize_credential_deployment_info";
-    let cred_info =
-        BaseCredentialDeploymentInfo::try_from(cred_info).map_err(|e| e.to_call_failed(fn_desc))?;
+    let fn_name = "serialize_credential_deployment_info";
+    let cred_info = BaseCredentialDeploymentInfo::try_from(cred_info)
+        .map_err(|e| e.to_call_failed(fn_name.to_string()))?;
 
     let mut bytes = vec![];
     cred_info.serial(&mut bytes);
@@ -246,20 +251,24 @@ pub fn deserialize_update_credentials_payload(
 
     let mut bytes = std::io::Cursor::new(bytes);
 
-    let cred_infos_len: u8 = bytes.get().map_err(|e| e.to_call_failed(fn_name))?;
+    let cred_infos_len: u8 = bytes
+        .get()
+        .map_err(|e| e.to_call_failed(fn_name.to_string()))?;
     let cred_infos: AccountCredentialsMap =
         deserial_map_no_length(&mut bytes, cred_infos_len.into())
-            .map_err(|e| e.to_call_failed(fn_name))?;
+            .map_err(|e| e.to_call_failed(fn_name.to_string()))?;
 
-    let remove_cred_ids_len: u8 = bytes.get().map_err(|e| e.to_call_failed(fn_name))?;
+    let remove_cred_ids_len: u8 = bytes
+        .get()
+        .map_err(|e| e.to_call_failed(fn_name.to_string()))?;
     let remove_cred_ids = deserial_vector_no_length(&mut bytes, remove_cred_ids_len.into())
-        .map_err(|e| e.to_call_failed(fn_name))?;
+        .map_err(|e| e.to_call_failed(fn_name.to_string()))?;
 
-    let new_threshold =
-        AccountThreshold::deserial(&mut bytes).map_err(|e| e.to_call_failed(fn_name))?;
+    let new_threshold = AccountThreshold::deserial(&mut bytes)
+        .map_err(|e| e.to_call_failed(fn_name.to_string()))?;
 
     let payload = UpdateCredentialsPayload::try_from((cred_infos, remove_cred_ids, new_threshold))
-        .map_err(|e| e.to_call_failed(fn_name))?;
+        .map_err(|e| e.to_call_failed(fn_name.to_string()))?;
 
     let result = DeserializeResult {
         value: payload,
@@ -300,15 +309,11 @@ pub fn make_configure_baker_keys_payload(
     account_base58: String,
     baker_keys: BakerKeyPairs,
 ) -> Result<BakerKeysPayload, ConcordiumWalletCryptoError> {
-    let fn_desc = "make_configure_baker_keys_payload(...)";
-    let account = AccountAddress::from_str(&account_base58).map_err(|e| {
-        ConcordiumWalletCryptoError::CallFailed {
-            call: fn_desc.to_string(),
-            msg: format!("{:#}", e),
-        }
-    })?;
+    let fn_desc = format!("make_configure_baker_keys_payload(account_base58={account_base58}, baker_keys={baker_keys:?})");
+    let account =
+        AccountAddress::from_str(&account_base58).map_err(|e| e.to_call_failed(fn_desc.clone()))?;
     let baker_keys = concordium_base::base::BakerKeyPairs::try_from(baker_keys)
-        .map_err(|e| e.to_call_failed(fn_desc))?;
+        .map_err(|e| e.to_call_failed(fn_desc.clone()))?;
     let mut csprng = thread_rng();
     let payload = ConfigureBakerKeysPayload::new(&baker_keys, account, &mut csprng);
     payload

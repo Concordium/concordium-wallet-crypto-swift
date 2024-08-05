@@ -1,5 +1,4 @@
 use crate::types::*;
-use concordium_base::id::constants::ArCurve;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uniffi::deps::anyhow::Context;
@@ -218,19 +217,6 @@ pub struct IdentityProviderInfo {
     pub verify_key_hex: String,
     #[serde(rename = "ipCdiVerifyKey")]
     pub cdi_verify_key_hex: String,
-}
-
-impl TryFrom<GlobalContext> for concordium_base::id::types::GlobalContext<ArCurve> {
-    type Error = uniffi::deps::anyhow::Error;
-
-    fn try_from(value: GlobalContext) -> Result<Self, Self::Error> {
-        serde_json::to_string(&value)
-            .context("cannot encode request object as JSON")
-            .and_then(|json| {
-                serde_json::from_str::<concordium_base::id::types::GlobalContext<ArCurve>>(&json)
-                    .context("cannot decode request object into internal type")
-            })
-    }
 }
 
 /// UniFFI compatible bridge to [`concordium_base::id::types::ArInfo<concordium_base::id::constants::ArCurve>`],
