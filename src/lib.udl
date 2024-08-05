@@ -245,6 +245,94 @@ dictionary SignedAccountCredential {
     record<u8, string> signatures_hex;
 };
 
+[Custom]
+typedef bytes Bytes;
+
+/// An encrypted amount input to transfer from
+dictionary InputEncryptedAmount {
+    /// The aggregated encrypted amount.
+    Bytes agg_encrypted_amount;
+    /// The plaintext corresponding to the aggregated encrypted amount.
+    u64 agg_amount;
+    /// Index such that the `agg_amount` is the sum of all encrypted amounts on an account with indices strictly below `agg_index`.
+    u64 agg_index;
+};
+
+/// The payload data for a TransferToPublic transaction
+dictionary SecToPubTransferData {
+    /// The serialized remaining amount after deducting the amount to transfer
+    /// Serialized according to the [`Serial`] implementation of [`concordium_base::encrypted_transfers::types::EncryptedAmount`]
+    Bytes serialized_remaining_amount;
+    /// The amount to transfer
+    u64 transfer_amount;
+    /// The transfer index of the transfer
+    u64 index;
+    /// The serialized proof that the transfer is correct.
+    /// Serialized according to the [`Serial`] implementation of [`concordium_base::encrypted_transfers::types::SecToPubAmountTransferProof`]
+    Bytes serialized_proof;
+};
+
+dictionary SecToPubTransferDataDeserializeResult {
+    SecToPubTransferData value;
+    u64 bytes_read;
+};
+
+/// A credential with attributes, public keys, and proofs that it is
+/// well-formed.
+dictionary CredentialDeploymentInfo {
+    /// List of anonymity revokers which can revoke the identity.
+    /// The order is important since it is the same order as that signed by the identity provider,
+    /// and permuting the list will invalidate the signature from the identity provider.
+    record<u32, ChainArData> ar_data;
+    /// Credential registration ID of the credential.
+    /// Serialized according to the corresponding `serde::Serialize` implementation in concordium-base.
+    Bytes cred_id;
+    /// Credential keys (i.e. account holder keys).
+    CredentialPublicKeys credential_public_keys;
+    /// Identity of the identity provider who signed the identity object
+    /// from which this credential is derived.
+    u32 ip_identity;
+    /// Policy of this credential object.
+    Policy policy;
+    /// The proofs of ownership.
+    /// Serialized according to the corresponding `serde::Serialize` implementation in concordium-base
+    Bytes proofs;
+    /// Anonymity revocation threshold. Must be less than the number of entries in `ar_data`.
+    u8 revocation_threshold;
+};
+
+dictionary UpdateCredentialsPayload {
+    /// Credential infos and the respective indices to insert them at
+    record<u8, CredentialDeploymentInfo> new_cred_infos;
+    /// List of credentials to remove
+    sequence<Bytes> remove_cred_ids;
+    /// The new threshold of the account
+    u8 new_threshold;
+};
+
+dictionary UpdateCredentialsPayloadDeserializeResult {
+    UpdateCredentialsPayload value;
+    u64 bytes_read;
+};
+
+dictionary BakerKeyPairs {
+    Bytes signature_sign;
+    Bytes signature_verify;
+    Bytes election_sign;
+    Bytes election_verify;
+    Bytes aggregation_sign;
+    Bytes aggregation_verify;
+};
+
+dictionary BakerKeysPayload {
+    Bytes signature_verify_key;
+    Bytes election_verify_key;
+    Bytes aggregation_verify_key;
+    Bytes proof_sig;
+    Bytes proof_election;
+    Bytes proof_aggregation;
+};
+
 namespace crypto {
     /// Compute the IdCredSec for the provided seed and identity indexes.
     /// Supported values for `network`: "Testnet", "Mainnet".
@@ -330,4 +418,27 @@ namespace crypto {
     /// The result is hex encoded.
     [Throws=ConcordiumWalletCryptoError]
     string account_credential_deployment_signed_payload_hex(SignedAccountCredential credential);
+
+    /// Construct the payload for a TransferToPublic transaction. The `to_transfer` amount is specififed in microCCD.
+    [Throws=ConcordiumWalletCryptoError]
+    SecToPubTransferData sec_to_pub_transfer_data(GlobalContext ctx, Bytes sender_secret_key, InputEncryptedAmount input_amount, u64 to_transfer);
+
+    /// Attempt to deserialize SecToPubTransferData from the supplied bytes. This will fail if the number of bytes does not exactly match the expected number.
+    [Throws=ConcordiumWalletCryptoError]
+    SecToPubTransferDataDeserializeResult deserialize_sec_to_pub_transfer_data(bytes bytes);
+
+    /// Attempt to serialize CredentialDeploymentInfo into bytes. This will fail if any of the raw hex representations do not match the corresponding types in concordium-base
+    [Throws=ConcordiumWalletCryptoError]
+    bytes serialize_credential_deployment_info(CredentialDeploymentInfo cred_info);
+
+    /// Attempt to deserialize UpdateCredentialsPayloadDeserializeResult from the supplied bytes. This will fail if the number of bytes does not exactly match the expected number.
+    [Throws=ConcordiumWalletCryptoError]
+    UpdateCredentialsPayloadDeserializeResult deserialize_update_credentials_payload(bytes bytes);
+
+    /// Attempt to create a BakerKeysPayload for the account and associated baker keys
+    [Throws=ConcordiumWalletCryptoError]
+    BakerKeysPayload make_configure_baker_keys_payload(string account_base58, BakerKeyPairs baker_keys);
+
+    /// Create a set of baker keys
+    BakerKeyPairs generate_baker_keys();
 };
