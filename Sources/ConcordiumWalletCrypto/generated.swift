@@ -6,10 +6,10 @@ import Foundation
 // might be in a separate module, or it might be compiled inline into
 // this module. This is a bit of light hackery to work with both.
 #if canImport(cryptoFFI)
-    import cryptoFFI
+import cryptoFFI
 #endif
 
-private extension RustBuffer {
+fileprivate extension RustBuffer {
     // Allocate a new buffer, copying the contents of a `UInt8` array.
     init(bytes: [UInt8]) {
         let rbuf = bytes.withUnsafeBufferPointer { ptr in
@@ -29,7 +29,7 @@ private extension RustBuffer {
     }
 }
 
-private extension ForeignBytes {
+fileprivate extension ForeignBytes {
     init(bufferPointer: UnsafeBufferPointer<UInt8>) {
         self.init(len: Int32(bufferPointer.count), data: bufferPointer.baseAddress)
     }
@@ -42,7 +42,7 @@ private extension ForeignBytes {
 // Helper classes/extensions that don't change.
 // Someday, this will be in a library of its own.
 
-private extension Data {
+fileprivate extension Data {
     init(rustBuffer: RustBuffer) {
         // TODO: This copies the buffer. Can we read directly from a
         // Rust buffer?
@@ -64,15 +64,15 @@ private extension Data {
 //
 // Instead, the read() method and these helper functions input a tuple of data
 
-private func createReader(data: Data) -> (data: Data, offset: Data.Index) {
+fileprivate func createReader(data: Data) -> (data: Data, offset: Data.Index) {
     (data: data, offset: 0)
 }
 
 // Reads an integer at the current offset, in big-endian order, and advances
 // the offset on success. Throws if reading the integer would move the
 // offset past the end of the buffer.
-private func readInt<T: FixedWidthInteger>(_ reader: inout (data: Data, offset: Data.Index)) throws -> T {
-    let range = reader.offset ..< reader.offset + MemoryLayout<T>.size
+fileprivate func readInt<T: FixedWidthInteger>(_ reader: inout (data: Data, offset: Data.Index)) throws -> T {
+    let range = reader.offset..<reader.offset + MemoryLayout<T>.size
     guard reader.data.count >= range.upperBound else {
         throw UniffiInternalError.bufferOverflow
     }
@@ -82,38 +82,38 @@ private func readInt<T: FixedWidthInteger>(_ reader: inout (data: Data, offset: 
         return value as! T
     }
     var value: T = 0
-    let _ = withUnsafeMutableBytes(of: &value) { reader.data.copyBytes(to: $0, from: range) }
+    let _ = withUnsafeMutableBytes(of: &value, { reader.data.copyBytes(to: $0, from: range)})
     reader.offset = range.upperBound
     return value.bigEndian
 }
 
 // Reads an arbitrary number of bytes, to be used to read
 // raw bytes, this is useful when lifting strings
-private func readBytes(_ reader: inout (data: Data, offset: Data.Index), count: Int) throws -> [UInt8] {
-    let range = reader.offset ..< (reader.offset + count)
+fileprivate func readBytes(_ reader: inout (data: Data, offset: Data.Index), count: Int) throws -> Array<UInt8> {
+    let range = reader.offset..<(reader.offset+count)
     guard reader.data.count >= range.upperBound else {
         throw UniffiInternalError.bufferOverflow
     }
     var value = [UInt8](repeating: 0, count: count)
-    value.withUnsafeMutableBufferPointer { buffer in
+    value.withUnsafeMutableBufferPointer({ buffer in
         reader.data.copyBytes(to: buffer, from: range)
-    }
+    })
     reader.offset = range.upperBound
     return value
 }
 
 // Reads a float at the current offset.
-private func readFloat(_ reader: inout (data: Data, offset: Data.Index)) throws -> Float {
-    return try Float(bitPattern: readInt(&reader))
+fileprivate func readFloat(_ reader: inout (data: Data, offset: Data.Index)) throws -> Float {
+    return Float(bitPattern: try readInt(&reader))
 }
 
 // Reads a float at the current offset.
-private func readDouble(_ reader: inout (data: Data, offset: Data.Index)) throws -> Double {
-    return try Double(bitPattern: readInt(&reader))
+fileprivate func readDouble(_ reader: inout (data: Data, offset: Data.Index)) throws -> Double {
+    return Double(bitPattern: try readInt(&reader))
 }
 
 // Indicates if the offset has reached the end of the buffer.
-private func hasRemaining(_ reader: (data: Data, offset: Data.Index)) -> Bool {
+fileprivate func hasRemaining(_ reader: (data: Data, offset: Data.Index)) -> Bool {
     return reader.offset < reader.data.count
 }
 
@@ -121,11 +121,11 @@ private func hasRemaining(_ reader: (data: Data, offset: Data.Index)) -> Bool {
 // struct, but we use standalone functions instead in order to make external
 // types work.  See the above discussion on Readers for details.
 
-private func createWriter() -> [UInt8] {
+fileprivate func createWriter() -> [UInt8] {
     return []
 }
 
-private func writeBytes<S>(_ writer: inout [UInt8], _ byteArr: S) where S: Sequence, S.Element == UInt8 {
+fileprivate func writeBytes<S>(_ writer: inout [UInt8], _ byteArr: S) where S: Sequence, S.Element == UInt8 {
     writer.append(contentsOf: byteArr)
 }
 
@@ -133,22 +133,22 @@ private func writeBytes<S>(_ writer: inout [UInt8], _ byteArr: S) where S: Seque
 //
 // Warning: make sure what you are trying to write
 // is in the correct type!
-private func writeInt<T: FixedWidthInteger>(_ writer: inout [UInt8], _ value: T) {
+fileprivate func writeInt<T: FixedWidthInteger>(_ writer: inout [UInt8], _ value: T) {
     var value = value.bigEndian
     withUnsafeBytes(of: &value) { writer.append(contentsOf: $0) }
 }
 
-private func writeFloat(_ writer: inout [UInt8], _ value: Float) {
+fileprivate func writeFloat(_ writer: inout [UInt8], _ value: Float) {
     writeInt(&writer, value.bitPattern)
 }
 
-private func writeDouble(_ writer: inout [UInt8], _ value: Double) {
+fileprivate func writeDouble(_ writer: inout [UInt8], _ value: Double) {
     writeInt(&writer, value.bitPattern)
 }
 
 // Protocol for types that transfer other types across the FFI. This is
 // analogous go the Rust trait of the same name.
-private protocol FfiConverter {
+fileprivate protocol FfiConverter {
     associatedtype FfiType
     associatedtype SwiftType
 
@@ -159,7 +159,7 @@ private protocol FfiConverter {
 }
 
 // Types conforming to `Primitive` pass themselves directly over the FFI.
-private protocol FfiConverterPrimitive: FfiConverter where FfiType == SwiftType {}
+fileprivate protocol FfiConverterPrimitive: FfiConverter where FfiType == SwiftType { }
 
 extension FfiConverterPrimitive {
     public static func lift(_ value: FfiType) throws -> SwiftType {
@@ -173,7 +173,7 @@ extension FfiConverterPrimitive {
 
 // Types conforming to `FfiConverterRustBuffer` lift and lower into a `RustBuffer`.
 // Used for complex types where it's hard to write a custom lift/lower.
-private protocol FfiConverterRustBuffer: FfiConverter where FfiType == RustBuffer {}
+fileprivate protocol FfiConverterRustBuffer: FfiConverter where FfiType == RustBuffer {}
 
 extension FfiConverterRustBuffer {
     public static func lift(_ buf: RustBuffer) throws -> SwiftType {
@@ -187,15 +187,14 @@ extension FfiConverterRustBuffer {
     }
 
     public static func lower(_ value: SwiftType) -> RustBuffer {
-        var writer = createWriter()
-        write(value, into: &writer)
-        return RustBuffer(bytes: writer)
+          var writer = createWriter()
+          write(value, into: &writer)
+          return RustBuffer(bytes: writer)
     }
 }
-
 // An error type for FFI errors. These errors occur at the UniFFI level, not
 // the library level.
-private enum UniffiInternalError: LocalizedError {
+fileprivate enum UniffiInternalError: LocalizedError {
     case bufferOverflow
     case incompleteData
     case unexpectedOptionalTag
@@ -221,16 +220,16 @@ private enum UniffiInternalError: LocalizedError {
     }
 }
 
-private let CALL_SUCCESS: Int8 = 0
-private let CALL_ERROR: Int8 = 1
-private let CALL_PANIC: Int8 = 2
-private let CALL_CANCELLED: Int8 = 3
+fileprivate let CALL_SUCCESS: Int8 = 0
+fileprivate let CALL_ERROR: Int8 = 1
+fileprivate let CALL_PANIC: Int8 = 2
+fileprivate let CALL_CANCELLED: Int8 = 3
 
-private extension RustCallStatus {
+fileprivate extension RustCallStatus {
     init() {
         self.init(
             code: CALL_SUCCESS,
-            errorBuf: RustBuffer(
+            errorBuf: RustBuffer.init(
                 capacity: 0,
                 len: 0,
                 data: nil
@@ -245,8 +244,7 @@ private func rustCall<T>(_ callback: (UnsafeMutablePointer<RustCallStatus>) -> T
 
 private func rustCallWithError<T>(
     _ errorHandler: @escaping (RustBuffer) throws -> Error,
-    _ callback: (UnsafeMutablePointer<RustCallStatus>) -> T
-) throws -> T {
+    _ callback: (UnsafeMutablePointer<RustCallStatus>) -> T) throws -> T {
     try makeRustCall(callback, errorHandler: errorHandler)
 }
 
@@ -255,7 +253,7 @@ private func makeRustCall<T>(
     errorHandler: ((RustBuffer) throws -> Error)?
 ) throws -> T {
     uniffiEnsureInitialized()
-    var callStatus = RustCallStatus()
+    var callStatus = RustCallStatus.init()
     let returnedVal = callback(&callStatus)
     try uniffiCheckCallStatus(callStatus: callStatus, errorHandler: errorHandler)
     return returnedVal
@@ -266,39 +264,40 @@ private func uniffiCheckCallStatus(
     errorHandler: ((RustBuffer) throws -> Error)?
 ) throws {
     switch callStatus.code {
-    case CALL_SUCCESS:
-        return
+        case CALL_SUCCESS:
+            return
 
-    case CALL_ERROR:
-        if let errorHandler = errorHandler {
-            throw try errorHandler(callStatus.errorBuf)
-        } else {
-            callStatus.errorBuf.deallocate()
-            throw UniffiInternalError.unexpectedRustCallError
-        }
+        case CALL_ERROR:
+            if let errorHandler = errorHandler {
+                throw try errorHandler(callStatus.errorBuf)
+            } else {
+                callStatus.errorBuf.deallocate()
+                throw UniffiInternalError.unexpectedRustCallError
+            }
 
-    case CALL_PANIC:
-        // When the rust code sees a panic, it tries to construct a RustBuffer
-        // with the message.  But if that code panics, then it just sends back
-        // an empty buffer.
-        if callStatus.errorBuf.len > 0 {
-            throw try UniffiInternalError.rustPanic(FfiConverterString.lift(callStatus.errorBuf))
-        } else {
-            callStatus.errorBuf.deallocate()
-            throw UniffiInternalError.rustPanic("Rust panic")
-        }
+        case CALL_PANIC:
+            // When the rust code sees a panic, it tries to construct a RustBuffer
+            // with the message.  But if that code panics, then it just sends back
+            // an empty buffer.
+            if callStatus.errorBuf.len > 0 {
+                throw UniffiInternalError.rustPanic(try FfiConverterString.lift(callStatus.errorBuf))
+            } else {
+                callStatus.errorBuf.deallocate()
+                throw UniffiInternalError.rustPanic("Rust panic")
+            }
 
-    case CALL_CANCELLED:
-        fatalError("Cancellation not supported yet")
+        case CALL_CANCELLED:
+            fatalError("Cancellation not supported yet")
 
-    default:
-        throw UniffiInternalError.unexpectedRustCallStatusCode
+        default:
+            throw UniffiInternalError.unexpectedRustCallStatusCode
     }
 }
 
 // Public interface members begin here.
 
-private struct FfiConverterUInt8: FfiConverterPrimitive {
+
+fileprivate struct FfiConverterUInt8: FfiConverterPrimitive {
     typealias FfiType = UInt8
     typealias SwiftType = UInt8
 
@@ -311,7 +310,7 @@ private struct FfiConverterUInt8: FfiConverterPrimitive {
     }
 }
 
-private struct FfiConverterUInt32: FfiConverterPrimitive {
+fileprivate struct FfiConverterUInt32: FfiConverterPrimitive {
     typealias FfiType = UInt32
     typealias SwiftType = UInt32
 
@@ -324,7 +323,7 @@ private struct FfiConverterUInt32: FfiConverterPrimitive {
     }
 }
 
-private struct FfiConverterUInt64: FfiConverterPrimitive {
+fileprivate struct FfiConverterUInt64: FfiConverterPrimitive {
     typealias FfiType = UInt64
     typealias SwiftType = UInt64
 
@@ -337,7 +336,7 @@ private struct FfiConverterUInt64: FfiConverterPrimitive {
     }
 }
 
-private struct FfiConverterString: FfiConverter {
+fileprivate struct FfiConverterString: FfiConverter {
     typealias SwiftType = String
     typealias FfiType = RustBuffer
 
@@ -365,7 +364,7 @@ private struct FfiConverterString: FfiConverter {
 
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> String {
         let len: Int32 = try readInt(&buf)
-        return try String(bytes: readBytes(&buf, count: Int(len)), encoding: String.Encoding.utf8)!
+        return String(bytes: try readBytes(&buf, count: Int(len)), encoding: String.Encoding.utf8)!
     }
 
     public static func write(_ value: String, into buf: inout [UInt8]) {
@@ -374,6 +373,22 @@ private struct FfiConverterString: FfiConverter {
         writeBytes(&buf, value.utf8)
     }
 }
+
+fileprivate struct FfiConverterData: FfiConverterRustBuffer {
+    typealias SwiftType = Data
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Data {
+        let len: Int32 = try readInt(&buf)
+        return Data(try readBytes(&buf, count: Int(len)))
+    }
+
+    public static func write(_ value: Data, into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        writeBytes(&buf, value)
+    }
+}
+
 
 /**
  * An account credential containing proofs without signatures.
@@ -422,30 +437,29 @@ public struct AccountCredential {
          * The order is important since it is the same order as that signed by the identity provider,
          * and permuting the list will invalidate the signature from the identity provider.
          */
-        arData: [UInt32: ChainArData],
+        arData: [UInt32: ChainArData], 
         /**
-            * Credential registration ID of the credential.
-            */
-        credIdHex: String,
+         * Credential registration ID of the credential.
+         */
+        credIdHex: String, 
         /**
-            * Credential keys (i.e. account holder keys).
-            */
-        credentialPublicKeys: CredentialPublicKeys,
+         * Credential keys (i.e. account holder keys).
+         */
+        credentialPublicKeys: CredentialPublicKeys, 
         /**
-            * Identity of the identity provider who signed the identity object
-            * from which this credential is derived.
-            */
-        ipIdentity: UInt32,
+         * Identity of the identity provider who signed the identity object
+         * from which this credential is derived.
+         */
+        ipIdentity: UInt32, 
         /**
-            * Policy of this credential object.
-            */
-        policy: Policy,
-        proofs: Proofs,
+         * Policy of this credential object.
+         */
+        policy: Policy, 
+        proofs: Proofs, 
         /**
-            * Anonymity revocation threshold. Must be less than the number of entries in `ar_data`.
-            */
-        revocationThreshold: UInt8
-    ) {
+         * Anonymity revocation threshold. Must be less than the number of entries in `ar_data`.
+         */
+        revocationThreshold: UInt8) {
         self.arData = arData
         self.credIdHex = credIdHex
         self.credentialPublicKeys = credentialPublicKeys
@@ -456,8 +470,9 @@ public struct AccountCredential {
     }
 }
 
+
 extension AccountCredential: Equatable, Hashable {
-    public static func == (lhs: AccountCredential, rhs: AccountCredential) -> Bool {
+    public static func ==(lhs: AccountCredential, rhs: AccountCredential) -> Bool {
         if lhs.arData != rhs.arData {
             return false
         }
@@ -493,18 +508,19 @@ extension AccountCredential: Equatable, Hashable {
     }
 }
 
+
 public struct FfiConverterTypeAccountCredential: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AccountCredential {
         return
             try AccountCredential(
-                arData: FfiConverterDictionaryUInt32TypeChainArData.read(from: &buf),
-                credIdHex: FfiConverterString.read(from: &buf),
-                credentialPublicKeys: FfiConverterTypeCredentialPublicKeys.read(from: &buf),
-                ipIdentity: FfiConverterUInt32.read(from: &buf),
-                policy: FfiConverterTypePolicy.read(from: &buf),
-                proofs: FfiConverterTypeProofs.read(from: &buf),
+                arData: FfiConverterDictionaryUInt32TypeChainArData.read(from: &buf), 
+                credIdHex: FfiConverterString.read(from: &buf), 
+                credentialPublicKeys: FfiConverterTypeCredentialPublicKeys.read(from: &buf), 
+                ipIdentity: FfiConverterUInt32.read(from: &buf), 
+                policy: FfiConverterTypePolicy.read(from: &buf), 
+                proofs: FfiConverterTypeProofs.read(from: &buf), 
                 revocationThreshold: FfiConverterUInt8.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: AccountCredential, into buf: inout [UInt8]) {
@@ -518,6 +534,7 @@ public struct FfiConverterTypeAccountCredential: FfiConverterRustBuffer {
     }
 }
 
+
 public func FfiConverterTypeAccountCredential_lift(_ buf: RustBuffer) throws -> AccountCredential {
     return try FfiConverterTypeAccountCredential.lift(buf)
 }
@@ -525,6 +542,7 @@ public func FfiConverterTypeAccountCredential_lift(_ buf: RustBuffer) throws -> 
 public func FfiConverterTypeAccountCredential_lower(_ value: AccountCredential) -> RustBuffer {
     return FfiConverterTypeAccountCredential.lower(value)
 }
+
 
 /**
  * Parameter object for `account_credential`.
@@ -545,18 +563,17 @@ public struct AccountCredentialParameters {
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(
-        ipInfo: IdentityProviderInfo,
-        globalContext: GlobalContext,
-        arsInfos: [UInt32: AnonymityRevokerInfo],
-        idObject: IdentityObject,
-        revealedAttributes: [UInt8],
-        credNumber: UInt8,
-        idCredSecHex: String,
-        prfKeyHex: String,
-        blindingRandomnessHex: String,
-        attributeRandomnessHex: [String: String],
-        credentialPublicKeys: CredentialPublicKeys
-    ) {
+        ipInfo: IdentityProviderInfo, 
+        globalContext: GlobalContext, 
+        arsInfos: [UInt32: AnonymityRevokerInfo], 
+        idObject: IdentityObject, 
+        revealedAttributes: [UInt8], 
+        credNumber: UInt8, 
+        idCredSecHex: String, 
+        prfKeyHex: String, 
+        blindingRandomnessHex: String, 
+        attributeRandomnessHex: [String: String], 
+        credentialPublicKeys: CredentialPublicKeys) {
         self.ipInfo = ipInfo
         self.globalContext = globalContext
         self.arsInfos = arsInfos
@@ -571,8 +588,9 @@ public struct AccountCredentialParameters {
     }
 }
 
+
 extension AccountCredentialParameters: Equatable, Hashable {
-    public static func == (lhs: AccountCredentialParameters, rhs: AccountCredentialParameters) -> Bool {
+    public static func ==(lhs: AccountCredentialParameters, rhs: AccountCredentialParameters) -> Bool {
         if lhs.ipInfo != rhs.ipInfo {
             return false
         }
@@ -624,22 +642,23 @@ extension AccountCredentialParameters: Equatable, Hashable {
     }
 }
 
+
 public struct FfiConverterTypeAccountCredentialParameters: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AccountCredentialParameters {
         return
             try AccountCredentialParameters(
-                ipInfo: FfiConverterTypeIdentityProviderInfo.read(from: &buf),
-                globalContext: FfiConverterTypeGlobalContext.read(from: &buf),
-                arsInfos: FfiConverterDictionaryUInt32TypeAnonymityRevokerInfo.read(from: &buf),
-                idObject: FfiConverterTypeIdentityObject.read(from: &buf),
-                revealedAttributes: FfiConverterSequenceUInt8.read(from: &buf),
-                credNumber: FfiConverterUInt8.read(from: &buf),
-                idCredSecHex: FfiConverterString.read(from: &buf),
-                prfKeyHex: FfiConverterString.read(from: &buf),
-                blindingRandomnessHex: FfiConverterString.read(from: &buf),
-                attributeRandomnessHex: FfiConverterDictionaryStringString.read(from: &buf),
+                ipInfo: FfiConverterTypeIdentityProviderInfo.read(from: &buf), 
+                globalContext: FfiConverterTypeGlobalContext.read(from: &buf), 
+                arsInfos: FfiConverterDictionaryUInt32TypeAnonymityRevokerInfo.read(from: &buf), 
+                idObject: FfiConverterTypeIdentityObject.read(from: &buf), 
+                revealedAttributes: FfiConverterSequenceUInt8.read(from: &buf), 
+                credNumber: FfiConverterUInt8.read(from: &buf), 
+                idCredSecHex: FfiConverterString.read(from: &buf), 
+                prfKeyHex: FfiConverterString.read(from: &buf), 
+                blindingRandomnessHex: FfiConverterString.read(from: &buf), 
+                attributeRandomnessHex: FfiConverterDictionaryStringString.read(from: &buf), 
                 credentialPublicKeys: FfiConverterTypeCredentialPublicKeys.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: AccountCredentialParameters, into buf: inout [UInt8]) {
@@ -657,6 +676,7 @@ public struct FfiConverterTypeAccountCredentialParameters: FfiConverterRustBuffe
     }
 }
 
+
 public func FfiConverterTypeAccountCredentialParameters_lift(_ buf: RustBuffer) throws -> AccountCredentialParameters {
     return try FfiConverterTypeAccountCredentialParameters.lift(buf)
 }
@@ -664,6 +684,7 @@ public func FfiConverterTypeAccountCredentialParameters_lift(_ buf: RustBuffer) 
 public func FfiConverterTypeAccountCredentialParameters_lower(_ value: AccountCredentialParameters) -> RustBuffer {
     return FfiConverterTypeAccountCredentialParameters.lower(value)
 }
+
 
 /**
  * The result of a new credential being created using the function `account_credential`.
@@ -675,16 +696,16 @@ public struct AccountCredentialResult {
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(
-        credential: AccountCredential,
-        randomness: Randomness
-    ) {
+        credential: AccountCredential, 
+        randomness: Randomness) {
         self.credential = credential
         self.randomness = randomness
     }
 }
 
+
 extension AccountCredentialResult: Equatable, Hashable {
-    public static func == (lhs: AccountCredentialResult, rhs: AccountCredentialResult) -> Bool {
+    public static func ==(lhs: AccountCredentialResult, rhs: AccountCredentialResult) -> Bool {
         if lhs.credential != rhs.credential {
             return false
         }
@@ -700,13 +721,14 @@ extension AccountCredentialResult: Equatable, Hashable {
     }
 }
 
+
 public struct FfiConverterTypeAccountCredentialResult: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AccountCredentialResult {
         return
             try AccountCredentialResult(
-                credential: FfiConverterTypeAccountCredential.read(from: &buf),
+                credential: FfiConverterTypeAccountCredential.read(from: &buf), 
                 randomness: FfiConverterTypeRandomness.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: AccountCredentialResult, into buf: inout [UInt8]) {
@@ -715,6 +737,7 @@ public struct FfiConverterTypeAccountCredentialResult: FfiConverterRustBuffer {
     }
 }
 
+
 public func FfiConverterTypeAccountCredentialResult_lift(_ buf: RustBuffer) throws -> AccountCredentialResult {
     return try FfiConverterTypeAccountCredentialResult.lift(buf)
 }
@@ -722,6 +745,7 @@ public func FfiConverterTypeAccountCredentialResult_lift(_ buf: RustBuffer) thro
 public func FfiConverterTypeAccountCredentialResult_lower(_ value: AccountCredentialResult) -> RustBuffer {
     return FfiConverterTypeAccountCredentialResult.lower(value)
 }
+
 
 /**
  * Information on an anonymity revoker held by the identity provider.
@@ -746,24 +770,24 @@ public struct AnonymityRevokerInfo {
         /**
          * Unique identifier of the anonymity revoker.
          */
-        identity: UInt32,
+        identity: UInt32, 
         /**
-            * Description of the anonymity revoker (e.g. name, contact number).
-            */
-        description: Description,
+         * Description of the anonymity revoker (e.g. name, contact number).
+         */
+        description: Description, 
         /**
-            * Elgamal encryption key of the anonymity revoker.
-            */
-        publicKeyHex: String
-    ) {
+         * Elgamal encryption key of the anonymity revoker.
+         */
+        publicKeyHex: String) {
         self.identity = identity
         self.description = description
         self.publicKeyHex = publicKeyHex
     }
 }
 
+
 extension AnonymityRevokerInfo: Equatable, Hashable {
-    public static func == (lhs: AnonymityRevokerInfo, rhs: AnonymityRevokerInfo) -> Bool {
+    public static func ==(lhs: AnonymityRevokerInfo, rhs: AnonymityRevokerInfo) -> Bool {
         if lhs.identity != rhs.identity {
             return false
         }
@@ -783,14 +807,15 @@ extension AnonymityRevokerInfo: Equatable, Hashable {
     }
 }
 
+
 public struct FfiConverterTypeAnonymityRevokerInfo: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AnonymityRevokerInfo {
         return
             try AnonymityRevokerInfo(
-                identity: FfiConverterUInt32.read(from: &buf),
-                description: FfiConverterTypeDescription.read(from: &buf),
+                identity: FfiConverterUInt32.read(from: &buf), 
+                description: FfiConverterTypeDescription.read(from: &buf), 
                 publicKeyHex: FfiConverterString.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: AnonymityRevokerInfo, into buf: inout [UInt8]) {
@@ -800,6 +825,7 @@ public struct FfiConverterTypeAnonymityRevokerInfo: FfiConverterRustBuffer {
     }
 }
 
+
 public func FfiConverterTypeAnonymityRevokerInfo_lift(_ buf: RustBuffer) throws -> AnonymityRevokerInfo {
     return try FfiConverterTypeAnonymityRevokerInfo.lift(buf)
 }
@@ -807,6 +833,7 @@ public func FfiConverterTypeAnonymityRevokerInfo_lift(_ buf: RustBuffer) throws 
 public func FfiConverterTypeAnonymityRevokerInfo_lower(_ value: AnonymityRevokerInfo) -> RustBuffer {
     return FfiConverterTypeAnonymityRevokerInfo.lower(value)
 }
+
 
 /**
  * The data relating to a single anonymity revoker
@@ -831,21 +858,21 @@ public struct ArData {
         /**
          * Encryption in chunks (in little endian) of the PRF key share.
          */
-        encPrfKeyShareHex: String,
+        encPrfKeyShareHex: String, 
         /**
-            * Response in the proof that the computed commitment to the share
-            * contains the same value as the encryption.
-            * The commitment to the share is not sent but computed from the commitments to the sharing coefficients.
-            */
-        proofComEncEqHex: String
-    ) {
+         * Response in the proof that the computed commitment to the share
+         * contains the same value as the encryption.
+         * The commitment to the share is not sent but computed from the commitments to the sharing coefficients.
+         */
+        proofComEncEqHex: String) {
         self.encPrfKeyShareHex = encPrfKeyShareHex
         self.proofComEncEqHex = proofComEncEqHex
     }
 }
 
+
 extension ArData: Equatable, Hashable {
-    public static func == (lhs: ArData, rhs: ArData) -> Bool {
+    public static func ==(lhs: ArData, rhs: ArData) -> Bool {
         if lhs.encPrfKeyShareHex != rhs.encPrfKeyShareHex {
             return false
         }
@@ -861,13 +888,14 @@ extension ArData: Equatable, Hashable {
     }
 }
 
+
 public struct FfiConverterTypeArData: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ArData {
         return
             try ArData(
-                encPrfKeyShareHex: FfiConverterString.read(from: &buf),
+                encPrfKeyShareHex: FfiConverterString.read(from: &buf), 
                 proofComEncEqHex: FfiConverterString.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: ArData, into buf: inout [UInt8]) {
@@ -876,6 +904,7 @@ public struct FfiConverterTypeArData: FfiConverterRustBuffer {
     }
 }
 
+
 public func FfiConverterTypeArData_lift(_ buf: RustBuffer) throws -> ArData {
     return try FfiConverterTypeArData.lift(buf)
 }
@@ -883,6 +912,7 @@ public func FfiConverterTypeArData_lift(_ buf: RustBuffer) throws -> ArData {
 public func FfiConverterTypeArData_lower(_ value: ArData) -> RustBuffer {
     return FfiConverterTypeArData.lower(value)
 }
+
 
 /**
  * An attribute list that is part of a normal credential.
@@ -914,22 +944,21 @@ public struct AttributeList {
         /**
          * The latest month and year where the credential is still valid.
          */
-        validToYearMonth: String,
+        validToYearMonth: String, 
         /**
-            * The year and month when the identity object from which the credential is derived was created.
-            * This deliberately has low granularity since if it was, e.g., a unix timestamp in seconds,
-            * then the identity provider could link accounts on the chain to identities they have issued.
-            */
-        createdAtYearMonth: String,
+         * The year and month when the identity object from which the credential is derived was created.
+         * This deliberately has low granularity since if it was, e.g., a unix timestamp in seconds,
+         * then the identity provider could link accounts on the chain to identities they have issued.
+         */
+        createdAtYearMonth: String, 
         /**
-            * Maximum number of accounts that can be created from the owning identity object.
-            */
-        maxAccounts: UInt8,
+         * Maximum number of accounts that can be created from the owning identity object.
+         */
+        maxAccounts: UInt8, 
         /**
-            * The attributes map.
-            */
-        chosenAttributes: [String: String]
-    ) {
+         * The attributes map.
+         */
+        chosenAttributes: [String: String]) {
         self.validToYearMonth = validToYearMonth
         self.createdAtYearMonth = createdAtYearMonth
         self.maxAccounts = maxAccounts
@@ -937,8 +966,9 @@ public struct AttributeList {
     }
 }
 
+
 extension AttributeList: Equatable, Hashable {
-    public static func == (lhs: AttributeList, rhs: AttributeList) -> Bool {
+    public static func ==(lhs: AttributeList, rhs: AttributeList) -> Bool {
         if lhs.validToYearMonth != rhs.validToYearMonth {
             return false
         }
@@ -962,15 +992,16 @@ extension AttributeList: Equatable, Hashable {
     }
 }
 
+
 public struct FfiConverterTypeAttributeList: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AttributeList {
         return
             try AttributeList(
-                validToYearMonth: FfiConverterString.read(from: &buf),
-                createdAtYearMonth: FfiConverterString.read(from: &buf),
-                maxAccounts: FfiConverterUInt8.read(from: &buf),
+                validToYearMonth: FfiConverterString.read(from: &buf), 
+                createdAtYearMonth: FfiConverterString.read(from: &buf), 
+                maxAccounts: FfiConverterUInt8.read(from: &buf), 
                 chosenAttributes: FfiConverterDictionaryStringString.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: AttributeList, into buf: inout [UInt8]) {
@@ -981,6 +1012,7 @@ public struct FfiConverterTypeAttributeList: FfiConverterRustBuffer {
     }
 }
 
+
 public func FfiConverterTypeAttributeList_lift(_ buf: RustBuffer) throws -> AttributeList {
     return try FfiConverterTypeAttributeList.lift(buf)
 }
@@ -988,6 +1020,195 @@ public func FfiConverterTypeAttributeList_lift(_ buf: RustBuffer) throws -> Attr
 public func FfiConverterTypeAttributeList_lower(_ value: AttributeList) -> RustBuffer {
     return FfiConverterTypeAttributeList.lower(value)
 }
+
+
+public struct BakerKeyPairs {
+    public var signatureSign: Bytes
+    public var signatureVerify: Bytes
+    public var electionSign: Bytes
+    public var electionVerify: Bytes
+    public var aggregationSign: Bytes
+    public var aggregationVerify: Bytes
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        signatureSign: Bytes, 
+        signatureVerify: Bytes, 
+        electionSign: Bytes, 
+        electionVerify: Bytes, 
+        aggregationSign: Bytes, 
+        aggregationVerify: Bytes) {
+        self.signatureSign = signatureSign
+        self.signatureVerify = signatureVerify
+        self.electionSign = electionSign
+        self.electionVerify = electionVerify
+        self.aggregationSign = aggregationSign
+        self.aggregationVerify = aggregationVerify
+    }
+}
+
+
+extension BakerKeyPairs: Equatable, Hashable {
+    public static func ==(lhs: BakerKeyPairs, rhs: BakerKeyPairs) -> Bool {
+        if lhs.signatureSign != rhs.signatureSign {
+            return false
+        }
+        if lhs.signatureVerify != rhs.signatureVerify {
+            return false
+        }
+        if lhs.electionSign != rhs.electionSign {
+            return false
+        }
+        if lhs.electionVerify != rhs.electionVerify {
+            return false
+        }
+        if lhs.aggregationSign != rhs.aggregationSign {
+            return false
+        }
+        if lhs.aggregationVerify != rhs.aggregationVerify {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(signatureSign)
+        hasher.combine(signatureVerify)
+        hasher.combine(electionSign)
+        hasher.combine(electionVerify)
+        hasher.combine(aggregationSign)
+        hasher.combine(aggregationVerify)
+    }
+}
+
+
+public struct FfiConverterTypeBakerKeyPairs: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BakerKeyPairs {
+        return
+            try BakerKeyPairs(
+                signatureSign: FfiConverterTypeBytes.read(from: &buf), 
+                signatureVerify: FfiConverterTypeBytes.read(from: &buf), 
+                electionSign: FfiConverterTypeBytes.read(from: &buf), 
+                electionVerify: FfiConverterTypeBytes.read(from: &buf), 
+                aggregationSign: FfiConverterTypeBytes.read(from: &buf), 
+                aggregationVerify: FfiConverterTypeBytes.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: BakerKeyPairs, into buf: inout [UInt8]) {
+        FfiConverterTypeBytes.write(value.signatureSign, into: &buf)
+        FfiConverterTypeBytes.write(value.signatureVerify, into: &buf)
+        FfiConverterTypeBytes.write(value.electionSign, into: &buf)
+        FfiConverterTypeBytes.write(value.electionVerify, into: &buf)
+        FfiConverterTypeBytes.write(value.aggregationSign, into: &buf)
+        FfiConverterTypeBytes.write(value.aggregationVerify, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeBakerKeyPairs_lift(_ buf: RustBuffer) throws -> BakerKeyPairs {
+    return try FfiConverterTypeBakerKeyPairs.lift(buf)
+}
+
+public func FfiConverterTypeBakerKeyPairs_lower(_ value: BakerKeyPairs) -> RustBuffer {
+    return FfiConverterTypeBakerKeyPairs.lower(value)
+}
+
+
+public struct BakerKeysPayload {
+    public var signatureVerifyKey: Bytes
+    public var electionVerifyKey: Bytes
+    public var aggregationVerifyKey: Bytes
+    public var proofSig: Bytes
+    public var proofElection: Bytes
+    public var proofAggregation: Bytes
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        signatureVerifyKey: Bytes, 
+        electionVerifyKey: Bytes, 
+        aggregationVerifyKey: Bytes, 
+        proofSig: Bytes, 
+        proofElection: Bytes, 
+        proofAggregation: Bytes) {
+        self.signatureVerifyKey = signatureVerifyKey
+        self.electionVerifyKey = electionVerifyKey
+        self.aggregationVerifyKey = aggregationVerifyKey
+        self.proofSig = proofSig
+        self.proofElection = proofElection
+        self.proofAggregation = proofAggregation
+    }
+}
+
+
+extension BakerKeysPayload: Equatable, Hashable {
+    public static func ==(lhs: BakerKeysPayload, rhs: BakerKeysPayload) -> Bool {
+        if lhs.signatureVerifyKey != rhs.signatureVerifyKey {
+            return false
+        }
+        if lhs.electionVerifyKey != rhs.electionVerifyKey {
+            return false
+        }
+        if lhs.aggregationVerifyKey != rhs.aggregationVerifyKey {
+            return false
+        }
+        if lhs.proofSig != rhs.proofSig {
+            return false
+        }
+        if lhs.proofElection != rhs.proofElection {
+            return false
+        }
+        if lhs.proofAggregation != rhs.proofAggregation {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(signatureVerifyKey)
+        hasher.combine(electionVerifyKey)
+        hasher.combine(aggregationVerifyKey)
+        hasher.combine(proofSig)
+        hasher.combine(proofElection)
+        hasher.combine(proofAggregation)
+    }
+}
+
+
+public struct FfiConverterTypeBakerKeysPayload: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> BakerKeysPayload {
+        return
+            try BakerKeysPayload(
+                signatureVerifyKey: FfiConverterTypeBytes.read(from: &buf), 
+                electionVerifyKey: FfiConverterTypeBytes.read(from: &buf), 
+                aggregationVerifyKey: FfiConverterTypeBytes.read(from: &buf), 
+                proofSig: FfiConverterTypeBytes.read(from: &buf), 
+                proofElection: FfiConverterTypeBytes.read(from: &buf), 
+                proofAggregation: FfiConverterTypeBytes.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: BakerKeysPayload, into buf: inout [UInt8]) {
+        FfiConverterTypeBytes.write(value.signatureVerifyKey, into: &buf)
+        FfiConverterTypeBytes.write(value.electionVerifyKey, into: &buf)
+        FfiConverterTypeBytes.write(value.aggregationVerifyKey, into: &buf)
+        FfiConverterTypeBytes.write(value.proofSig, into: &buf)
+        FfiConverterTypeBytes.write(value.proofElection, into: &buf)
+        FfiConverterTypeBytes.write(value.proofAggregation, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeBakerKeysPayload_lift(_ buf: RustBuffer) throws -> BakerKeysPayload {
+    return try FfiConverterTypeBakerKeysPayload.lift(buf)
+}
+
+public func FfiConverterTypeBakerKeysPayload_lower(_ value: BakerKeysPayload) -> RustBuffer {
+    return FfiConverterTypeBakerKeysPayload.lower(value)
+}
+
 
 /**
  * Data relating to a single anonymity revoker constructed by the account holder.
@@ -999,14 +1220,14 @@ public struct ChainArData {
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(
-        encIdCredPubShareHex: String)
-    {
+        encIdCredPubShareHex: String) {
         self.encIdCredPubShareHex = encIdCredPubShareHex
     }
 }
 
+
 extension ChainArData: Equatable, Hashable {
-    public static func == (lhs: ChainArData, rhs: ChainArData) -> Bool {
+    public static func ==(lhs: ChainArData, rhs: ChainArData) -> Bool {
         if lhs.encIdCredPubShareHex != rhs.encIdCredPubShareHex {
             return false
         }
@@ -1018,18 +1239,20 @@ extension ChainArData: Equatable, Hashable {
     }
 }
 
+
 public struct FfiConverterTypeChainArData: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ChainArData {
         return
             try ChainArData(
                 encIdCredPubShareHex: FfiConverterString.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: ChainArData, into buf: inout [UInt8]) {
         FfiConverterString.write(value.encIdCredPubShareHex, into: &buf)
     }
 }
+
 
 public func FfiConverterTypeChainArData_lift(_ buf: RustBuffer) throws -> ChainArData {
     return try FfiConverterTypeChainArData.lift(buf)
@@ -1038,6 +1261,7 @@ public func FfiConverterTypeChainArData_lift(_ buf: RustBuffer) throws -> ChainA
 public func FfiConverterTypeChainArData_lower(_ value: ChainArData) -> RustBuffer {
     return FfiConverterTypeChainArData.lower(value)
 }
+
 
 /**
  * Choice of anonymity revocation parameters.
@@ -1049,16 +1273,16 @@ public struct ChoiceArParameters {
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(
-        arIdentities: [UInt32],
-        threshold: UInt8
-    ) {
+        arIdentities: [UInt32], 
+        threshold: UInt8) {
         self.arIdentities = arIdentities
         self.threshold = threshold
     }
 }
 
+
 extension ChoiceArParameters: Equatable, Hashable {
-    public static func == (lhs: ChoiceArParameters, rhs: ChoiceArParameters) -> Bool {
+    public static func ==(lhs: ChoiceArParameters, rhs: ChoiceArParameters) -> Bool {
         if lhs.arIdentities != rhs.arIdentities {
             return false
         }
@@ -1074,13 +1298,14 @@ extension ChoiceArParameters: Equatable, Hashable {
     }
 }
 
+
 public struct FfiConverterTypeChoiceArParameters: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ChoiceArParameters {
         return
             try ChoiceArParameters(
-                arIdentities: FfiConverterSequenceUInt32.read(from: &buf),
+                arIdentities: FfiConverterSequenceUInt32.read(from: &buf), 
                 threshold: FfiConverterUInt8.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: ChoiceArParameters, into buf: inout [UInt8]) {
@@ -1089,6 +1314,7 @@ public struct FfiConverterTypeChoiceArParameters: FfiConverterRustBuffer {
     }
 }
 
+
 public func FfiConverterTypeChoiceArParameters_lift(_ buf: RustBuffer) throws -> ChoiceArParameters {
     return try FfiConverterTypeChoiceArParameters.lift(buf)
 }
@@ -1096,6 +1322,166 @@ public func FfiConverterTypeChoiceArParameters_lift(_ buf: RustBuffer) throws ->
 public func FfiConverterTypeChoiceArParameters_lower(_ value: ChoiceArParameters) -> RustBuffer {
     return FfiConverterTypeChoiceArParameters.lower(value)
 }
+
+
+/**
+ * A credential with attributes, public keys, and proofs that it is
+ * well-formed.
+ */
+public struct CredentialDeploymentInfo {
+    /**
+     * List of anonymity revokers which can revoke the identity.
+     * The order is important since it is the same order as that signed by the identity provider,
+     * and permuting the list will invalidate the signature from the identity provider.
+     */
+    public var arData: [UInt32: ChainArData]
+    /**
+     * Credential registration ID of the credential.
+     * Serialized according to the corresponding `serde::Serialize` implementation in concordium-base.
+     */
+    public var credId: Bytes
+    /**
+     * Credential keys (i.e. account holder keys).
+     */
+    public var credentialPublicKeys: CredentialPublicKeys
+    /**
+     * Identity of the identity provider who signed the identity object
+     * from which this credential is derived.
+     */
+    public var ipIdentity: UInt32
+    /**
+     * Policy of this credential object.
+     */
+    public var policy: Policy
+    /**
+     * The proofs of ownership.
+     * Serialized according to the corresponding `serde::Serialize` implementation in concordium-base
+     */
+    public var proofs: Bytes
+    /**
+     * Anonymity revocation threshold. Must be less than the number of entries in `ar_data`.
+     */
+    public var revocationThreshold: UInt8
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * List of anonymity revokers which can revoke the identity.
+         * The order is important since it is the same order as that signed by the identity provider,
+         * and permuting the list will invalidate the signature from the identity provider.
+         */
+        arData: [UInt32: ChainArData], 
+        /**
+         * Credential registration ID of the credential.
+         * Serialized according to the corresponding `serde::Serialize` implementation in concordium-base.
+         */
+        credId: Bytes, 
+        /**
+         * Credential keys (i.e. account holder keys).
+         */
+        credentialPublicKeys: CredentialPublicKeys, 
+        /**
+         * Identity of the identity provider who signed the identity object
+         * from which this credential is derived.
+         */
+        ipIdentity: UInt32, 
+        /**
+         * Policy of this credential object.
+         */
+        policy: Policy, 
+        /**
+         * The proofs of ownership.
+         * Serialized according to the corresponding `serde::Serialize` implementation in concordium-base
+         */
+        proofs: Bytes, 
+        /**
+         * Anonymity revocation threshold. Must be less than the number of entries in `ar_data`.
+         */
+        revocationThreshold: UInt8) {
+        self.arData = arData
+        self.credId = credId
+        self.credentialPublicKeys = credentialPublicKeys
+        self.ipIdentity = ipIdentity
+        self.policy = policy
+        self.proofs = proofs
+        self.revocationThreshold = revocationThreshold
+    }
+}
+
+
+extension CredentialDeploymentInfo: Equatable, Hashable {
+    public static func ==(lhs: CredentialDeploymentInfo, rhs: CredentialDeploymentInfo) -> Bool {
+        if lhs.arData != rhs.arData {
+            return false
+        }
+        if lhs.credId != rhs.credId {
+            return false
+        }
+        if lhs.credentialPublicKeys != rhs.credentialPublicKeys {
+            return false
+        }
+        if lhs.ipIdentity != rhs.ipIdentity {
+            return false
+        }
+        if lhs.policy != rhs.policy {
+            return false
+        }
+        if lhs.proofs != rhs.proofs {
+            return false
+        }
+        if lhs.revocationThreshold != rhs.revocationThreshold {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(arData)
+        hasher.combine(credId)
+        hasher.combine(credentialPublicKeys)
+        hasher.combine(ipIdentity)
+        hasher.combine(policy)
+        hasher.combine(proofs)
+        hasher.combine(revocationThreshold)
+    }
+}
+
+
+public struct FfiConverterTypeCredentialDeploymentInfo: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CredentialDeploymentInfo {
+        return
+            try CredentialDeploymentInfo(
+                arData: FfiConverterDictionaryUInt32TypeChainArData.read(from: &buf), 
+                credId: FfiConverterTypeBytes.read(from: &buf), 
+                credentialPublicKeys: FfiConverterTypeCredentialPublicKeys.read(from: &buf), 
+                ipIdentity: FfiConverterUInt32.read(from: &buf), 
+                policy: FfiConverterTypePolicy.read(from: &buf), 
+                proofs: FfiConverterTypeBytes.read(from: &buf), 
+                revocationThreshold: FfiConverterUInt8.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: CredentialDeploymentInfo, into buf: inout [UInt8]) {
+        FfiConverterDictionaryUInt32TypeChainArData.write(value.arData, into: &buf)
+        FfiConverterTypeBytes.write(value.credId, into: &buf)
+        FfiConverterTypeCredentialPublicKeys.write(value.credentialPublicKeys, into: &buf)
+        FfiConverterUInt32.write(value.ipIdentity, into: &buf)
+        FfiConverterTypePolicy.write(value.policy, into: &buf)
+        FfiConverterTypeBytes.write(value.proofs, into: &buf)
+        FfiConverterUInt8.write(value.revocationThreshold, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeCredentialDeploymentInfo_lift(_ buf: RustBuffer) throws -> CredentialDeploymentInfo {
+    return try FfiConverterTypeCredentialDeploymentInfo.lift(buf)
+}
+
+public func FfiConverterTypeCredentialDeploymentInfo_lower(_ value: CredentialDeploymentInfo) -> RustBuffer {
+    return FfiConverterTypeCredentialDeploymentInfo.lower(value)
+}
+
 
 /**
  * Public credential keys currently on the account.
@@ -1108,16 +1494,16 @@ public struct CredentialPublicKeys {
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(
-        keys: [UInt8: VerifyKey],
-        threshold: UInt8
-    ) {
+        keys: [UInt8: VerifyKey], 
+        threshold: UInt8) {
         self.keys = keys
         self.threshold = threshold
     }
 }
 
+
 extension CredentialPublicKeys: Equatable, Hashable {
-    public static func == (lhs: CredentialPublicKeys, rhs: CredentialPublicKeys) -> Bool {
+    public static func ==(lhs: CredentialPublicKeys, rhs: CredentialPublicKeys) -> Bool {
         if lhs.keys != rhs.keys {
             return false
         }
@@ -1133,13 +1519,14 @@ extension CredentialPublicKeys: Equatable, Hashable {
     }
 }
 
+
 public struct FfiConverterTypeCredentialPublicKeys: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> CredentialPublicKeys {
         return
             try CredentialPublicKeys(
-                keys: FfiConverterDictionaryUInt8TypeVerifyKey.read(from: &buf),
+                keys: FfiConverterDictionaryUInt8TypeVerifyKey.read(from: &buf), 
                 threshold: FfiConverterUInt8.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: CredentialPublicKeys, into buf: inout [UInt8]) {
@@ -1148,6 +1535,7 @@ public struct FfiConverterTypeCredentialPublicKeys: FfiConverterRustBuffer {
     }
 }
 
+
 public func FfiConverterTypeCredentialPublicKeys_lift(_ buf: RustBuffer) throws -> CredentialPublicKeys {
     return try FfiConverterTypeCredentialPublicKeys.lift(buf)
 }
@@ -1155,6 +1543,7 @@ public func FfiConverterTypeCredentialPublicKeys_lift(_ buf: RustBuffer) throws 
 public func FfiConverterTypeCredentialPublicKeys_lower(_ value: CredentialPublicKeys) -> RustBuffer {
     return FfiConverterTypeCredentialPublicKeys.lower(value)
 }
+
 
 /**
  * Metadata of an identity provider or anonymity revoker
@@ -1168,18 +1557,18 @@ public struct Description {
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(
-        name: String,
-        url: String,
-        description: String
-    ) {
+        name: String, 
+        url: String, 
+        description: String) {
         self.name = name
         self.url = url
         self.description = description
     }
 }
 
+
 extension Description: Equatable, Hashable {
-    public static func == (lhs: Description, rhs: Description) -> Bool {
+    public static func ==(lhs: Description, rhs: Description) -> Bool {
         if lhs.name != rhs.name {
             return false
         }
@@ -1199,14 +1588,15 @@ extension Description: Equatable, Hashable {
     }
 }
 
+
 public struct FfiConverterTypeDescription: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Description {
         return
             try Description(
-                name: FfiConverterString.read(from: &buf),
-                url: FfiConverterString.read(from: &buf),
+                name: FfiConverterString.read(from: &buf), 
+                url: FfiConverterString.read(from: &buf), 
                 description: FfiConverterString.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: Description, into buf: inout [UInt8]) {
@@ -1216,6 +1606,7 @@ public struct FfiConverterTypeDescription: FfiConverterRustBuffer {
     }
 }
 
+
 public func FfiConverterTypeDescription_lift(_ buf: RustBuffer) throws -> Description {
     return try FfiConverterTypeDescription.lift(buf)
 }
@@ -1223,6 +1614,7 @@ public func FfiConverterTypeDescription_lift(_ buf: RustBuffer) throws -> Descri
 public func FfiConverterTypeDescription_lower(_ value: Description) -> RustBuffer {
     return FfiConverterTypeDescription.lower(value)
 }
+
 
 /**
  * A set of cryptographic parameters that are particular to the chain and
@@ -1250,24 +1642,24 @@ public struct GlobalContext {
          * Shared commitment key known to the chain and the account holder (i.e. it's public).
          * The account holder uses this commitment key to generate commitments to values in the attribute list.
          */
-        onChainCommitmentKeyHex: String,
+        onChainCommitmentKeyHex: String, 
         /**
-            * Generators for the bulletproofs.
-            */
-        bulletproofGeneratorsHex: String,
+         * Generators for the bulletproofs.
+         */
+        bulletproofGeneratorsHex: String, 
         /**
-            * Free-form string used to distinguish between different chains even if they share other parameters.
-            */
-        genesisString: String
-    ) {
+         * Free-form string used to distinguish between different chains even if they share other parameters.
+         */
+        genesisString: String) {
         self.onChainCommitmentKeyHex = onChainCommitmentKeyHex
         self.bulletproofGeneratorsHex = bulletproofGeneratorsHex
         self.genesisString = genesisString
     }
 }
 
+
 extension GlobalContext: Equatable, Hashable {
-    public static func == (lhs: GlobalContext, rhs: GlobalContext) -> Bool {
+    public static func ==(lhs: GlobalContext, rhs: GlobalContext) -> Bool {
         if lhs.onChainCommitmentKeyHex != rhs.onChainCommitmentKeyHex {
             return false
         }
@@ -1287,14 +1679,15 @@ extension GlobalContext: Equatable, Hashable {
     }
 }
 
+
 public struct FfiConverterTypeGlobalContext: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> GlobalContext {
         return
             try GlobalContext(
-                onChainCommitmentKeyHex: FfiConverterString.read(from: &buf),
-                bulletproofGeneratorsHex: FfiConverterString.read(from: &buf),
+                onChainCommitmentKeyHex: FfiConverterString.read(from: &buf), 
+                bulletproofGeneratorsHex: FfiConverterString.read(from: &buf), 
                 genesisString: FfiConverterString.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: GlobalContext, into buf: inout [UInt8]) {
@@ -1304,6 +1697,7 @@ public struct FfiConverterTypeGlobalContext: FfiConverterRustBuffer {
     }
 }
 
+
 public func FfiConverterTypeGlobalContext_lift(_ buf: RustBuffer) throws -> GlobalContext {
     return try FfiConverterTypeGlobalContext.lift(buf)
 }
@@ -1311,6 +1705,7 @@ public func FfiConverterTypeGlobalContext_lift(_ buf: RustBuffer) throws -> Glob
 public func FfiConverterTypeGlobalContext_lower(_ value: GlobalContext) -> RustBuffer {
     return FfiConverterTypeGlobalContext.lower(value)
 }
+
 
 /**
  * Parameter object for `identity_issuance_request_json`.
@@ -1327,14 +1722,13 @@ public struct IdentityIssuanceRequestParameters {
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(
-        ipInfo: IdentityProviderInfo,
-        globalContext: GlobalContext,
-        arsInfos: [UInt32: AnonymityRevokerInfo],
-        arThreshold: UInt8,
-        prfKeyHex: String,
-        idCredSecHex: String,
-        blindingRandomnessHex: String
-    ) {
+        ipInfo: IdentityProviderInfo, 
+        globalContext: GlobalContext, 
+        arsInfos: [UInt32: AnonymityRevokerInfo], 
+        arThreshold: UInt8, 
+        prfKeyHex: String, 
+        idCredSecHex: String, 
+        blindingRandomnessHex: String) {
         self.ipInfo = ipInfo
         self.globalContext = globalContext
         self.arsInfos = arsInfos
@@ -1345,8 +1739,9 @@ public struct IdentityIssuanceRequestParameters {
     }
 }
 
+
 extension IdentityIssuanceRequestParameters: Equatable, Hashable {
-    public static func == (lhs: IdentityIssuanceRequestParameters, rhs: IdentityIssuanceRequestParameters) -> Bool {
+    public static func ==(lhs: IdentityIssuanceRequestParameters, rhs: IdentityIssuanceRequestParameters) -> Bool {
         if lhs.ipInfo != rhs.ipInfo {
             return false
         }
@@ -1382,18 +1777,19 @@ extension IdentityIssuanceRequestParameters: Equatable, Hashable {
     }
 }
 
+
 public struct FfiConverterTypeIdentityIssuanceRequestParameters: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> IdentityIssuanceRequestParameters {
         return
             try IdentityIssuanceRequestParameters(
-                ipInfo: FfiConverterTypeIdentityProviderInfo.read(from: &buf),
-                globalContext: FfiConverterTypeGlobalContext.read(from: &buf),
-                arsInfos: FfiConverterDictionaryUInt32TypeAnonymityRevokerInfo.read(from: &buf),
-                arThreshold: FfiConverterUInt8.read(from: &buf),
-                prfKeyHex: FfiConverterString.read(from: &buf),
-                idCredSecHex: FfiConverterString.read(from: &buf),
+                ipInfo: FfiConverterTypeIdentityProviderInfo.read(from: &buf), 
+                globalContext: FfiConverterTypeGlobalContext.read(from: &buf), 
+                arsInfos: FfiConverterDictionaryUInt32TypeAnonymityRevokerInfo.read(from: &buf), 
+                arThreshold: FfiConverterUInt8.read(from: &buf), 
+                prfKeyHex: FfiConverterString.read(from: &buf), 
+                idCredSecHex: FfiConverterString.read(from: &buf), 
                 blindingRandomnessHex: FfiConverterString.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: IdentityIssuanceRequestParameters, into buf: inout [UInt8]) {
@@ -1407,6 +1803,7 @@ public struct FfiConverterTypeIdentityIssuanceRequestParameters: FfiConverterRus
     }
 }
 
+
 public func FfiConverterTypeIdentityIssuanceRequestParameters_lift(_ buf: RustBuffer) throws -> IdentityIssuanceRequestParameters {
     return try FfiConverterTypeIdentityIssuanceRequestParameters.lift(buf)
 }
@@ -1414,6 +1811,7 @@ public func FfiConverterTypeIdentityIssuanceRequestParameters_lift(_ buf: RustBu
 public func FfiConverterTypeIdentityIssuanceRequestParameters_lower(_ value: IdentityIssuanceRequestParameters) -> RustBuffer {
     return FfiConverterTypeIdentityIssuanceRequestParameters.lower(value)
 }
+
 
 /**
  * The data we get back from the identity provider in the version 1 flow.
@@ -1429,21 +1827,21 @@ public struct IdentityObject {
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(
-        preIdentityObject: PreIdentityObject,
+        preIdentityObject: PreIdentityObject, 
         /**
-            * Chosen attribute list.
-            */
-        attributeList: AttributeList,
-        signatureHex: String
-    ) {
+         * Chosen attribute list.
+         */
+        attributeList: AttributeList, 
+        signatureHex: String) {
         self.preIdentityObject = preIdentityObject
         self.attributeList = attributeList
         self.signatureHex = signatureHex
     }
 }
 
+
 extension IdentityObject: Equatable, Hashable {
-    public static func == (lhs: IdentityObject, rhs: IdentityObject) -> Bool {
+    public static func ==(lhs: IdentityObject, rhs: IdentityObject) -> Bool {
         if lhs.preIdentityObject != rhs.preIdentityObject {
             return false
         }
@@ -1463,14 +1861,15 @@ extension IdentityObject: Equatable, Hashable {
     }
 }
 
+
 public struct FfiConverterTypeIdentityObject: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> IdentityObject {
         return
             try IdentityObject(
-                preIdentityObject: FfiConverterTypePreIdentityObject.read(from: &buf),
-                attributeList: FfiConverterTypeAttributeList.read(from: &buf),
+                preIdentityObject: FfiConverterTypePreIdentityObject.read(from: &buf), 
+                attributeList: FfiConverterTypeAttributeList.read(from: &buf), 
                 signatureHex: FfiConverterString.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: IdentityObject, into buf: inout [UInt8]) {
@@ -1480,6 +1879,7 @@ public struct FfiConverterTypeIdentityObject: FfiConverterRustBuffer {
     }
 }
 
+
 public func FfiConverterTypeIdentityObject_lift(_ buf: RustBuffer) throws -> IdentityObject {
     return try FfiConverterTypeIdentityObject.lift(buf)
 }
@@ -1487,6 +1887,7 @@ public func FfiConverterTypeIdentityObject_lift(_ buf: RustBuffer) throws -> Ide
 public func FfiConverterTypeIdentityObject_lower(_ value: IdentityObject) -> RustBuffer {
     return FfiConverterTypeIdentityObject.lower(value)
 }
+
 
 /**
  * Public information about an identity provider.
@@ -1515,20 +1916,19 @@ public struct IdentityProviderInfo {
         /**
          * Unique identifier of the identity provider.
          */
-        identity: UInt32,
+        identity: UInt32, 
         /**
-            * Free form description, e.g., how to contact them off-chain.
-            */
-        description: Description,
+         * Free form description, e.g., how to contact them off-chain.
+         */
+        description: Description, 
         /**
-            * PS public key of the identity provider.
-            */
-        verifyKeyHex: String,
+         * PS public key of the identity provider.
+         */
+        verifyKeyHex: String, 
         /**
-            * Ed public key of the identity provider.
-            */
-        cdiVerifyKeyHex: String
-    ) {
+         * Ed public key of the identity provider.
+         */
+        cdiVerifyKeyHex: String) {
         self.identity = identity
         self.description = description
         self.verifyKeyHex = verifyKeyHex
@@ -1536,8 +1936,9 @@ public struct IdentityProviderInfo {
     }
 }
 
+
 extension IdentityProviderInfo: Equatable, Hashable {
-    public static func == (lhs: IdentityProviderInfo, rhs: IdentityProviderInfo) -> Bool {
+    public static func ==(lhs: IdentityProviderInfo, rhs: IdentityProviderInfo) -> Bool {
         if lhs.identity != rhs.identity {
             return false
         }
@@ -1561,15 +1962,16 @@ extension IdentityProviderInfo: Equatable, Hashable {
     }
 }
 
+
 public struct FfiConverterTypeIdentityProviderInfo: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> IdentityProviderInfo {
         return
             try IdentityProviderInfo(
-                identity: FfiConverterUInt32.read(from: &buf),
-                description: FfiConverterTypeDescription.read(from: &buf),
-                verifyKeyHex: FfiConverterString.read(from: &buf),
+                identity: FfiConverterUInt32.read(from: &buf), 
+                description: FfiConverterTypeDescription.read(from: &buf), 
+                verifyKeyHex: FfiConverterString.read(from: &buf), 
                 cdiVerifyKeyHex: FfiConverterString.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: IdentityProviderInfo, into buf: inout [UInt8]) {
@@ -1580,6 +1982,7 @@ public struct FfiConverterTypeIdentityProviderInfo: FfiConverterRustBuffer {
     }
 }
 
+
 public func FfiConverterTypeIdentityProviderInfo_lift(_ buf: RustBuffer) throws -> IdentityProviderInfo {
     return try FfiConverterTypeIdentityProviderInfo.lift(buf)
 }
@@ -1587,6 +1990,7 @@ public func FfiConverterTypeIdentityProviderInfo_lift(_ buf: RustBuffer) throws 
 public func FfiConverterTypeIdentityProviderInfo_lower(_ value: IdentityProviderInfo) -> RustBuffer {
     return FfiConverterTypeIdentityProviderInfo.lower(value)
 }
+
 
 /**
  * Parameter object for `identity_recovery_request_json`.
@@ -1600,11 +2004,10 @@ public struct IdentityRecoveryRequestParameters {
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(
-        ipInfo: IdentityProviderInfo,
-        globalContext: GlobalContext,
-        timestamp: UInt64,
-        idCredSecHex: String
-    ) {
+        ipInfo: IdentityProviderInfo, 
+        globalContext: GlobalContext, 
+        timestamp: UInt64, 
+        idCredSecHex: String) {
         self.ipInfo = ipInfo
         self.globalContext = globalContext
         self.timestamp = timestamp
@@ -1612,8 +2015,9 @@ public struct IdentityRecoveryRequestParameters {
     }
 }
 
+
 extension IdentityRecoveryRequestParameters: Equatable, Hashable {
-    public static func == (lhs: IdentityRecoveryRequestParameters, rhs: IdentityRecoveryRequestParameters) -> Bool {
+    public static func ==(lhs: IdentityRecoveryRequestParameters, rhs: IdentityRecoveryRequestParameters) -> Bool {
         if lhs.ipInfo != rhs.ipInfo {
             return false
         }
@@ -1637,15 +2041,16 @@ extension IdentityRecoveryRequestParameters: Equatable, Hashable {
     }
 }
 
+
 public struct FfiConverterTypeIdentityRecoveryRequestParameters: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> IdentityRecoveryRequestParameters {
         return
             try IdentityRecoveryRequestParameters(
-                ipInfo: FfiConverterTypeIdentityProviderInfo.read(from: &buf),
-                globalContext: FfiConverterTypeGlobalContext.read(from: &buf),
-                timestamp: FfiConverterUInt64.read(from: &buf),
+                ipInfo: FfiConverterTypeIdentityProviderInfo.read(from: &buf), 
+                globalContext: FfiConverterTypeGlobalContext.read(from: &buf), 
+                timestamp: FfiConverterUInt64.read(from: &buf), 
                 idCredSecHex: FfiConverterString.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: IdentityRecoveryRequestParameters, into buf: inout [UInt8]) {
@@ -1656,6 +2061,7 @@ public struct FfiConverterTypeIdentityRecoveryRequestParameters: FfiConverterRus
     }
 }
 
+
 public func FfiConverterTypeIdentityRecoveryRequestParameters_lift(_ buf: RustBuffer) throws -> IdentityRecoveryRequestParameters {
     return try FfiConverterTypeIdentityRecoveryRequestParameters.lift(buf)
 }
@@ -1663,6 +2069,95 @@ public func FfiConverterTypeIdentityRecoveryRequestParameters_lift(_ buf: RustBu
 public func FfiConverterTypeIdentityRecoveryRequestParameters_lower(_ value: IdentityRecoveryRequestParameters) -> RustBuffer {
     return FfiConverterTypeIdentityRecoveryRequestParameters.lower(value)
 }
+
+
+/**
+ * An encrypted amount input to transfer from
+ */
+public struct InputEncryptedAmount {
+    /**
+     * The aggregated encrypted amount.
+     */
+    public var aggEncryptedAmount: Bytes
+    /**
+     * The plaintext corresponding to the aggregated encrypted amount.
+     */
+    public var aggAmount: UInt64
+    /**
+     * Index such that the `agg_amount` is the sum of all encrypted amounts on an account with indices strictly below `agg_index`.
+     */
+    public var aggIndex: UInt64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The aggregated encrypted amount.
+         */
+        aggEncryptedAmount: Bytes, 
+        /**
+         * The plaintext corresponding to the aggregated encrypted amount.
+         */
+        aggAmount: UInt64, 
+        /**
+         * Index such that the `agg_amount` is the sum of all encrypted amounts on an account with indices strictly below `agg_index`.
+         */
+        aggIndex: UInt64) {
+        self.aggEncryptedAmount = aggEncryptedAmount
+        self.aggAmount = aggAmount
+        self.aggIndex = aggIndex
+    }
+}
+
+
+extension InputEncryptedAmount: Equatable, Hashable {
+    public static func ==(lhs: InputEncryptedAmount, rhs: InputEncryptedAmount) -> Bool {
+        if lhs.aggEncryptedAmount != rhs.aggEncryptedAmount {
+            return false
+        }
+        if lhs.aggAmount != rhs.aggAmount {
+            return false
+        }
+        if lhs.aggIndex != rhs.aggIndex {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(aggEncryptedAmount)
+        hasher.combine(aggAmount)
+        hasher.combine(aggIndex)
+    }
+}
+
+
+public struct FfiConverterTypeInputEncryptedAmount: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> InputEncryptedAmount {
+        return
+            try InputEncryptedAmount(
+                aggEncryptedAmount: FfiConverterTypeBytes.read(from: &buf), 
+                aggAmount: FfiConverterUInt64.read(from: &buf), 
+                aggIndex: FfiConverterUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: InputEncryptedAmount, into buf: inout [UInt8]) {
+        FfiConverterTypeBytes.write(value.aggEncryptedAmount, into: &buf)
+        FfiConverterUInt64.write(value.aggAmount, into: &buf)
+        FfiConverterUInt64.write(value.aggIndex, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeInputEncryptedAmount_lift(_ buf: RustBuffer) throws -> InputEncryptedAmount {
+    return try FfiConverterTypeInputEncryptedAmount.lift(buf)
+}
+
+public func FfiConverterTypeInputEncryptedAmount_lower(_ value: InputEncryptedAmount) -> RustBuffer {
+    return FfiConverterTypeInputEncryptedAmount.lower(value)
+}
+
 
 /**
  * A policy is (currently) revealed values of attributes that are part of the identity object.
@@ -1676,18 +2171,18 @@ public struct Policy {
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(
-        createdAtYearMonth: String,
-        validToYearMonth: String,
-        revealedAttributes: [String: String]
-    ) {
+        createdAtYearMonth: String, 
+        validToYearMonth: String, 
+        revealedAttributes: [String: String]) {
         self.createdAtYearMonth = createdAtYearMonth
         self.validToYearMonth = validToYearMonth
         self.revealedAttributes = revealedAttributes
     }
 }
 
+
 extension Policy: Equatable, Hashable {
-    public static func == (lhs: Policy, rhs: Policy) -> Bool {
+    public static func ==(lhs: Policy, rhs: Policy) -> Bool {
         if lhs.createdAtYearMonth != rhs.createdAtYearMonth {
             return false
         }
@@ -1707,14 +2202,15 @@ extension Policy: Equatable, Hashable {
     }
 }
 
+
 public struct FfiConverterTypePolicy: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Policy {
         return
             try Policy(
-                createdAtYearMonth: FfiConverterString.read(from: &buf),
-                validToYearMonth: FfiConverterString.read(from: &buf),
+                createdAtYearMonth: FfiConverterString.read(from: &buf), 
+                validToYearMonth: FfiConverterString.read(from: &buf), 
                 revealedAttributes: FfiConverterDictionaryStringString.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: Policy, into buf: inout [UInt8]) {
@@ -1724,6 +2220,7 @@ public struct FfiConverterTypePolicy: FfiConverterRustBuffer {
     }
 }
 
+
 public func FfiConverterTypePolicy_lift(_ buf: RustBuffer) throws -> Policy {
     return try FfiConverterTypePolicy.lift(buf)
 }
@@ -1731,6 +2228,7 @@ public func FfiConverterTypePolicy_lift(_ buf: RustBuffer) throws -> Policy {
 public func FfiConverterTypePolicy_lower(_ value: Policy) -> RustBuffer {
     return FfiConverterTypePolicy.lower(value)
 }
+
 
 /**
  * Information sent from the account holder to the identity provider.
@@ -1769,34 +2267,33 @@ public struct PreIdentityObject {
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(
-        idCredPubHex: String,
+        idCredPubHex: String, 
         /**
-            * Anonymity revocation data for the chosen anonymity revokers.
-            */
-        ipArData: [UInt32: ArData],
+         * Anonymity revocation data for the chosen anonymity revokers.
+         */
+        ipArData: [UInt32: ArData], 
         /**
-            * Choice of anonyimity revocation parameters.
-            * Identity provider checks that the values make sense in the context of the public keys they are allowed to use.
-            */
-        choiceArData: ChoiceArParameters,
+         * Choice of anonyimity revocation parameters.
+         * Identity provider checks that the values make sense in the context of the public keys they are allowed to use.
+         */
+        choiceArData: ChoiceArParameters, 
         /**
-            * Commitment to ID cred sec using the commitment key of the identity provider derived from the PS public key.
-            * This is used to compute the message that the identity provider signs.
-            */
-        idCredSecCommitmentHex: String,
+         * Commitment to ID cred sec using the commitment key of the identity provider derived from the PS public key.
+         * This is used to compute the message that the identity provider signs.
+         */
+        idCredSecCommitmentHex: String, 
         /**
-            * Commitment to the PRF key in group G1.
-            */
-        prfKeyCommitmentWithIpHex: String,
+         * Commitment to the PRF key in group G1.
+         */
+        prfKeyCommitmentWithIpHex: String, 
         /**
-            * Commitments to the coefficients of the polynomial used to share the PRF key.
-            */
-        prfKeySharingCoeffCommitmentsHex: [String],
+         * Commitments to the coefficients of the polynomial used to share the PRF key.
+         */
+        prfKeySharingCoeffCommitmentsHex: [String], 
         /**
-            * Proof that the data sent to the identity provider is well-formed.
-            */
-        proofsOfKnowledgeHex: String
-    ) {
+         * Proof that the data sent to the identity provider is well-formed.
+         */
+        proofsOfKnowledgeHex: String) {
         self.idCredPubHex = idCredPubHex
         self.ipArData = ipArData
         self.choiceArData = choiceArData
@@ -1807,8 +2304,9 @@ public struct PreIdentityObject {
     }
 }
 
+
 extension PreIdentityObject: Equatable, Hashable {
-    public static func == (lhs: PreIdentityObject, rhs: PreIdentityObject) -> Bool {
+    public static func ==(lhs: PreIdentityObject, rhs: PreIdentityObject) -> Bool {
         if lhs.idCredPubHex != rhs.idCredPubHex {
             return false
         }
@@ -1844,18 +2342,19 @@ extension PreIdentityObject: Equatable, Hashable {
     }
 }
 
+
 public struct FfiConverterTypePreIdentityObject: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PreIdentityObject {
         return
             try PreIdentityObject(
-                idCredPubHex: FfiConverterString.read(from: &buf),
-                ipArData: FfiConverterDictionaryUInt32TypeArData.read(from: &buf),
-                choiceArData: FfiConverterTypeChoiceArParameters.read(from: &buf),
-                idCredSecCommitmentHex: FfiConverterString.read(from: &buf),
-                prfKeyCommitmentWithIpHex: FfiConverterString.read(from: &buf),
-                prfKeySharingCoeffCommitmentsHex: FfiConverterSequenceString.read(from: &buf),
+                idCredPubHex: FfiConverterString.read(from: &buf), 
+                ipArData: FfiConverterDictionaryUInt32TypeArData.read(from: &buf), 
+                choiceArData: FfiConverterTypeChoiceArParameters.read(from: &buf), 
+                idCredSecCommitmentHex: FfiConverterString.read(from: &buf), 
+                prfKeyCommitmentWithIpHex: FfiConverterString.read(from: &buf), 
+                prfKeySharingCoeffCommitmentsHex: FfiConverterSequenceString.read(from: &buf), 
                 proofsOfKnowledgeHex: FfiConverterString.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: PreIdentityObject, into buf: inout [UInt8]) {
@@ -1869,6 +2368,7 @@ public struct FfiConverterTypePreIdentityObject: FfiConverterRustBuffer {
     }
 }
 
+
 public func FfiConverterTypePreIdentityObject_lift(_ buf: RustBuffer) throws -> PreIdentityObject {
     return try FfiConverterTypePreIdentityObject.lift(buf)
 }
@@ -1876,6 +2376,7 @@ public func FfiConverterTypePreIdentityObject_lift(_ buf: RustBuffer) throws -> 
 public func FfiConverterTypePreIdentityObject_lower(_ value: PreIdentityObject) -> RustBuffer {
     return FfiConverterTypePreIdentityObject.lower(value)
 }
+
 
 /**
  * All proofs required to prove ownership of an identity in a credential deployment.
@@ -1918,34 +2419,33 @@ public struct Proofs {
         /**
          * Challenge used for all of the proofs.
          */
-        challengeHex: String,
+        challengeHex: String, 
         /**
-            * List of commitments to the attributes.
-            */
-        commitmentsHex: String,
+         * List of commitments to the attributes.
+         */
+        commitmentsHex: String, 
         /**
-            * Proof that credential counter is at most equal to the maximum allowed number of account.
-            */
-        credCounterLessThanMaxAccountsHex: String,
+         * Proof that credential counter is at most equal to the maximum allowed number of account.
+         */
+        credCounterLessThanMaxAccountsHex: String, 
         /**
-            * Responses in the proof that the computed commitment to the share
-            * contains the same value as the encryption.
-            * The commitment to the share is not sent but computed from the commitments to the sharing coefficients.
-            */
-        proofIdCredPubHex: [String: String],
+         * Responses in the proof that the computed commitment to the share
+         * contains the same value as the encryption.
+         * The commitment to the share is not sent but computed from the commitments to the sharing coefficients.
+         */
+        proofIdCredPubHex: [String: String], 
         /**
-            * Responses in the proof of knowledge of signature of the identity provider.
-            */
-        proofIpSigHex: String,
+         * Responses in the proof of knowledge of signature of the identity provider.
+         */
+        proofIpSigHex: String, 
         /**
-            * Proof that registration ID is valid and computed from the PRF key signed by the identity provider.
-            */
-        proofRegIdHex: String,
+         * Proof that registration ID is valid and computed from the PRF key signed by the identity provider.
+         */
+        proofRegIdHex: String, 
         /**
-            * (Blinded) signature derived from the signature on the pre-identity object by the identity provider.
-            */
-        signatureHex: String
-    ) {
+         * (Blinded) signature derived from the signature on the pre-identity object by the identity provider.
+         */
+        signatureHex: String) {
         self.challengeHex = challengeHex
         self.commitmentsHex = commitmentsHex
         self.credCounterLessThanMaxAccountsHex = credCounterLessThanMaxAccountsHex
@@ -1956,8 +2456,9 @@ public struct Proofs {
     }
 }
 
+
 extension Proofs: Equatable, Hashable {
-    public static func == (lhs: Proofs, rhs: Proofs) -> Bool {
+    public static func ==(lhs: Proofs, rhs: Proofs) -> Bool {
         if lhs.challengeHex != rhs.challengeHex {
             return false
         }
@@ -1993,18 +2494,19 @@ extension Proofs: Equatable, Hashable {
     }
 }
 
+
 public struct FfiConverterTypeProofs: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Proofs {
         return
             try Proofs(
-                challengeHex: FfiConverterString.read(from: &buf),
-                commitmentsHex: FfiConverterString.read(from: &buf),
-                credCounterLessThanMaxAccountsHex: FfiConverterString.read(from: &buf),
-                proofIdCredPubHex: FfiConverterDictionaryStringString.read(from: &buf),
-                proofIpSigHex: FfiConverterString.read(from: &buf),
-                proofRegIdHex: FfiConverterString.read(from: &buf),
+                challengeHex: FfiConverterString.read(from: &buf), 
+                commitmentsHex: FfiConverterString.read(from: &buf), 
+                credCounterLessThanMaxAccountsHex: FfiConverterString.read(from: &buf), 
+                proofIdCredPubHex: FfiConverterDictionaryStringString.read(from: &buf), 
+                proofIpSigHex: FfiConverterString.read(from: &buf), 
+                proofRegIdHex: FfiConverterString.read(from: &buf), 
                 signatureHex: FfiConverterString.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: Proofs, into buf: inout [UInt8]) {
@@ -2018,6 +2520,7 @@ public struct FfiConverterTypeProofs: FfiConverterRustBuffer {
     }
 }
 
+
 public func FfiConverterTypeProofs_lift(_ buf: RustBuffer) throws -> Proofs {
     return try FfiConverterTypeProofs.lift(buf)
 }
@@ -2025,6 +2528,7 @@ public func FfiConverterTypeProofs_lift(_ buf: RustBuffer) throws -> Proofs {
 public func FfiConverterTypeProofs_lower(_ value: Proofs) -> RustBuffer {
     return FfiConverterTypeProofs.lower(value)
 }
+
 
 /**
  * Randomness that is generated to commit to attributes when creating a credential.
@@ -2061,26 +2565,25 @@ public struct Randomness {
         /**
          * Randomness used to commit to any user-chosen attributes, such as country of nationality.
          */
-        attributesRandHex: [String: String],
+        attributesRandHex: [String: String], 
         /**
-            * Randomness of the commitment to the credential nonce.
-            * This nonce is the number that is used to ensure that only a limited number of credentials
-            * can be created from a given identity object.
-            */
-        credCounterRandHex: String,
+         * Randomness of the commitment to the credential nonce.
+         * This nonce is the number that is used to ensure that only a limited number of credentials
+         * can be created from a given identity object.
+         */
+        credCounterRandHex: String, 
         /**
-            * Randomness of the commitment to idCredSec.
-            */
-        idCredSecRandHex: String,
+         * Randomness of the commitment to idCredSec.
+         */
+        idCredSecRandHex: String, 
         /**
-            * Randomness of the commitment to the maximum number of accounts that may be created from the identity object.
-            */
-        maxAccountsRandHex: String,
+         * Randomness of the commitment to the maximum number of accounts that may be created from the identity object.
+         */
+        maxAccountsRandHex: String, 
         /**
-            * Randomness of the commitment to the PRF key.
-            */
-        prfRandHex: String
-    ) {
+         * Randomness of the commitment to the PRF key.
+         */
+        prfRandHex: String) {
         self.attributesRandHex = attributesRandHex
         self.credCounterRandHex = credCounterRandHex
         self.idCredSecRandHex = idCredSecRandHex
@@ -2089,8 +2592,9 @@ public struct Randomness {
     }
 }
 
+
 extension Randomness: Equatable, Hashable {
-    public static func == (lhs: Randomness, rhs: Randomness) -> Bool {
+    public static func ==(lhs: Randomness, rhs: Randomness) -> Bool {
         if lhs.attributesRandHex != rhs.attributesRandHex {
             return false
         }
@@ -2118,16 +2622,17 @@ extension Randomness: Equatable, Hashable {
     }
 }
 
+
 public struct FfiConverterTypeRandomness: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Randomness {
         return
             try Randomness(
-                attributesRandHex: FfiConverterDictionaryStringString.read(from: &buf),
-                credCounterRandHex: FfiConverterString.read(from: &buf),
-                idCredSecRandHex: FfiConverterString.read(from: &buf),
-                maxAccountsRandHex: FfiConverterString.read(from: &buf),
+                attributesRandHex: FfiConverterDictionaryStringString.read(from: &buf), 
+                credCounterRandHex: FfiConverterString.read(from: &buf), 
+                idCredSecRandHex: FfiConverterString.read(from: &buf), 
+                maxAccountsRandHex: FfiConverterString.read(from: &buf), 
                 prfRandHex: FfiConverterString.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: Randomness, into buf: inout [UInt8]) {
@@ -2139,6 +2644,7 @@ public struct FfiConverterTypeRandomness: FfiConverterRustBuffer {
     }
 }
 
+
 public func FfiConverterTypeRandomness_lift(_ buf: RustBuffer) throws -> Randomness {
     return try FfiConverterTypeRandomness.lift(buf)
 }
@@ -2146,6 +2652,172 @@ public func FfiConverterTypeRandomness_lift(_ buf: RustBuffer) throws -> Randomn
 public func FfiConverterTypeRandomness_lower(_ value: Randomness) -> RustBuffer {
     return FfiConverterTypeRandomness.lower(value)
 }
+
+
+/**
+ * The payload data for a TransferToPublic transaction
+ */
+public struct SecToPubTransferData {
+    /**
+     * The serialized remaining amount after deducting the amount to transfer
+     * Serialized according to the [`Serial`] implementation of [`concordium_base::encrypted_transfers::types::EncryptedAmount`]
+     */
+    public var serializedRemainingAmount: Bytes
+    /**
+     * The amount to transfer
+     */
+    public var transferAmount: UInt64
+    /**
+     * The transfer index of the transfer
+     */
+    public var index: UInt64
+    /**
+     * The serialized proof that the transfer is correct.
+     * Serialized according to the [`Serial`] implementation of [`concordium_base::encrypted_transfers::types::SecToPubAmountTransferProof`]
+     */
+    public var serializedProof: Bytes
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The serialized remaining amount after deducting the amount to transfer
+         * Serialized according to the [`Serial`] implementation of [`concordium_base::encrypted_transfers::types::EncryptedAmount`]
+         */
+        serializedRemainingAmount: Bytes, 
+        /**
+         * The amount to transfer
+         */
+        transferAmount: UInt64, 
+        /**
+         * The transfer index of the transfer
+         */
+        index: UInt64, 
+        /**
+         * The serialized proof that the transfer is correct.
+         * Serialized according to the [`Serial`] implementation of [`concordium_base::encrypted_transfers::types::SecToPubAmountTransferProof`]
+         */
+        serializedProof: Bytes) {
+        self.serializedRemainingAmount = serializedRemainingAmount
+        self.transferAmount = transferAmount
+        self.index = index
+        self.serializedProof = serializedProof
+    }
+}
+
+
+extension SecToPubTransferData: Equatable, Hashable {
+    public static func ==(lhs: SecToPubTransferData, rhs: SecToPubTransferData) -> Bool {
+        if lhs.serializedRemainingAmount != rhs.serializedRemainingAmount {
+            return false
+        }
+        if lhs.transferAmount != rhs.transferAmount {
+            return false
+        }
+        if lhs.index != rhs.index {
+            return false
+        }
+        if lhs.serializedProof != rhs.serializedProof {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(serializedRemainingAmount)
+        hasher.combine(transferAmount)
+        hasher.combine(index)
+        hasher.combine(serializedProof)
+    }
+}
+
+
+public struct FfiConverterTypeSecToPubTransferData: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SecToPubTransferData {
+        return
+            try SecToPubTransferData(
+                serializedRemainingAmount: FfiConverterTypeBytes.read(from: &buf), 
+                transferAmount: FfiConverterUInt64.read(from: &buf), 
+                index: FfiConverterUInt64.read(from: &buf), 
+                serializedProof: FfiConverterTypeBytes.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SecToPubTransferData, into buf: inout [UInt8]) {
+        FfiConverterTypeBytes.write(value.serializedRemainingAmount, into: &buf)
+        FfiConverterUInt64.write(value.transferAmount, into: &buf)
+        FfiConverterUInt64.write(value.index, into: &buf)
+        FfiConverterTypeBytes.write(value.serializedProof, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeSecToPubTransferData_lift(_ buf: RustBuffer) throws -> SecToPubTransferData {
+    return try FfiConverterTypeSecToPubTransferData.lift(buf)
+}
+
+public func FfiConverterTypeSecToPubTransferData_lower(_ value: SecToPubTransferData) -> RustBuffer {
+    return FfiConverterTypeSecToPubTransferData.lower(value)
+}
+
+
+public struct SecToPubTransferDataDeserializeResult {
+    public var value: SecToPubTransferData
+    public var bytesRead: UInt64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        value: SecToPubTransferData, 
+        bytesRead: UInt64) {
+        self.value = value
+        self.bytesRead = bytesRead
+    }
+}
+
+
+extension SecToPubTransferDataDeserializeResult: Equatable, Hashable {
+    public static func ==(lhs: SecToPubTransferDataDeserializeResult, rhs: SecToPubTransferDataDeserializeResult) -> Bool {
+        if lhs.value != rhs.value {
+            return false
+        }
+        if lhs.bytesRead != rhs.bytesRead {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(value)
+        hasher.combine(bytesRead)
+    }
+}
+
+
+public struct FfiConverterTypeSecToPubTransferDataDeserializeResult: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SecToPubTransferDataDeserializeResult {
+        return
+            try SecToPubTransferDataDeserializeResult(
+                value: FfiConverterTypeSecToPubTransferData.read(from: &buf), 
+                bytesRead: FfiConverterUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SecToPubTransferDataDeserializeResult, into buf: inout [UInt8]) {
+        FfiConverterTypeSecToPubTransferData.write(value.value, into: &buf)
+        FfiConverterUInt64.write(value.bytesRead, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeSecToPubTransferDataDeserializeResult_lift(_ buf: RustBuffer) throws -> SecToPubTransferDataDeserializeResult {
+    return try FfiConverterTypeSecToPubTransferDataDeserializeResult.lift(buf)
+}
+
+public func FfiConverterTypeSecToPubTransferDataDeserializeResult_lower(_ value: SecToPubTransferDataDeserializeResult) -> RustBuffer {
+    return FfiConverterTypeSecToPubTransferDataDeserializeResult.lower(value)
+}
+
 
 /**
  * The credential deployment context required to serialize a credential deployment for submission to the chain.
@@ -2157,16 +2829,16 @@ public struct SignedAccountCredential {
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(
-        credential: AccountCredential,
-        signaturesHex: [UInt8: String]
-    ) {
+        credential: AccountCredential, 
+        signaturesHex: [UInt8: String]) {
         self.credential = credential
         self.signaturesHex = signaturesHex
     }
 }
 
+
 extension SignedAccountCredential: Equatable, Hashable {
-    public static func == (lhs: SignedAccountCredential, rhs: SignedAccountCredential) -> Bool {
+    public static func ==(lhs: SignedAccountCredential, rhs: SignedAccountCredential) -> Bool {
         if lhs.credential != rhs.credential {
             return false
         }
@@ -2182,13 +2854,14 @@ extension SignedAccountCredential: Equatable, Hashable {
     }
 }
 
+
 public struct FfiConverterTypeSignedAccountCredential: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SignedAccountCredential {
         return
             try SignedAccountCredential(
-                credential: FfiConverterTypeAccountCredential.read(from: &buf),
+                credential: FfiConverterTypeAccountCredential.read(from: &buf), 
                 signaturesHex: FfiConverterDictionaryUInt8String.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: SignedAccountCredential, into buf: inout [UInt8]) {
@@ -2197,6 +2870,7 @@ public struct FfiConverterTypeSignedAccountCredential: FfiConverterRustBuffer {
     }
 }
 
+
 public func FfiConverterTypeSignedAccountCredential_lift(_ buf: RustBuffer) throws -> SignedAccountCredential {
     return try FfiConverterTypeSignedAccountCredential.lift(buf)
 }
@@ -2204,6 +2878,150 @@ public func FfiConverterTypeSignedAccountCredential_lift(_ buf: RustBuffer) thro
 public func FfiConverterTypeSignedAccountCredential_lower(_ value: SignedAccountCredential) -> RustBuffer {
     return FfiConverterTypeSignedAccountCredential.lower(value)
 }
+
+
+public struct UpdateCredentialsPayload {
+    /**
+     * Credential infos and the respective indices to insert them at
+     */
+    public var newCredInfos: [UInt8: CredentialDeploymentInfo]
+    /**
+     * List of credentials to remove
+     */
+    public var removeCredIds: [Bytes]
+    /**
+     * The new threshold of the account
+     */
+    public var newThreshold: UInt8
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * Credential infos and the respective indices to insert them at
+         */
+        newCredInfos: [UInt8: CredentialDeploymentInfo], 
+        /**
+         * List of credentials to remove
+         */
+        removeCredIds: [Bytes], 
+        /**
+         * The new threshold of the account
+         */
+        newThreshold: UInt8) {
+        self.newCredInfos = newCredInfos
+        self.removeCredIds = removeCredIds
+        self.newThreshold = newThreshold
+    }
+}
+
+
+extension UpdateCredentialsPayload: Equatable, Hashable {
+    public static func ==(lhs: UpdateCredentialsPayload, rhs: UpdateCredentialsPayload) -> Bool {
+        if lhs.newCredInfos != rhs.newCredInfos {
+            return false
+        }
+        if lhs.removeCredIds != rhs.removeCredIds {
+            return false
+        }
+        if lhs.newThreshold != rhs.newThreshold {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(newCredInfos)
+        hasher.combine(removeCredIds)
+        hasher.combine(newThreshold)
+    }
+}
+
+
+public struct FfiConverterTypeUpdateCredentialsPayload: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UpdateCredentialsPayload {
+        return
+            try UpdateCredentialsPayload(
+                newCredInfos: FfiConverterDictionaryUInt8TypeCredentialDeploymentInfo.read(from: &buf), 
+                removeCredIds: FfiConverterSequenceTypeBytes.read(from: &buf), 
+                newThreshold: FfiConverterUInt8.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: UpdateCredentialsPayload, into buf: inout [UInt8]) {
+        FfiConverterDictionaryUInt8TypeCredentialDeploymentInfo.write(value.newCredInfos, into: &buf)
+        FfiConverterSequenceTypeBytes.write(value.removeCredIds, into: &buf)
+        FfiConverterUInt8.write(value.newThreshold, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeUpdateCredentialsPayload_lift(_ buf: RustBuffer) throws -> UpdateCredentialsPayload {
+    return try FfiConverterTypeUpdateCredentialsPayload.lift(buf)
+}
+
+public func FfiConverterTypeUpdateCredentialsPayload_lower(_ value: UpdateCredentialsPayload) -> RustBuffer {
+    return FfiConverterTypeUpdateCredentialsPayload.lower(value)
+}
+
+
+public struct UpdateCredentialsPayloadDeserializeResult {
+    public var value: UpdateCredentialsPayload
+    public var bytesRead: UInt64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        value: UpdateCredentialsPayload, 
+        bytesRead: UInt64) {
+        self.value = value
+        self.bytesRead = bytesRead
+    }
+}
+
+
+extension UpdateCredentialsPayloadDeserializeResult: Equatable, Hashable {
+    public static func ==(lhs: UpdateCredentialsPayloadDeserializeResult, rhs: UpdateCredentialsPayloadDeserializeResult) -> Bool {
+        if lhs.value != rhs.value {
+            return false
+        }
+        if lhs.bytesRead != rhs.bytesRead {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(value)
+        hasher.combine(bytesRead)
+    }
+}
+
+
+public struct FfiConverterTypeUpdateCredentialsPayloadDeserializeResult: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> UpdateCredentialsPayloadDeserializeResult {
+        return
+            try UpdateCredentialsPayloadDeserializeResult(
+                value: FfiConverterTypeUpdateCredentialsPayload.read(from: &buf), 
+                bytesRead: FfiConverterUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: UpdateCredentialsPayloadDeserializeResult, into buf: inout [UInt8]) {
+        FfiConverterTypeUpdateCredentialsPayload.write(value.value, into: &buf)
+        FfiConverterUInt64.write(value.bytesRead, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeUpdateCredentialsPayloadDeserializeResult_lift(_ buf: RustBuffer) throws -> UpdateCredentialsPayloadDeserializeResult {
+    return try FfiConverterTypeUpdateCredentialsPayloadDeserializeResult.lift(buf)
+}
+
+public func FfiConverterTypeUpdateCredentialsPayloadDeserializeResult_lower(_ value: UpdateCredentialsPayloadDeserializeResult) -> RustBuffer {
+    return FfiConverterTypeUpdateCredentialsPayloadDeserializeResult.lower(value)
+}
+
 
 /**
  * Public AKA verification key for a given scheme.
@@ -2216,16 +3034,16 @@ public struct VerifyKey {
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(
-        schemeId: String,
-        keyHex: String
-    ) {
+        schemeId: String, 
+        keyHex: String) {
         self.schemeId = schemeId
         self.keyHex = keyHex
     }
 }
 
+
 extension VerifyKey: Equatable, Hashable {
-    public static func == (lhs: VerifyKey, rhs: VerifyKey) -> Bool {
+    public static func ==(lhs: VerifyKey, rhs: VerifyKey) -> Bool {
         if lhs.schemeId != rhs.schemeId {
             return false
         }
@@ -2241,13 +3059,14 @@ extension VerifyKey: Equatable, Hashable {
     }
 }
 
+
 public struct FfiConverterTypeVerifyKey: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VerifyKey {
         return
             try VerifyKey(
-                schemeId: FfiConverterString.read(from: &buf),
+                schemeId: FfiConverterString.read(from: &buf), 
                 keyHex: FfiConverterString.read(from: &buf)
-            )
+        )
     }
 
     public static func write(_ value: VerifyKey, into buf: inout [UInt8]) {
@@ -2255,6 +3074,7 @@ public struct FfiConverterTypeVerifyKey: FfiConverterRustBuffer {
         FfiConverterString.write(value.keyHex, into: &buf)
     }
 }
+
 
 public func FfiConverterTypeVerifyKey_lift(_ buf: RustBuffer) throws -> VerifyKey {
     return try FfiConverterTypeVerifyKey.lift(buf)
@@ -2264,13 +3084,19 @@ public func FfiConverterTypeVerifyKey_lower(_ value: VerifyKey) -> RustBuffer {
     return FfiConverterTypeVerifyKey.lower(value)
 }
 
+
 public enum ConcordiumWalletCryptoError {
+
+    
+    
     case CallFailed(message: String)
+    
 
     fileprivate static func uniffiErrorHandler(_ error: RustBuffer) throws -> Error {
         return try FfiConverterTypeConcordiumWalletCryptoError.lift(error)
     }
 }
+
 
 public struct FfiConverterTypeConcordiumWalletCryptoError: FfiConverterRustBuffer {
     typealias SwiftType = ConcordiumWalletCryptoError
@@ -2278,9 +3104,14 @@ public struct FfiConverterTypeConcordiumWalletCryptoError: FfiConverterRustBuffe
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ConcordiumWalletCryptoError {
         let variant: Int32 = try readInt(&buf)
         switch variant {
-        case 1: return try .CallFailed(
-                message: FfiConverterString.read(from: &buf)
-            )
+
+        
+
+        
+        case 1: return .CallFailed(
+            message: try FfiConverterString.read(from: &buf)
+        )
+        
 
         default: throw UniffiInternalError.unexpectedEnumCase
         }
@@ -2288,17 +3119,24 @@ public struct FfiConverterTypeConcordiumWalletCryptoError: FfiConverterRustBuffe
 
     public static func write(_ value: ConcordiumWalletCryptoError, into buf: inout [UInt8]) {
         switch value {
-        case .CallFailed(_ /* message is ignored*/ ):
+
+        
+
+        
+        case .CallFailed(_ /* message is ignored*/):
             writeInt(&buf, Int32(1))
+
+        
         }
     }
 }
 
+
 extension ConcordiumWalletCryptoError: Equatable, Hashable {}
 
-extension ConcordiumWalletCryptoError: Error {}
+extension ConcordiumWalletCryptoError: Error { }
 
-private struct FfiConverterSequenceUInt8: FfiConverterRustBuffer {
+fileprivate struct FfiConverterSequenceUInt8: FfiConverterRustBuffer {
     typealias SwiftType = [UInt8]
 
     public static func write(_ value: [UInt8], into buf: inout [UInt8]) {
@@ -2314,13 +3152,13 @@ private struct FfiConverterSequenceUInt8: FfiConverterRustBuffer {
         var seq = [UInt8]()
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
-            try seq.append(FfiConverterUInt8.read(from: &buf))
+            seq.append(try FfiConverterUInt8.read(from: &buf))
         }
         return seq
     }
 }
 
-private struct FfiConverterSequenceUInt32: FfiConverterRustBuffer {
+fileprivate struct FfiConverterSequenceUInt32: FfiConverterRustBuffer {
     typealias SwiftType = [UInt32]
 
     public static func write(_ value: [UInt32], into buf: inout [UInt8]) {
@@ -2336,13 +3174,13 @@ private struct FfiConverterSequenceUInt32: FfiConverterRustBuffer {
         var seq = [UInt32]()
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
-            try seq.append(FfiConverterUInt32.read(from: &buf))
+            seq.append(try FfiConverterUInt32.read(from: &buf))
         }
         return seq
     }
 }
 
-private struct FfiConverterSequenceString: FfiConverterRustBuffer {
+fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
     typealias SwiftType = [String]
 
     public static func write(_ value: [String], into buf: inout [UInt8]) {
@@ -2358,13 +3196,35 @@ private struct FfiConverterSequenceString: FfiConverterRustBuffer {
         var seq = [String]()
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
-            try seq.append(FfiConverterString.read(from: &buf))
+            seq.append(try FfiConverterString.read(from: &buf))
         }
         return seq
     }
 }
 
-private struct FfiConverterDictionaryUInt8String: FfiConverterRustBuffer {
+fileprivate struct FfiConverterSequenceTypeBytes: FfiConverterRustBuffer {
+    typealias SwiftType = [Bytes]
+
+    public static func write(_ value: [Bytes], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeBytes.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Bytes] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Bytes]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeBytes.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+fileprivate struct FfiConverterDictionaryUInt8String: FfiConverterRustBuffer {
     public static func write(_ value: [UInt8: String], into buf: inout [UInt8]) {
         let len = Int32(value.count)
         writeInt(&buf, len)
@@ -2378,7 +3238,7 @@ private struct FfiConverterDictionaryUInt8String: FfiConverterRustBuffer {
         let len: Int32 = try readInt(&buf)
         var dict = [UInt8: String]()
         dict.reserveCapacity(Int(len))
-        for _ in 0 ..< len {
+        for _ in 0..<len {
             let key = try FfiConverterUInt8.read(from: &buf)
             let value = try FfiConverterString.read(from: &buf)
             dict[key] = value
@@ -2387,7 +3247,30 @@ private struct FfiConverterDictionaryUInt8String: FfiConverterRustBuffer {
     }
 }
 
-private struct FfiConverterDictionaryUInt8TypeVerifyKey: FfiConverterRustBuffer {
+fileprivate struct FfiConverterDictionaryUInt8TypeCredentialDeploymentInfo: FfiConverterRustBuffer {
+    public static func write(_ value: [UInt8: CredentialDeploymentInfo], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for (key, value) in value {
+            FfiConverterUInt8.write(key, into: &buf)
+            FfiConverterTypeCredentialDeploymentInfo.write(value, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [UInt8: CredentialDeploymentInfo] {
+        let len: Int32 = try readInt(&buf)
+        var dict = [UInt8: CredentialDeploymentInfo]()
+        dict.reserveCapacity(Int(len))
+        for _ in 0..<len {
+            let key = try FfiConverterUInt8.read(from: &buf)
+            let value = try FfiConverterTypeCredentialDeploymentInfo.read(from: &buf)
+            dict[key] = value
+        }
+        return dict
+    }
+}
+
+fileprivate struct FfiConverterDictionaryUInt8TypeVerifyKey: FfiConverterRustBuffer {
     public static func write(_ value: [UInt8: VerifyKey], into buf: inout [UInt8]) {
         let len = Int32(value.count)
         writeInt(&buf, len)
@@ -2401,7 +3284,7 @@ private struct FfiConverterDictionaryUInt8TypeVerifyKey: FfiConverterRustBuffer 
         let len: Int32 = try readInt(&buf)
         var dict = [UInt8: VerifyKey]()
         dict.reserveCapacity(Int(len))
-        for _ in 0 ..< len {
+        for _ in 0..<len {
             let key = try FfiConverterUInt8.read(from: &buf)
             let value = try FfiConverterTypeVerifyKey.read(from: &buf)
             dict[key] = value
@@ -2410,7 +3293,7 @@ private struct FfiConverterDictionaryUInt8TypeVerifyKey: FfiConverterRustBuffer 
     }
 }
 
-private struct FfiConverterDictionaryUInt32TypeAnonymityRevokerInfo: FfiConverterRustBuffer {
+fileprivate struct FfiConverterDictionaryUInt32TypeAnonymityRevokerInfo: FfiConverterRustBuffer {
     public static func write(_ value: [UInt32: AnonymityRevokerInfo], into buf: inout [UInt8]) {
         let len = Int32(value.count)
         writeInt(&buf, len)
@@ -2424,7 +3307,7 @@ private struct FfiConverterDictionaryUInt32TypeAnonymityRevokerInfo: FfiConverte
         let len: Int32 = try readInt(&buf)
         var dict = [UInt32: AnonymityRevokerInfo]()
         dict.reserveCapacity(Int(len))
-        for _ in 0 ..< len {
+        for _ in 0..<len {
             let key = try FfiConverterUInt32.read(from: &buf)
             let value = try FfiConverterTypeAnonymityRevokerInfo.read(from: &buf)
             dict[key] = value
@@ -2433,7 +3316,7 @@ private struct FfiConverterDictionaryUInt32TypeAnonymityRevokerInfo: FfiConverte
     }
 }
 
-private struct FfiConverterDictionaryUInt32TypeArData: FfiConverterRustBuffer {
+fileprivate struct FfiConverterDictionaryUInt32TypeArData: FfiConverterRustBuffer {
     public static func write(_ value: [UInt32: ArData], into buf: inout [UInt8]) {
         let len = Int32(value.count)
         writeInt(&buf, len)
@@ -2447,7 +3330,7 @@ private struct FfiConverterDictionaryUInt32TypeArData: FfiConverterRustBuffer {
         let len: Int32 = try readInt(&buf)
         var dict = [UInt32: ArData]()
         dict.reserveCapacity(Int(len))
-        for _ in 0 ..< len {
+        for _ in 0..<len {
             let key = try FfiConverterUInt32.read(from: &buf)
             let value = try FfiConverterTypeArData.read(from: &buf)
             dict[key] = value
@@ -2456,7 +3339,7 @@ private struct FfiConverterDictionaryUInt32TypeArData: FfiConverterRustBuffer {
     }
 }
 
-private struct FfiConverterDictionaryUInt32TypeChainArData: FfiConverterRustBuffer {
+fileprivate struct FfiConverterDictionaryUInt32TypeChainArData: FfiConverterRustBuffer {
     public static func write(_ value: [UInt32: ChainArData], into buf: inout [UInt8]) {
         let len = Int32(value.count)
         writeInt(&buf, len)
@@ -2470,7 +3353,7 @@ private struct FfiConverterDictionaryUInt32TypeChainArData: FfiConverterRustBuff
         let len: Int32 = try readInt(&buf)
         var dict = [UInt32: ChainArData]()
         dict.reserveCapacity(Int(len))
-        for _ in 0 ..< len {
+        for _ in 0..<len {
             let key = try FfiConverterUInt32.read(from: &buf)
             let value = try FfiConverterTypeChainArData.read(from: &buf)
             dict[key] = value
@@ -2479,7 +3362,7 @@ private struct FfiConverterDictionaryUInt32TypeChainArData: FfiConverterRustBuff
     }
 }
 
-private struct FfiConverterDictionaryStringString: FfiConverterRustBuffer {
+fileprivate struct FfiConverterDictionaryStringString: FfiConverterRustBuffer {
     public static func write(_ value: [String: String], into buf: inout [UInt8]) {
         let len = Int32(value.count)
         writeInt(&buf, len)
@@ -2493,7 +3376,7 @@ private struct FfiConverterDictionaryStringString: FfiConverterRustBuffer {
         let len: Int32 = try readInt(&buf)
         var dict = [String: String]()
         dict.reserveCapacity(Int(len))
-        for _ in 0 ..< len {
+        for _ in 0..<len {
             let key = try FfiConverterString.read(from: &buf)
             let value = try FfiConverterString.read(from: &buf)
             dict[key] = value
@@ -2502,260 +3385,333 @@ private struct FfiConverterDictionaryStringString: FfiConverterRustBuffer {
     }
 }
 
+
+/**
+ * Typealias from the type name used in the UDL file to the builtin type.  This
+ * is needed because the UDL type name is used in function/method signatures.
+ */
+public typealias Bytes = Data
+public struct FfiConverterTypeBytes: FfiConverter {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Bytes {
+        return try FfiConverterData.read(from: &buf)
+    }
+
+    public static func write(_ value: Bytes, into buf: inout [UInt8]) {
+        return FfiConverterData.write(value, into: &buf)
+    }
+
+    public static func lift(_ value: RustBuffer) throws -> Bytes {
+        return try FfiConverterData.lift(value)
+    }
+
+    public static func lower(_ value: Bytes) -> RustBuffer {
+        return FfiConverterData.lower(value)
+    }
+}
+
+
+public func FfiConverterTypeBytes_lift(_ value: RustBuffer) throws -> Bytes {
+    return try FfiConverterTypeBytes.lift(value)
+}
+
+public func FfiConverterTypeBytes_lower(_ value: Bytes) -> RustBuffer {
+    return FfiConverterTypeBytes.lower(value)
+}
+
 /**
  * Construct an account credential from the information contained in the provided parameters.
  */
-public func accountCredential(params: AccountCredentialParameters) throws -> AccountCredentialResult {
-    return try FfiConverterTypeAccountCredentialResult.lift(
-        rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
-            uniffi_concordium_wallet_crypto_uniffi_fn_func_account_credential(
-                FfiConverterTypeAccountCredentialParameters.lower(params), $0
-            )
-        }
+public func accountCredential(params: AccountCredentialParameters) throws  -> AccountCredentialResult {
+    return try  FfiConverterTypeAccountCredentialResult.lift(
+        try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_account_credential(
+        FfiConverterTypeAccountCredentialParameters.lower(params),$0)
+}
     )
 }
-
 /**
  * Compute the attribute commitment randomness for the provided seed, identity indexes, credential counter, and attribute number.
  * Supported values for `network`: "Testnet", "Mainnet".
  * The result is hex encoded.
  */
-public func accountCredentialAttributeCommitmentRandomnessHex(seedHex: String, network: String, identityProviderId: UInt32, identityIndex: UInt32, credentialCounter: UInt8, attribute: UInt8) throws -> String {
-    return try FfiConverterString.lift(
-        rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
-            uniffi_concordium_wallet_crypto_uniffi_fn_func_account_credential_attribute_commitment_randomness_hex(
-                FfiConverterString.lower(seedHex),
-                FfiConverterString.lower(network),
-                FfiConverterUInt32.lower(identityProviderId),
-                FfiConverterUInt32.lower(identityIndex),
-                FfiConverterUInt8.lower(credentialCounter),
-                FfiConverterUInt8.lower(attribute), $0
-            )
-        }
+public func accountCredentialAttributeCommitmentRandomnessHex(seedHex: String, network: String, identityProviderId: UInt32, identityIndex: UInt32, credentialCounter: UInt8, attribute: UInt8) throws  -> String {
+    return try  FfiConverterString.lift(
+        try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_account_credential_attribute_commitment_randomness_hex(
+        FfiConverterString.lower(seedHex),
+        FfiConverterString.lower(network),
+        FfiConverterUInt32.lower(identityProviderId),
+        FfiConverterUInt32.lower(identityIndex),
+        FfiConverterUInt8.lower(credentialCounter),
+        FfiConverterUInt8.lower(attribute),$0)
+}
     )
 }
-
 /**
  * Compute the hash of a new credential deployment to be signed by the account key derived for the credential.
  * The result is hex encoded.
  */
-public func accountCredentialDeploymentHashHex(credential: AccountCredential, expiryUnixSecs: UInt64) throws -> String {
-    return try FfiConverterString.lift(
-        rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
-            uniffi_concordium_wallet_crypto_uniffi_fn_func_account_credential_deployment_hash_hex(
-                FfiConverterTypeAccountCredential.lower(credential),
-                FfiConverterUInt64.lower(expiryUnixSecs), $0
-            )
-        }
+public func accountCredentialDeploymentHashHex(credential: AccountCredential, expiryUnixSecs: UInt64) throws  -> String {
+    return try  FfiConverterString.lift(
+        try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_account_credential_deployment_hash_hex(
+        FfiConverterTypeAccountCredential.lower(credential),
+        FfiConverterUInt64.lower(expiryUnixSecs),$0)
+}
     )
 }
-
 /**
  * Serializes the credential deployment payload for submission as a "raw" payload to a node.
  * The result is hex encoded.
  */
-public func accountCredentialDeploymentSignedPayloadHex(credential: SignedAccountCredential) throws -> String {
-    return try FfiConverterString.lift(
-        rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
-            uniffi_concordium_wallet_crypto_uniffi_fn_func_account_credential_deployment_signed_payload_hex(
-                FfiConverterTypeSignedAccountCredential.lower(credential), $0
-            )
-        }
+public func accountCredentialDeploymentSignedPayloadHex(credential: SignedAccountCredential) throws  -> String {
+    return try  FfiConverterString.lift(
+        try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_account_credential_deployment_signed_payload_hex(
+        FfiConverterTypeSignedAccountCredential.lower(credential),$0)
+}
     )
 }
-
 /**
  * Compute the credential ID for the provided seed, identity indexes, credential counter, and the chain's commitment key.
  * Supported values for `network`: "Testnet", "Mainnet".
  * The result is hex encoded.
  */
-public func accountCredentialIdHex(seedHex: String, network: String, identityProviderId: UInt32, identityIndex: UInt32, credentialCounter: UInt8, commitmentKey: String) throws -> String {
-    return try FfiConverterString.lift(
-        rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
-            uniffi_concordium_wallet_crypto_uniffi_fn_func_account_credential_id_hex(
-                FfiConverterString.lower(seedHex),
-                FfiConverterString.lower(network),
-                FfiConverterUInt32.lower(identityProviderId),
-                FfiConverterUInt32.lower(identityIndex),
-                FfiConverterUInt8.lower(credentialCounter),
-                FfiConverterString.lower(commitmentKey), $0
-            )
-        }
+public func accountCredentialIdHex(seedHex: String, network: String, identityProviderId: UInt32, identityIndex: UInt32, credentialCounter: UInt8, commitmentKey: String) throws  -> String {
+    return try  FfiConverterString.lift(
+        try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_account_credential_id_hex(
+        FfiConverterString.lower(seedHex),
+        FfiConverterString.lower(network),
+        FfiConverterUInt32.lower(identityProviderId),
+        FfiConverterUInt32.lower(identityIndex),
+        FfiConverterUInt8.lower(credentialCounter),
+        FfiConverterString.lower(commitmentKey),$0)
+}
     )
 }
-
 /**
  * Compute the account credential public key for the provided seed, identity indexes, and credential counter.
  * Supported values for `network`: "Testnet", "Mainnet".
  * The result is hex encoded.
  */
-public func accountCredentialPublicKeyHex(seedHex: String, network: String, identityProviderId: UInt32, identityIndex: UInt32, credentialCounter: UInt8) throws -> String {
-    return try FfiConverterString.lift(
-        rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
-            uniffi_concordium_wallet_crypto_uniffi_fn_func_account_credential_public_key_hex(
-                FfiConverterString.lower(seedHex),
-                FfiConverterString.lower(network),
-                FfiConverterUInt32.lower(identityProviderId),
-                FfiConverterUInt32.lower(identityIndex),
-                FfiConverterUInt8.lower(credentialCounter), $0
-            )
-        }
+public func accountCredentialPublicKeyHex(seedHex: String, network: String, identityProviderId: UInt32, identityIndex: UInt32, credentialCounter: UInt8) throws  -> String {
+    return try  FfiConverterString.lift(
+        try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_account_credential_public_key_hex(
+        FfiConverterString.lower(seedHex),
+        FfiConverterString.lower(network),
+        FfiConverterUInt32.lower(identityProviderId),
+        FfiConverterUInt32.lower(identityIndex),
+        FfiConverterUInt8.lower(credentialCounter),$0)
+}
     )
 }
-
 /**
  * Compute the account credential signing key for the provided seed, identity indexes, and credential counter.
  * Supported values for `network`: "Testnet", "Mainnet".
  * The result is hex encoded.
  */
-public func accountCredentialSigningKeyHex(seedHex: String, network: String, identityProviderId: UInt32, identityIndex: UInt32, credentialCounter: UInt8) throws -> String {
-    return try FfiConverterString.lift(
-        rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
-            uniffi_concordium_wallet_crypto_uniffi_fn_func_account_credential_signing_key_hex(
-                FfiConverterString.lower(seedHex),
-                FfiConverterString.lower(network),
-                FfiConverterUInt32.lower(identityProviderId),
-                FfiConverterUInt32.lower(identityIndex),
-                FfiConverterUInt8.lower(credentialCounter), $0
-            )
-        }
+public func accountCredentialSigningKeyHex(seedHex: String, network: String, identityProviderId: UInt32, identityIndex: UInt32, credentialCounter: UInt8) throws  -> String {
+    return try  FfiConverterString.lift(
+        try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_account_credential_signing_key_hex(
+        FfiConverterString.lower(seedHex),
+        FfiConverterString.lower(network),
+        FfiConverterUInt32.lower(identityProviderId),
+        FfiConverterUInt32.lower(identityIndex),
+        FfiConverterUInt8.lower(credentialCounter),$0)
+}
     )
 }
-
+/**
+ * Attempt to deserialize SecToPubTransferData from the supplied bytes. This will fail if the number of bytes does not exactly match the expected number.
+ */
+public func deserializeSecToPubTransferData(bytes: Data) throws  -> SecToPubTransferDataDeserializeResult {
+    return try  FfiConverterTypeSecToPubTransferDataDeserializeResult.lift(
+        try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_deserialize_sec_to_pub_transfer_data(
+        FfiConverterData.lower(bytes),$0)
+}
+    )
+}
+/**
+ * Attempt to deserialize UpdateCredentialsPayloadDeserializeResult from the supplied bytes. This will fail if the number of bytes does not exactly match the expected number.
+ */
+public func deserializeUpdateCredentialsPayload(bytes: Data) throws  -> UpdateCredentialsPayloadDeserializeResult {
+    return try  FfiConverterTypeUpdateCredentialsPayloadDeserializeResult.lift(
+        try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_deserialize_update_credentials_payload(
+        FfiConverterData.lower(bytes),$0)
+}
+    )
+}
+/**
+ * Create a set of baker keys
+ */
+public func generateBakerKeys()  -> BakerKeyPairs {
+    return try!  FfiConverterTypeBakerKeyPairs.lift(
+        try! rustCall() {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_generate_baker_keys($0)
+}
+    )
+}
 /**
  * Compute the signature blinding randomness for the provided seed and identity indexes.
  * Supported values for `network`: "Testnet", "Mainnet".
  * The result is hex encoded.
  */
-public func identityAttributesSignatureBlindingRandomnessHex(seedHex: String, network: String, identityProviderId: UInt32, identityIndex: UInt32) throws -> String {
-    return try FfiConverterString.lift(
-        rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
-            uniffi_concordium_wallet_crypto_uniffi_fn_func_identity_attributes_signature_blinding_randomness_hex(
-                FfiConverterString.lower(seedHex),
-                FfiConverterString.lower(network),
-                FfiConverterUInt32.lower(identityProviderId),
-                FfiConverterUInt32.lower(identityIndex), $0
-            )
-        }
+public func identityAttributesSignatureBlindingRandomnessHex(seedHex: String, network: String, identityProviderId: UInt32, identityIndex: UInt32) throws  -> String {
+    return try  FfiConverterString.lift(
+        try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_identity_attributes_signature_blinding_randomness_hex(
+        FfiConverterString.lower(seedHex),
+        FfiConverterString.lower(network),
+        FfiConverterUInt32.lower(identityProviderId),
+        FfiConverterUInt32.lower(identityIndex),$0)
+}
     )
 }
-
 /**
  * Compute the IdCredSec for the provided seed and identity indexes.
  * Supported values for `network`: "Testnet", "Mainnet".
  * The result is hex encoded.
  */
-public func identityCredSecHex(seedHex: String, network: String, identityProviderId: UInt32, identityIndex: UInt32) throws -> String {
-    return try FfiConverterString.lift(
-        rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
-            uniffi_concordium_wallet_crypto_uniffi_fn_func_identity_cred_sec_hex(
-                FfiConverterString.lower(seedHex),
-                FfiConverterString.lower(network),
-                FfiConverterUInt32.lower(identityProviderId),
-                FfiConverterUInt32.lower(identityIndex), $0
-            )
-        }
+public func identityCredSecHex(seedHex: String, network: String, identityProviderId: UInt32, identityIndex: UInt32) throws  -> String {
+    return try  FfiConverterString.lift(
+        try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_identity_cred_sec_hex(
+        FfiConverterString.lower(seedHex),
+        FfiConverterString.lower(network),
+        FfiConverterUInt32.lower(identityProviderId),
+        FfiConverterUInt32.lower(identityIndex),$0)
+}
     )
 }
-
 /**
  * Compute an identity issuance request for the identity contained in the provided parameters.
  * The result is a versioned `PreIdentityObject` encoded as JSON,
  * which is the format expected by the identity provider's issuance endpoint.
  */
-public func identityIssuanceRequestJson(params: IdentityIssuanceRequestParameters) throws -> String {
-    return try FfiConverterString.lift(
-        rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
-            uniffi_concordium_wallet_crypto_uniffi_fn_func_identity_issuance_request_json(
-                FfiConverterTypeIdentityIssuanceRequestParameters.lower(params), $0
-            )
-        }
+public func identityIssuanceRequestJson(params: IdentityIssuanceRequestParameters) throws  -> String {
+    return try  FfiConverterString.lift(
+        try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_identity_issuance_request_json(
+        FfiConverterTypeIdentityIssuanceRequestParameters.lower(params),$0)
+}
     )
 }
-
 /**
  * Compute the PRF-key for the provided seed and identity indexes.
  * Supported values for `network`: "Testnet", "Mainnet".
  * The result is hex encoded.
  */
-public func identityPrfKeyHex(seedHex: String, network: String, identityProviderId: UInt32, identityIndex: UInt32) throws -> String {
-    return try FfiConverterString.lift(
-        rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
-            uniffi_concordium_wallet_crypto_uniffi_fn_func_identity_prf_key_hex(
-                FfiConverterString.lower(seedHex),
-                FfiConverterString.lower(network),
-                FfiConverterUInt32.lower(identityProviderId),
-                FfiConverterUInt32.lower(identityIndex), $0
-            )
-        }
+public func identityPrfKeyHex(seedHex: String, network: String, identityProviderId: UInt32, identityIndex: UInt32) throws  -> String {
+    return try  FfiConverterString.lift(
+        try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_identity_prf_key_hex(
+        FfiConverterString.lower(seedHex),
+        FfiConverterString.lower(network),
+        FfiConverterUInt32.lower(identityProviderId),
+        FfiConverterUInt32.lower(identityIndex),$0)
+}
     )
 }
-
 /**
  * Construct an identity recovery request for the identity contained in the provided parameters.
  * The result encoded as JSON in the format expected by the identity provider's recovery endpoint.
  */
-public func identityRecoveryRequestJson(params: IdentityRecoveryRequestParameters) throws -> String {
-    return try FfiConverterString.lift(
-        rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
-            uniffi_concordium_wallet_crypto_uniffi_fn_func_identity_recovery_request_json(
-                FfiConverterTypeIdentityRecoveryRequestParameters.lower(params), $0
-            )
-        }
+public func identityRecoveryRequestJson(params: IdentityRecoveryRequestParameters) throws  -> String {
+    return try  FfiConverterString.lift(
+        try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_identity_recovery_request_json(
+        FfiConverterTypeIdentityRecoveryRequestParameters.lower(params),$0)
+}
     )
 }
-
+/**
+ * Attempt to create a BakerKeysPayload for the account and associated baker keys
+ */
+public func makeConfigureBakerKeysPayload(accountBase58: String, bakerKeys: BakerKeyPairs) throws  -> BakerKeysPayload {
+    return try  FfiConverterTypeBakerKeysPayload.lift(
+        try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_make_configure_baker_keys_payload(
+        FfiConverterString.lower(accountBase58),
+        FfiConverterTypeBakerKeyPairs.lower(bakerKeys),$0)
+}
+    )
+}
+/**
+ * Construct the payload for a TransferToPublic transaction. The `to_transfer` amount is specififed in microCCD.
+ */
+public func secToPubTransferData(ctx: GlobalContext, senderSecretKey: Bytes, inputAmount: InputEncryptedAmount, toTransfer: UInt64) throws  -> SecToPubTransferData {
+    return try  FfiConverterTypeSecToPubTransferData.lift(
+        try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_sec_to_pub_transfer_data(
+        FfiConverterTypeGlobalContext.lower(ctx),
+        FfiConverterTypeBytes.lower(senderSecretKey),
+        FfiConverterTypeInputEncryptedAmount.lower(inputAmount),
+        FfiConverterUInt64.lower(toTransfer),$0)
+}
+    )
+}
+/**
+ * Attempt to serialize CredentialDeploymentInfo into bytes. This will fail if any of the raw hex representations do not match the corresponding types in concordium-base
+ */
+public func serializeCredentialDeploymentInfo(credInfo: CredentialDeploymentInfo) throws  -> Data {
+    return try  FfiConverterData.lift(
+        try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_serialize_credential_deployment_info(
+        FfiConverterTypeCredentialDeploymentInfo.lower(credInfo),$0)
+}
+    )
+}
 /**
  * Compute the encoded verifiable credential backup encryption key for the provided seed.
  * Supported values for `network`: "Testnet", "Mainnet".
  * The result is hex encoded.
  */
-public func verifiableCredentialBackupEncryptionKeyHex(seedHex: String, network: String) throws -> String {
-    return try FfiConverterString.lift(
-        rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
-            uniffi_concordium_wallet_crypto_uniffi_fn_func_verifiable_credential_backup_encryption_key_hex(
-                FfiConverterString.lower(seedHex),
-                FfiConverterString.lower(network), $0
-            )
-        }
+public func verifiableCredentialBackupEncryptionKeyHex(seedHex: String, network: String) throws  -> String {
+    return try  FfiConverterString.lift(
+        try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_verifiable_credential_backup_encryption_key_hex(
+        FfiConverterString.lower(seedHex),
+        FfiConverterString.lower(network),$0)
+}
     )
 }
-
 /**
  * Compute the public key for the provided seed, issuer indexes, and verifiable credential index.
  * Supported values for `network`: "Testnet", "Mainnet".
  * The result is hex encoded.
  */
-public func verifiableCredentialPublicKeyHex(seedHex: String, network: String, issuerIndex: UInt64, issuerSubindex: UInt64, verifiableCredentialIndex: UInt32) throws -> String {
-    return try FfiConverterString.lift(
-        rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
-            uniffi_concordium_wallet_crypto_uniffi_fn_func_verifiable_credential_public_key_hex(
-                FfiConverterString.lower(seedHex),
-                FfiConverterString.lower(network),
-                FfiConverterUInt64.lower(issuerIndex),
-                FfiConverterUInt64.lower(issuerSubindex),
-                FfiConverterUInt32.lower(verifiableCredentialIndex), $0
-            )
-        }
+public func verifiableCredentialPublicKeyHex(seedHex: String, network: String, issuerIndex: UInt64, issuerSubindex: UInt64, verifiableCredentialIndex: UInt32) throws  -> String {
+    return try  FfiConverterString.lift(
+        try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_verifiable_credential_public_key_hex(
+        FfiConverterString.lower(seedHex),
+        FfiConverterString.lower(network),
+        FfiConverterUInt64.lower(issuerIndex),
+        FfiConverterUInt64.lower(issuerSubindex),
+        FfiConverterUInt32.lower(verifiableCredentialIndex),$0)
+}
     )
 }
-
 /**
  * Compute the signing key for the provided seed, issuer indexes, and verifiable credential index.
  * Supported values for `network`: "Testnet", "Mainnet".
  * The result is hex encoded.
  */
-public func verifiableCredentialSigningKeyHex(seedHex: String, network: String, issuerIndex: UInt64, issuerSubindex: UInt64, verifiableCredentialIndex: UInt32) throws -> String {
-    return try FfiConverterString.lift(
-        rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
-            uniffi_concordium_wallet_crypto_uniffi_fn_func_verifiable_credential_signing_key_hex(
-                FfiConverterString.lower(seedHex),
-                FfiConverterString.lower(network),
-                FfiConverterUInt64.lower(issuerIndex),
-                FfiConverterUInt64.lower(issuerSubindex),
-                FfiConverterUInt32.lower(verifiableCredentialIndex), $0
-            )
-        }
+public func verifiableCredentialSigningKeyHex(seedHex: String, network: String, issuerIndex: UInt64, issuerSubindex: UInt64, verifiableCredentialIndex: UInt32) throws  -> String {
+    return try  FfiConverterString.lift(
+        try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_verifiable_credential_signing_key_hex(
+        FfiConverterString.lower(seedHex),
+        FfiConverterString.lower(network),
+        FfiConverterUInt64.lower(issuerIndex),
+        FfiConverterUInt64.lower(issuerSubindex),
+        FfiConverterUInt32.lower(verifiableCredentialIndex),$0)
+}
     )
 }
 
@@ -2764,7 +3720,6 @@ private enum InitializationResult {
     case contractVersionMismatch
     case apiChecksumMismatch
 }
-
 // Use a global variables to perform the versioning checks. Swift ensures that
 // the code inside is only computed once.
 private var initializationResult: InitializationResult {
@@ -2775,49 +3730,67 @@ private var initializationResult: InitializationResult {
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
-    if uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential() != 28347 {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential() != 28347) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_attribute_commitment_randomness_hex() != 36552 {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_attribute_commitment_randomness_hex() != 36552) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_deployment_hash_hex() != 5211 {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_deployment_hash_hex() != 5211) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_deployment_signed_payload_hex() != 12194 {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_deployment_signed_payload_hex() != 12194) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_id_hex() != 3361 {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_id_hex() != 3361) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_public_key_hex() != 37156 {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_public_key_hex() != 37156) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_signing_key_hex() != 14900 {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_signing_key_hex() != 14900) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_concordium_wallet_crypto_uniffi_checksum_func_identity_attributes_signature_blinding_randomness_hex() != 52576 {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_deserialize_sec_to_pub_transfer_data() != 15687) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_concordium_wallet_crypto_uniffi_checksum_func_identity_cred_sec_hex() != 50297 {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_deserialize_update_credentials_payload() != 65247) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_concordium_wallet_crypto_uniffi_checksum_func_identity_issuance_request_json() != 28061 {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_generate_baker_keys() != 22656) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_concordium_wallet_crypto_uniffi_checksum_func_identity_prf_key_hex() != 44691 {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_identity_attributes_signature_blinding_randomness_hex() != 52576) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_concordium_wallet_crypto_uniffi_checksum_func_identity_recovery_request_json() != 33579 {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_identity_cred_sec_hex() != 50297) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_concordium_wallet_crypto_uniffi_checksum_func_verifiable_credential_backup_encryption_key_hex() != 33639 {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_identity_issuance_request_json() != 28061) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_concordium_wallet_crypto_uniffi_checksum_func_verifiable_credential_public_key_hex() != 45224 {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_identity_prf_key_hex() != 44691) {
         return InitializationResult.apiChecksumMismatch
     }
-    if uniffi_concordium_wallet_crypto_uniffi_checksum_func_verifiable_credential_signing_key_hex() != 34189 {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_identity_recovery_request_json() != 33579) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_make_configure_baker_keys_payload() != 25683) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_sec_to_pub_transfer_data() != 30839) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_serialize_credential_deployment_info() != 61448) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_verifiable_credential_backup_encryption_key_hex() != 33639) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_verifiable_credential_public_key_hex() != 45224) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_verifiable_credential_signing_key_hex() != 34189) {
         return InitializationResult.apiChecksumMismatch
     }
 
