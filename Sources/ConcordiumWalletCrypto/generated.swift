@@ -2662,11 +2662,12 @@ public struct SecToPubTransferData {
      * The serialized remaining amount after deducting the amount to transfer
      * Serialized according to the [`Serial`] implementation of [`concordium_base::encrypted_transfers::types::EncryptedAmount`]
      */
-    public var serializedRemainingAmount: Bytes
+    public var remainingAmount: Bytes
     /**
-     * The amount to transfer
+     * The amount to transfer in microCCD.
+     * For historic reasons, amounts are serialized as strings.
      */
-    public var transferAmount: UInt64
+    public var transferAmount: String
     /**
      * The transfer index of the transfer
      */
@@ -2675,7 +2676,7 @@ public struct SecToPubTransferData {
      * The serialized proof that the transfer is correct.
      * Serialized according to the [`Serial`] implementation of [`concordium_base::encrypted_transfers::types::SecToPubAmountTransferProof`]
      */
-    public var serializedProof: Bytes
+    public var proof: Bytes
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -2684,11 +2685,12 @@ public struct SecToPubTransferData {
          * The serialized remaining amount after deducting the amount to transfer
          * Serialized according to the [`Serial`] implementation of [`concordium_base::encrypted_transfers::types::EncryptedAmount`]
          */
-        serializedRemainingAmount: Bytes, 
+        remainingAmount: Bytes, 
         /**
-         * The amount to transfer
+         * The amount to transfer in microCCD.
+         * For historic reasons, amounts are serialized as strings.
          */
-        transferAmount: UInt64, 
+        transferAmount: String, 
         /**
          * The transfer index of the transfer
          */
@@ -2697,18 +2699,18 @@ public struct SecToPubTransferData {
          * The serialized proof that the transfer is correct.
          * Serialized according to the [`Serial`] implementation of [`concordium_base::encrypted_transfers::types::SecToPubAmountTransferProof`]
          */
-        serializedProof: Bytes) {
-        self.serializedRemainingAmount = serializedRemainingAmount
+        proof: Bytes) {
+        self.remainingAmount = remainingAmount
         self.transferAmount = transferAmount
         self.index = index
-        self.serializedProof = serializedProof
+        self.proof = proof
     }
 }
 
 
 extension SecToPubTransferData: Equatable, Hashable {
     public static func ==(lhs: SecToPubTransferData, rhs: SecToPubTransferData) -> Bool {
-        if lhs.serializedRemainingAmount != rhs.serializedRemainingAmount {
+        if lhs.remainingAmount != rhs.remainingAmount {
             return false
         }
         if lhs.transferAmount != rhs.transferAmount {
@@ -2717,17 +2719,17 @@ extension SecToPubTransferData: Equatable, Hashable {
         if lhs.index != rhs.index {
             return false
         }
-        if lhs.serializedProof != rhs.serializedProof {
+        if lhs.proof != rhs.proof {
             return false
         }
         return true
     }
 
     public func hash(into hasher: inout Hasher) {
-        hasher.combine(serializedRemainingAmount)
+        hasher.combine(remainingAmount)
         hasher.combine(transferAmount)
         hasher.combine(index)
-        hasher.combine(serializedProof)
+        hasher.combine(proof)
     }
 }
 
@@ -2736,18 +2738,18 @@ public struct FfiConverterTypeSecToPubTransferData: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SecToPubTransferData {
         return
             try SecToPubTransferData(
-                serializedRemainingAmount: FfiConverterTypeBytes.read(from: &buf), 
-                transferAmount: FfiConverterUInt64.read(from: &buf), 
+                remainingAmount: FfiConverterTypeBytes.read(from: &buf), 
+                transferAmount: FfiConverterString.read(from: &buf), 
                 index: FfiConverterUInt64.read(from: &buf), 
-                serializedProof: FfiConverterTypeBytes.read(from: &buf)
+                proof: FfiConverterTypeBytes.read(from: &buf)
         )
     }
 
     public static func write(_ value: SecToPubTransferData, into buf: inout [UInt8]) {
-        FfiConverterTypeBytes.write(value.serializedRemainingAmount, into: &buf)
-        FfiConverterUInt64.write(value.transferAmount, into: &buf)
+        FfiConverterTypeBytes.write(value.remainingAmount, into: &buf)
+        FfiConverterString.write(value.transferAmount, into: &buf)
         FfiConverterUInt64.write(value.index, into: &buf)
-        FfiConverterTypeBytes.write(value.serializedProof, into: &buf)
+        FfiConverterTypeBytes.write(value.proof, into: &buf)
     }
 }
 
