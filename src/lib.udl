@@ -262,14 +262,15 @@ dictionary InputEncryptedAmount {
 dictionary SecToPubTransferData {
     /// The serialized remaining amount after deducting the amount to transfer
     /// Serialized according to the [`Serial`] implementation of [`concordium_base::encrypted_transfers::types::EncryptedAmount`]
-    Bytes serialized_remaining_amount;
-    /// The amount to transfer
-    u64 transfer_amount;
+    Bytes remaining_amount;
+    /// The amount to transfer in microCCD.
+    /// For historic reasons, amounts are serialized as strings.
+    string transfer_amount;
     /// The transfer index of the transfer
     u64 index;
     /// The serialized proof that the transfer is correct.
     /// Serialized according to the [`Serial`] implementation of [`concordium_base::encrypted_transfers::types::SecToPubAmountTransferProof`]
-    Bytes serialized_proof;
+    Bytes proof;
 };
 
 dictionary SecToPubTransferDataDeserializeResult {

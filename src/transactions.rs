@@ -55,31 +55,31 @@ impl TryFrom<InputEncryptedAmount> for AggregatedDecryptedAmount<ArCurve> {
 
 /// UniFFI compatible bridge from [`SecToPubAmountTransferData<ArCurve>`],
 /// providing the implementation of the UDL declaration of the same name.
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SecToPubTransferData {
     /// Serialized according to the [`Serial`] implementation of [`concordium_base::encrypted_transfers::types::EncryptedAmount`]
-    pub serialized_remaining_amount: Bytes,
-    pub transfer_amount: u64,
+    pub remaining_amount: Bytes,
+    /// In microCCD. For historic resons, amounts are serialized as strings
+    pub transfer_amount: String,
     pub index: u64,
     /// Serialized according to the [`Serial`] implementation of [`concordium_base::encrypted_transfers::types::SecToPubAmountTransferProof`]
-    pub serialized_proof: Bytes,
+    pub proof: Bytes,
 }
 
-impl From<SecToPubAmountTransferData<ArCurve>> for SecToPubTransferData {
-    fn from(value: SecToPubAmountTransferData<ArCurve>) -> Self {
-        let mut serialized_remaining_amount = vec![];
-        value
-            .remaining_amount
-            .serial(&mut serialized_remaining_amount);
-        let mut serialized_proof = vec![];
-        value.proof.serial(&mut serialized_proof);
+impl TryFrom<SecToPubTransferData> for SecToPubAmountTransferData<ArCurve> {
+    type Error = serde_json::Error;
 
-        SecToPubTransferData {
-            serialized_remaining_amount: Bytes::from(serialized_remaining_amount),
-            transfer_amount: value.transfer_amount.micro_ccd,
-            index: value.index.index,
-            serialized_proof: Bytes::from(serialized_proof),
-        }
+    fn try_from(value: SecToPubTransferData) -> Result<Self, Self::Error> {
+        serde_json::to_string(&value).and_then(|json| serde_json::from_str::<Self>(&json))
+    }
+}
+
+impl TryFrom<SecToPubAmountTransferData<ArCurve>> for SecToPubTransferData {
+    type Error = serde_json::Error;
+
+    fn try_from(value: SecToPubAmountTransferData<ArCurve>) -> Result<Self, Self::Error> {
+        serde_json::to_string(&value).and_then(|json| serde_json::from_str::<Self>(&json))
     }
 }
 
@@ -111,7 +111,7 @@ impl SecToPubTransferData {
         )
         .context("Failed to create transfer data")?;
 
-        Ok(transfer_data.into())
+        Ok(transfer_data.try_into()?)
     }
 }
 
@@ -143,9 +143,11 @@ pub fn deserialize_sec_to_pub_transfer_data(
     let mut bytes = std::io::Cursor::new(bytes);
     let transfer_data = SecToPubAmountTransferData::deserial(&mut bytes)
         .map_err(|e| e.to_call_failed(fn_name.to_string()))?;
+    let transfer_data = SecToPubTransferData::try_from(transfer_data)
+        .map_err(|e| e.to_call_failed(fn_name.to_string()))?;
 
     let result = DeserializeResult {
-        value: transfer_data.into(),
+        value: transfer_data,
         bytes_read: bytes.position(),
     };
     Ok(result)
