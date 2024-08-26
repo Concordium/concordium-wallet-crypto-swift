@@ -22,150 +22,192 @@ use wallet_library::{
 };
 
 /// Implements UDL definition of the same name.
-pub fn identity_cred_sec_hex(
-    seed_hex: String,
+pub fn identity_cred_sec(
+    seed: Bytes,
     net: String,
     identity_provider_id: u32,
     identity_index: u32,
-) -> Result<String, ConcordiumWalletCryptoError> {
-    get_id_cred_sec_aux(seed_hex, net.as_str(), identity_provider_id, identity_index)
-        .map_err(|e| ConcordiumWalletCryptoError::CallFailed {
-            call: format!("identity_cred_sec_hex(seed_hex, net={net}, identity_provider_id={identity_provider_id}, identity_index={identity_index})"),
-            msg: format!("{:#}", e),
-        })
+) -> Result<Bytes, ConcordiumWalletCryptoError> {
+    let fn_desc = "identity_cred_sec(seed, net={net}, identity_provider_id={identity_provider_id}, identity_index={identity_index})";
+    let hex = get_id_cred_sec_aux(
+        hex::encode(seed),
+        net.as_str(),
+        identity_provider_id,
+        identity_index,
+    )
+    .map_err(|e| e.to_call_failed(fn_desc.to_string()))?;
+    Bytes::try_from(hex.as_str()).map_err(|e| e.to_call_failed(fn_desc.to_string()))
 }
 
 /// Implements UDL definition of the same name.
-pub fn identity_prf_key_hex(
-    seed_hex: String,
+pub fn identity_prf_key(
+    seed: Bytes,
     net: String,
     identity_provider_id: u32,
     identity_index: u32,
-) -> Result<String, ConcordiumWalletCryptoError> {
-    get_prf_key_aux(seed_hex, net.as_str(), identity_provider_id, identity_index)
-        .map_err(|e| ConcordiumWalletCryptoError::CallFailed {
-            call: format!("identity_prf_key_hex(seed_hex, net={net}, identity_provider_id={identity_provider_id}, identity_index={identity_index})"),
-            msg: format!("{:#}", e),
-        })
+) -> Result<Bytes, ConcordiumWalletCryptoError> {
+    let fn_desc = "identity_prf_key(seed, net={net}, identity_provider_id={identity_provider_id}, identity_index={identity_index})";
+    let hex = get_prf_key_aux(
+        hex::encode(seed),
+        net.as_str(),
+        identity_provider_id,
+        identity_index,
+    )
+    .map_err(|e| e.to_call_failed(fn_desc.to_string()))?;
+    Bytes::try_from(hex.as_str()).map_err(|e| e.to_call_failed(fn_desc.to_string()))
 }
 
 /// Implements UDL definition of the same name.
-pub fn identity_attributes_signature_blinding_randomness_hex(
-    seed_hex: String,
+pub fn identity_attributes_signature_blinding_randomness(
+    seed: Bytes,
     net: String,
     identity_provider_id: u32,
     identity_index: u32,
-) -> Result<String, ConcordiumWalletCryptoError> {
-    get_signature_blinding_randomness_aux(seed_hex, net.as_str(), identity_provider_id, identity_index)
-        .map_err(|e| ConcordiumWalletCryptoError::CallFailed {
-            call: format!("identity_attributes_signature_blinding_randomness_hex(seed_hex, net={net}, identity_provider_id={identity_provider_id}, identity_index={identity_index})"),
-            msg: format!("{:#}", e),
-        })
+) -> Result<Bytes, ConcordiumWalletCryptoError> {
+    let fn_desc = "identity_attributes_signature_blinding_randomness(seed, net={net}, identity_provider_id={identity_provider_id}, identity_index={identity_index})";
+    let hex = get_signature_blinding_randomness_aux(
+        hex::encode(seed),
+        net.as_str(),
+        identity_provider_id,
+        identity_index,
+    )
+    .map_err(|e| e.to_call_failed(fn_desc.to_string()))?;
+    Bytes::try_from(hex.as_str()).map_err(|e| e.to_call_failed(fn_desc.to_string()))
 }
 
 /// Implements UDL definition of the same name.
-pub fn account_credential_signing_key_hex(
-    seed_hex: String,
-    net: String,
-    identity_provider_id: u32,
-    identity_index: u32,
-    credential_counter: u8,
-) -> Result<String, ConcordiumWalletCryptoError> {
-    get_account_signing_key_aux(seed_hex, net.as_str(), identity_provider_id, identity_index, credential_counter.into())
-        .map_err(|e| ConcordiumWalletCryptoError::CallFailed {
-            call: format!("account_credential_signing_key_hex(seed_hex, net={net}, identity_provider_id={identity_provider_id}, identity_index={identity_index}, credential_counter={credential_counter})"),
-            msg: format!("{:#}", e),
-        })
-}
-
-/// Implements UDL definition of the same name.
-pub fn account_credential_public_key_hex(
-    seed_hex: String,
-    net: String,
-    identity_provider_id: u32,
-    identity_index: u32,
-    credential_counter: u8,
-) -> Result<String, ConcordiumWalletCryptoError> {
-    get_account_public_key_aux(seed_hex, net.as_str(), identity_provider_id, identity_index, credential_counter.into())
-        .map_err(|e| ConcordiumWalletCryptoError::CallFailed {
-            call: format!("account_credential_public_key_hex(seed_hex, net={net}, identity_provider_id={identity_provider_id}, identity_index={identity_index}, credential_counter={credential_counter})"),
-            msg: format!("{:#}", e),
-        })
-}
-
-/// Implements UDL definition of the same name.
-pub fn account_credential_id_hex(
-    seed_hex: String,
+pub fn account_credential_signing_key(
+    seed: Bytes,
     net: String,
     identity_provider_id: u32,
     identity_index: u32,
     credential_counter: u8,
-    commitment_key: String,
-) -> Result<String, ConcordiumWalletCryptoError> {
-    get_credential_id_aux(seed_hex, net.as_str(), identity_provider_id, identity_index, credential_counter, commitment_key.as_str())
-        .map_err(|e| ConcordiumWalletCryptoError::CallFailed {
-            call: format!("account_credential_id_hex(seed_hex, net={net}, identity_provider_id={identity_provider_id}, identity_index={identity_index}, credential_counter={credential_counter}, commitment_key={commitment_key})"),
-            msg: format!("{:#}", e),
-        })
+) -> Result<Bytes, ConcordiumWalletCryptoError> {
+    let fn_desc = "account_credential_signing_key(seed, net={net}, identity_provider_id={identity_provider_id}, identity_index={identity_index}, credential_counter={credential_counter})";
+    let hex = get_account_signing_key_aux(
+        hex::encode(seed),
+        net.as_str(),
+        identity_provider_id,
+        identity_index,
+        credential_counter.into(),
+    )
+    .map_err(|e| e.to_call_failed(fn_desc.to_string()))?;
+    Bytes::try_from(hex.as_str()).map_err(|e| e.to_call_failed(fn_desc.to_string()))
 }
 
 /// Implements UDL definition of the same name.
-pub fn account_credential_attribute_commitment_randomness_hex(
-    seed_hex: String,
+pub fn account_credential_public_key(
+    seed: Bytes,
+    net: String,
+    identity_provider_id: u32,
+    identity_index: u32,
+    credential_counter: u8,
+) -> Result<Bytes, ConcordiumWalletCryptoError> {
+    let fn_desc = "account_credential_public_key(seed, net={net}, identity_provider_id={identity_provider_id}, identity_index={identity_index}, credential_counter={credential_counter})";
+    let hex = get_account_public_key_aux(
+        hex::encode(seed),
+        net.as_str(),
+        identity_provider_id,
+        identity_index,
+        credential_counter.into(),
+    )
+    .map_err(|e| e.to_call_failed(fn_desc.to_string()))?;
+    Bytes::try_from(hex.as_str()).map_err(|e| e.to_call_failed(fn_desc.to_string()))
+}
+
+/// Implements UDL definition of the same name.
+pub fn account_credential_id(
+    seed: Bytes,
+    net: String,
+    identity_provider_id: u32,
+    identity_index: u32,
+    credential_counter: u8,
+    commitment_key: Bytes,
+) -> Result<Bytes, ConcordiumWalletCryptoError> {
+    let fn_desc = "account_credential_id(seed, net={net}, identity_provider_id={identity_provider_id}, identity_index={identity_index}, credential_counter={credential_counter}, commitment_key={commitment_key})";
+    let hex = get_credential_id_aux(
+        hex::encode(seed),
+        net.as_str(),
+        identity_provider_id,
+        identity_index,
+        credential_counter,
+        &hex::encode(commitment_key),
+    )
+    .map_err(|e| e.to_call_failed(fn_desc.to_string()))?;
+    Bytes::try_from(hex.as_str()).map_err(|e| e.to_call_failed(fn_desc.to_string()))
+}
+
+/// Implements UDL definition of the same name.
+pub fn account_credential_attribute_commitment_randomness(
+    seed: Bytes,
     net: String,
     identity_provider_id: u32,
     identity_index: u32,
     credential_counter: u8,
     attribute: u8,
-) -> Result<String, ConcordiumWalletCryptoError> {
-    get_attribute_commitment_randomness_aux(seed_hex, net.as_str(), identity_provider_id, identity_index, credential_counter.into(), attribute)
-        .map_err(|e| ConcordiumWalletCryptoError::CallFailed {
-            call: format!("account_credential_attribute_commitment_randomness_hex(seed_hex, net={net}, identity_provider_id={identity_provider_id}, identity_index={identity_index}, credential_counter={credential_counter}, attribute={attribute})"),
-            msg: format!("{:#}", e),
-        })
+) -> Result<Bytes, ConcordiumWalletCryptoError> {
+    let fn_desc = "account_credential_attribute_commitment_randomness(seed, net={net}, identity_provider_id={identity_provider_id}, identity_index={identity_index}, credential_counter={credential_counter}, attribute={attribute})";
+    let hex = get_attribute_commitment_randomness_aux(
+        hex::encode(seed),
+        net.as_str(),
+        identity_provider_id,
+        identity_index,
+        credential_counter.into(),
+        attribute,
+    )
+    .map_err(|e| e.to_call_failed(fn_desc.to_string()))?;
+    Bytes::try_from(hex.as_str()).map_err(|e| e.to_call_failed(fn_desc.to_string()))
 }
 
 /// Implements UDL definition of the same name.
-pub fn verifiable_credential_signing_key_hex(
-    seed_hex: String,
+pub fn verifiable_credential_signing_key(
+    seed: Bytes,
     net: String,
     issuer_index: u64,
     issuer_subindex: u64,
     verifiable_credential_index: u32,
-) -> Result<String, ConcordiumWalletCryptoError> {
-    get_verifiable_credential_signing_key_aux(seed_hex, net.as_str(), issuer_index, issuer_subindex, verifiable_credential_index)
-        .map_err(|e| ConcordiumWalletCryptoError::CallFailed {
-            call: format!("verifiable_credential_signing_key_hex(seed_hex, net={net}, issuer_index={issuer_index}, issuer_subindex={issuer_subindex}, verifiable_credential_index={verifiable_credential_index})"),
-            msg: format!("{:#}", e),
-        })
+) -> Result<Bytes, ConcordiumWalletCryptoError> {
+    let fn_desc = "verifiable_credential_signing_key(seed, net={net}, issuer_index={issuer_index}, issuer_subindex={issuer_subindex}, verifiable_credential_index={verifiable_credential_index})";
+    let hex = get_verifiable_credential_signing_key_aux(
+        hex::encode(seed),
+        net.as_str(),
+        issuer_index,
+        issuer_subindex,
+        verifiable_credential_index,
+    )
+    .map_err(|e| e.to_call_failed(fn_desc.to_string()))?;
+    Bytes::try_from(hex.as_str()).map_err(|e| e.to_call_failed(fn_desc.to_string()))
 }
 
 /// Implements UDL definition of the same name.
-pub fn verifiable_credential_public_key_hex(
-    seed_hex: String,
+pub fn verifiable_credential_public_key(
+    seed: Bytes,
     net: String,
     issuer_index: u64,
     issuer_subindex: u64,
     verifiable_credential_index: u32,
-) -> Result<String, ConcordiumWalletCryptoError> {
-    get_verifiable_credential_public_key_aux(seed_hex, net.as_str(), issuer_index, issuer_subindex, verifiable_credential_index)
-        .map_err(|e| ConcordiumWalletCryptoError::CallFailed {
-            call: format!("verifiable_credential_public_key_hex(seed_hex, net={net}, issuer_index={issuer_index}, issuer_subindex={issuer_subindex}, verifiable_credential_index={verifiable_credential_index})"),
-            msg: format!("{:#}", e),
-        })
+) -> Result<Bytes, ConcordiumWalletCryptoError> {
+    let fn_desc = "verifiable_credential_public_key(seed, net={net}, issuer_index={issuer_index}, issuer_subindex={issuer_subindex}, verifiable_credential_index={verifiable_credential_index})";
+    let hex = get_verifiable_credential_public_key_aux(
+        hex::encode(seed),
+        net.as_str(),
+        issuer_index,
+        issuer_subindex,
+        verifiable_credential_index,
+    )
+    .map_err(|e| e.to_call_failed(fn_desc.to_string()))?;
+    Bytes::try_from(hex.as_str()).map_err(|e| e.to_call_failed(fn_desc.to_string()))
 }
 
 /// Implements UDL definition of the same name.
-pub fn verifiable_credential_backup_encryption_key_hex(
-    seed_hex: String,
+pub fn verifiable_credential_backup_encryption_key(
+    seed: Bytes,
     net: String,
-) -> Result<String, ConcordiumWalletCryptoError> {
-    get_verifiable_credential_backup_encryption_key_aux(seed_hex, net.as_str()).map_err(|e| {
-        ConcordiumWalletCryptoError::CallFailed {
-            call: format!("verifiable_credential_backup_encryption_key_hex(seed_hex, net={net}"),
-            msg: format!("{:#}", e),
-        }
-    })
+) -> Result<Bytes, ConcordiumWalletCryptoError> {
+    let fn_desc = "verifiable_credential_backup_encryption_key(seed, net={net}";
+    let hex = get_verifiable_credential_backup_encryption_key_aux(hex::encode(seed), net.as_str())
+        .map_err(|e| e.to_call_failed(fn_desc.to_string()))?;
+    Bytes::try_from(hex.as_str()).map_err(|e| e.to_call_failed(fn_desc.to_string()))
 }
 
 /// UniFFI compatible bridge to [`IdentityObjectRequestInput`],
@@ -182,11 +224,11 @@ pub struct IdentityIssuanceRequestParameters {
     #[serde(rename = "arThreshold")]
     pub ar_threshold: u8,
     #[serde(rename = "prfKey")]
-    pub prf_key_hex: String,
+    pub prf_key: Bytes,
     #[serde(rename = "idCredSec")]
-    pub id_cred_sec_hex: String,
+    pub id_cred_sec: Bytes,
     #[serde(rename = "blindingRandomness")]
-    pub blinding_randomness_hex: String,
+    pub blinding_randomness: Bytes,
 }
 
 /// UniFFI compatible bridge to [`IdentityRecoveryRequestInput`],
@@ -201,7 +243,7 @@ pub struct IdentityRecoveryRequestParameters {
     #[serde(rename = "timestamp")]
     pub timestamp: u64,
     #[serde(rename = "idCredSec")]
-    pub id_cred_sec_hex: String,
+    pub id_cred_sec: Bytes,
 }
 
 /// UniFFI compatible bridge to [`concordium_base::id::types::IpInfo<concordium_base::id::constants::IpPairing>`],
@@ -214,9 +256,9 @@ pub struct IdentityProviderInfo {
     #[serde(rename = "ipDescription")]
     pub description: Description,
     #[serde(rename = "ipVerifyKey")]
-    pub verify_key_hex: String,
+    pub verify_key: Bytes,
     #[serde(rename = "ipCdiVerifyKey")]
-    pub cdi_verify_key_hex: String,
+    pub cdi_verify_key: Bytes,
 }
 
 /// UniFFI compatible bridge to [`concordium_base::id::types::ArInfo<concordium_base::id::constants::ArCurve>`],
@@ -229,7 +271,7 @@ pub struct AnonymityRevokerInfo {
     #[serde(rename = "arDescription")]
     pub description: Description,
     #[serde(rename = "arPublicKey")]
-    pub public_key_hex: String,
+    pub public_key: Bytes,
 }
 
 /// UniFFI compatible bridge to [`concordium_base::id::types::Description`],
@@ -263,13 +305,13 @@ pub struct AccountCredentialParameters {
     #[serde(rename = "credNumber")]
     pub cred_number: u8,
     #[serde(rename = "idCredSec")]
-    pub id_cred_sec_hex: String,
+    pub id_cred_sec: Bytes,
     #[serde(rename = "prfKey")]
-    pub prf_key_hex: String,
+    pub prf_key: Bytes,
     #[serde(rename = "blindingRandomness")]
-    pub blinding_randomness_hex: String,
+    pub blinding_randomness: Bytes,
     #[serde(rename = "attributeRandomness")]
-    pub attribute_randomness_hex: HashMap<String, String>,
+    pub attribute_randomness: HashMap<String, Bytes>,
     #[serde(rename = "credentialPublicKeys")]
     pub credential_public_keys: CredentialPublicKeys,
 }
@@ -284,7 +326,7 @@ pub struct IdentityObject {
     #[serde(rename = "attributeList")]
     pub attribute_list: AttributeList,
     #[serde(rename = "signature")]
-    pub signature_hex: String,
+    pub signature: Bytes,
 }
 
 /// UniFFI compatible bridge to [`concordium_base::id::types::PreIdentityObjectV1<concordium_base::id::constants::IpPairing,concordium_base::id::constants::ArCurve>`],
@@ -293,19 +335,19 @@ pub struct IdentityObject {
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct PreIdentityObject {
     #[serde(rename = "idCredPub")]
-    pub id_cred_pub_hex: String,
+    pub id_cred_pub: Bytes,
     #[serde(rename = "ipArData")]
     pub ip_ar_data: HashMap<u32, ArData>,
     #[serde(rename = "choiceArData")]
     pub choice_ar_data: ChoiceArParameters,
     #[serde(rename = "idCredSecCommitment")]
-    pub id_cred_sec_commitment_hex: String,
+    pub id_cred_sec_commitment: Bytes,
     #[serde(rename = "prfKeyCommitmentWithIP")]
-    pub prf_key_commitment_with_ip_hex: String,
+    pub prf_key_commitment_with_ip: Bytes,
     #[serde(rename = "prfKeySharingCoeffCommitments")]
-    pub prf_key_sharing_coeff_commitments_hex: Vec<String>,
+    pub prf_key_sharing_coeff_commitments: Vec<Bytes>,
     #[serde(rename = "proofsOfKnowledge")]
-    pub proofs_of_knowledge_hex: String,
+    pub proofs_of_knowledge: Bytes,
 }
 
 /// UniFFI compatible bridge to [`concordium_base::id::types::ChoiceArParameters`],
@@ -325,9 +367,9 @@ pub struct ChoiceArParameters {
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct ArData {
     #[serde(rename = "encPrfKeyShare")]
-    pub enc_prf_key_share_hex: String,
+    pub enc_prf_key_share: Bytes,
     #[serde(rename = "proofComEncEq")]
-    pub proof_com_enc_eq_hex: String,
+    pub proof_com_enc_eq: Bytes,
 }
 
 /// UniFFI compatible bridge to [`concordium_base::id::types::AttributeList<concordium_base::id::constants::IpPairing,concordium_base::id::constants::ArCurve> `],
@@ -364,15 +406,15 @@ pub struct AccountCredentialResult {
 #[derive(Debug, Deserialize)]
 pub struct Randomness {
     #[serde(rename = "attributesRand")]
-    pub attributes_rand_hex: HashMap<String, String>,
+    pub attributes_rand: HashMap<String, Bytes>,
     #[serde(rename = "credCounterRand")]
-    pub cred_counter_rand_hex: String,
+    pub cred_counter_rand: Bytes,
     #[serde(rename = "idCredSecRand")]
-    pub id_cred_sec_rand_hex: String,
+    pub id_cred_sec_rand: Bytes,
     #[serde(rename = "maxAccountsRand")]
-    pub max_accounts_rand_hex: String,
+    pub max_accounts_rand: Bytes,
     #[serde(rename = "prfRand")]
-    pub prf_rand_hex: String,
+    pub prf_rand: Bytes,
 }
 
 /// Implements UDL definition of the same name.
@@ -423,7 +465,7 @@ pub struct AccountCredential {
     #[serde(rename = "arData")]
     pub ar_data: HashMap<u32, ChainArData>,
     #[serde(rename = "credId")]
-    pub cred_id_hex: String,
+    pub cred_id: Bytes,
     #[serde(rename = "credentialPublicKeys")]
     pub credential_public_keys: CredentialPublicKeys,
     #[serde(rename = "ipIdentity")]
@@ -442,19 +484,19 @@ pub struct AccountCredential {
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
 pub struct Proofs {
     #[serde(rename = "challenge")]
-    pub challenge_hex: String,
+    pub challenge: Bytes,
     #[serde(rename = "commitments")]
-    pub commitments_hex: String,
+    pub commitments: Bytes,
     #[serde(rename = "credCounterLessThanMaxAccounts")]
-    pub cred_counter_less_than_max_accounts_hex: String,
+    pub cred_counter_less_than_max_accounts: Bytes,
     #[serde(rename = "proofIdCredPub")]
-    pub proof_id_cred_pub_hex: HashMap<String, String>,
+    pub proof_id_cred_pub: HashMap<String, Bytes>,
     #[serde(rename = "proofIpSig")]
-    pub proof_ip_sig_hex: String,
+    pub proof_ip_sig: Bytes,
     #[serde(rename = "proofRegId")]
-    pub proof_reg_id_hex: String,
+    pub proof_reg_id: Bytes,
     #[serde(rename = "sig")]
-    pub signature_hex: String,
+    pub signature: Bytes,
 }
 
 /// Implements UDL definition of the same name.
@@ -491,25 +533,24 @@ struct CredentialDeploymentPayloadHashInput {
 }
 
 /// Implements UDL definition of the same name.
-pub fn account_credential_deployment_hash_hex(
+pub fn account_credential_deployment_hash(
     credential: AccountCredential,
     expiry_unix_secs: u64,
-) -> Result<String, ConcordiumWalletCryptoError> {
+) -> Result<Bytes, ConcordiumWalletCryptoError> {
     let input = CredentialDeploymentPayloadHashInput {
         expiry_unix_secs,
         credential,
     };
-    serde_json::to_string(&input)
+    let fn_desc = "account_credential_deployment_hash(...)";
+    let hex = serde_json::to_string(&input)
         .context("cannot encode request object as JSON")
         .and_then(|json| {
             serde_json::from_str::<CredentialDeploymentDetails>(&json)
                 .context("cannot decode request object into internal type")
         })
         .map(compute_credential_deployment_hash_to_sign)
-        .map_err(|e| ConcordiumWalletCryptoError::CallFailed {
-            call: "account_credential_deployment_hash_hex(...)".to_string(),
-            msg: format!("{:#}", e),
-        })
+        .map_err(|e| e.to_call_failed(fn_desc.to_string()))?;
+    Bytes::try_from(hex.as_str()).map_err(|e| e.to_call_failed(fn_desc.to_string()))
 }
 
 /// UniFFI compatible bridge to [`CredentialDeploymentPayload`],
@@ -520,22 +561,21 @@ pub struct SignedAccountCredential {
     #[serde(rename = "unsignedCdi")]
     pub credential: AccountCredential,
     #[serde(rename = "signatures")]
-    pub signatures_hex: HashMap<u8, String>,
+    pub signatures: HashMap<u8, Bytes>,
 }
 
 /// Implements UDL definition of the same name.
-pub fn account_credential_deployment_signed_payload_hex(
+pub fn account_credential_deployment_signed_payload(
     credential: SignedAccountCredential,
-) -> Result<String, ConcordiumWalletCryptoError> {
-    serde_json::to_string(&credential)
+) -> Result<Bytes, ConcordiumWalletCryptoError> {
+    let fn_desc = "account_credential_deployment_signed_payload(...)";
+    let hex = serde_json::to_string(&credential)
         .context("cannot encode request object as JSON")
         .and_then(|json| {
             serde_json::from_str::<CredentialDeploymentPayload>(&json)
                 .context("cannot decode request object into internal type")
         })
         .map(serialize_credential_deployment_payload)
-        .map_err(|e| ConcordiumWalletCryptoError::CallFailed {
-            call: "account_credential_deployment_signed_payload_hex(...)".to_string(),
-            msg: format!("{:#}", e),
-        })
+        .map_err(|e| e.to_call_failed(fn_desc.to_string()))?;
+    Bytes::try_from(hex.as_str()).map_err(|e| e.to_call_failed(fn_desc.to_string()))
 }
