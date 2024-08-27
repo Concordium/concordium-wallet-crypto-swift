@@ -393,10 +393,10 @@ fileprivate struct FfiConverterData: FfiConverterRustBuffer {
 /**
  * An account credential containing proofs without signatures.
  * To deploy a credential, an object of this type is
- * hashed using `account_credential_deployment_hash_hex`
+ * hashed using `account_credential_deployment_hash`
  * which is signed using the key derived for the credential.
  * The results are collected into a `SignedAccountCredential`
- * and serialized using `account_credential_deployment_signed_payload_hex`.
+ * and serialized using `account_credential_deployment_signed_payload`.
  * The result of this call can be submitted to the chain.
  */
 public struct AccountCredential {
@@ -409,7 +409,7 @@ public struct AccountCredential {
     /**
      * Credential registration ID of the credential.
      */
-    public var credIdHex: String
+    public var credId: Bytes
     /**
      * Credential keys (i.e. account holder keys).
      */
@@ -441,7 +441,7 @@ public struct AccountCredential {
         /**
          * Credential registration ID of the credential.
          */
-        credIdHex: String, 
+        credId: Bytes, 
         /**
          * Credential keys (i.e. account holder keys).
          */
@@ -461,7 +461,7 @@ public struct AccountCredential {
          */
         revocationThreshold: UInt8) {
         self.arData = arData
-        self.credIdHex = credIdHex
+        self.credId = credId
         self.credentialPublicKeys = credentialPublicKeys
         self.ipIdentity = ipIdentity
         self.policy = policy
@@ -476,7 +476,7 @@ extension AccountCredential: Equatable, Hashable {
         if lhs.arData != rhs.arData {
             return false
         }
-        if lhs.credIdHex != rhs.credIdHex {
+        if lhs.credId != rhs.credId {
             return false
         }
         if lhs.credentialPublicKeys != rhs.credentialPublicKeys {
@@ -499,7 +499,7 @@ extension AccountCredential: Equatable, Hashable {
 
     public func hash(into hasher: inout Hasher) {
         hasher.combine(arData)
-        hasher.combine(credIdHex)
+        hasher.combine(credId)
         hasher.combine(credentialPublicKeys)
         hasher.combine(ipIdentity)
         hasher.combine(policy)
@@ -514,7 +514,7 @@ public struct FfiConverterTypeAccountCredential: FfiConverterRustBuffer {
         return
             try AccountCredential(
                 arData: FfiConverterDictionaryUInt32TypeChainArData.read(from: &buf), 
-                credIdHex: FfiConverterString.read(from: &buf), 
+                credId: FfiConverterTypeBytes.read(from: &buf), 
                 credentialPublicKeys: FfiConverterTypeCredentialPublicKeys.read(from: &buf), 
                 ipIdentity: FfiConverterUInt32.read(from: &buf), 
                 policy: FfiConverterTypePolicy.read(from: &buf), 
@@ -525,7 +525,7 @@ public struct FfiConverterTypeAccountCredential: FfiConverterRustBuffer {
 
     public static func write(_ value: AccountCredential, into buf: inout [UInt8]) {
         FfiConverterDictionaryUInt32TypeChainArData.write(value.arData, into: &buf)
-        FfiConverterString.write(value.credIdHex, into: &buf)
+        FfiConverterTypeBytes.write(value.credId, into: &buf)
         FfiConverterTypeCredentialPublicKeys.write(value.credentialPublicKeys, into: &buf)
         FfiConverterUInt32.write(value.ipIdentity, into: &buf)
         FfiConverterTypePolicy.write(value.policy, into: &buf)
@@ -554,10 +554,10 @@ public struct AccountCredentialParameters {
     public var idObject: IdentityObject
     public var revealedAttributes: [UInt8]
     public var credNumber: UInt8
-    public var idCredSecHex: String
-    public var prfKeyHex: String
-    public var blindingRandomnessHex: String
-    public var attributeRandomnessHex: [String: String]
+    public var idCredSec: Bytes
+    public var prfKey: Bytes
+    public var blindingRandomness: Bytes
+    public var attributeRandomness: [String: Bytes]
     public var credentialPublicKeys: CredentialPublicKeys
 
     // Default memberwise initializers are never public by default, so we
@@ -569,10 +569,10 @@ public struct AccountCredentialParameters {
         idObject: IdentityObject, 
         revealedAttributes: [UInt8], 
         credNumber: UInt8, 
-        idCredSecHex: String, 
-        prfKeyHex: String, 
-        blindingRandomnessHex: String, 
-        attributeRandomnessHex: [String: String], 
+        idCredSec: Bytes, 
+        prfKey: Bytes, 
+        blindingRandomness: Bytes, 
+        attributeRandomness: [String: Bytes], 
         credentialPublicKeys: CredentialPublicKeys) {
         self.ipInfo = ipInfo
         self.globalContext = globalContext
@@ -580,10 +580,10 @@ public struct AccountCredentialParameters {
         self.idObject = idObject
         self.revealedAttributes = revealedAttributes
         self.credNumber = credNumber
-        self.idCredSecHex = idCredSecHex
-        self.prfKeyHex = prfKeyHex
-        self.blindingRandomnessHex = blindingRandomnessHex
-        self.attributeRandomnessHex = attributeRandomnessHex
+        self.idCredSec = idCredSec
+        self.prfKey = prfKey
+        self.blindingRandomness = blindingRandomness
+        self.attributeRandomness = attributeRandomness
         self.credentialPublicKeys = credentialPublicKeys
     }
 }
@@ -609,16 +609,16 @@ extension AccountCredentialParameters: Equatable, Hashable {
         if lhs.credNumber != rhs.credNumber {
             return false
         }
-        if lhs.idCredSecHex != rhs.idCredSecHex {
+        if lhs.idCredSec != rhs.idCredSec {
             return false
         }
-        if lhs.prfKeyHex != rhs.prfKeyHex {
+        if lhs.prfKey != rhs.prfKey {
             return false
         }
-        if lhs.blindingRandomnessHex != rhs.blindingRandomnessHex {
+        if lhs.blindingRandomness != rhs.blindingRandomness {
             return false
         }
-        if lhs.attributeRandomnessHex != rhs.attributeRandomnessHex {
+        if lhs.attributeRandomness != rhs.attributeRandomness {
             return false
         }
         if lhs.credentialPublicKeys != rhs.credentialPublicKeys {
@@ -634,10 +634,10 @@ extension AccountCredentialParameters: Equatable, Hashable {
         hasher.combine(idObject)
         hasher.combine(revealedAttributes)
         hasher.combine(credNumber)
-        hasher.combine(idCredSecHex)
-        hasher.combine(prfKeyHex)
-        hasher.combine(blindingRandomnessHex)
-        hasher.combine(attributeRandomnessHex)
+        hasher.combine(idCredSec)
+        hasher.combine(prfKey)
+        hasher.combine(blindingRandomness)
+        hasher.combine(attributeRandomness)
         hasher.combine(credentialPublicKeys)
     }
 }
@@ -653,10 +653,10 @@ public struct FfiConverterTypeAccountCredentialParameters: FfiConverterRustBuffe
                 idObject: FfiConverterTypeIdentityObject.read(from: &buf), 
                 revealedAttributes: FfiConverterSequenceUInt8.read(from: &buf), 
                 credNumber: FfiConverterUInt8.read(from: &buf), 
-                idCredSecHex: FfiConverterString.read(from: &buf), 
-                prfKeyHex: FfiConverterString.read(from: &buf), 
-                blindingRandomnessHex: FfiConverterString.read(from: &buf), 
-                attributeRandomnessHex: FfiConverterDictionaryStringString.read(from: &buf), 
+                idCredSec: FfiConverterTypeBytes.read(from: &buf), 
+                prfKey: FfiConverterTypeBytes.read(from: &buf), 
+                blindingRandomness: FfiConverterTypeBytes.read(from: &buf), 
+                attributeRandomness: FfiConverterDictionaryStringTypeBytes.read(from: &buf), 
                 credentialPublicKeys: FfiConverterTypeCredentialPublicKeys.read(from: &buf)
         )
     }
@@ -668,10 +668,10 @@ public struct FfiConverterTypeAccountCredentialParameters: FfiConverterRustBuffe
         FfiConverterTypeIdentityObject.write(value.idObject, into: &buf)
         FfiConverterSequenceUInt8.write(value.revealedAttributes, into: &buf)
         FfiConverterUInt8.write(value.credNumber, into: &buf)
-        FfiConverterString.write(value.idCredSecHex, into: &buf)
-        FfiConverterString.write(value.prfKeyHex, into: &buf)
-        FfiConverterString.write(value.blindingRandomnessHex, into: &buf)
-        FfiConverterDictionaryStringString.write(value.attributeRandomnessHex, into: &buf)
+        FfiConverterTypeBytes.write(value.idCredSec, into: &buf)
+        FfiConverterTypeBytes.write(value.prfKey, into: &buf)
+        FfiConverterTypeBytes.write(value.blindingRandomness, into: &buf)
+        FfiConverterDictionaryStringTypeBytes.write(value.attributeRandomness, into: &buf)
         FfiConverterTypeCredentialPublicKeys.write(value.credentialPublicKeys, into: &buf)
     }
 }
@@ -762,7 +762,7 @@ public struct AnonymityRevokerInfo {
     /**
      * Elgamal encryption key of the anonymity revoker.
      */
-    public var publicKeyHex: String
+    public var publicKey: Bytes
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -778,10 +778,10 @@ public struct AnonymityRevokerInfo {
         /**
          * Elgamal encryption key of the anonymity revoker.
          */
-        publicKeyHex: String) {
+        publicKey: Bytes) {
         self.identity = identity
         self.description = description
-        self.publicKeyHex = publicKeyHex
+        self.publicKey = publicKey
     }
 }
 
@@ -794,7 +794,7 @@ extension AnonymityRevokerInfo: Equatable, Hashable {
         if lhs.description != rhs.description {
             return false
         }
-        if lhs.publicKeyHex != rhs.publicKeyHex {
+        if lhs.publicKey != rhs.publicKey {
             return false
         }
         return true
@@ -803,7 +803,7 @@ extension AnonymityRevokerInfo: Equatable, Hashable {
     public func hash(into hasher: inout Hasher) {
         hasher.combine(identity)
         hasher.combine(description)
-        hasher.combine(publicKeyHex)
+        hasher.combine(publicKey)
     }
 }
 
@@ -814,14 +814,14 @@ public struct FfiConverterTypeAnonymityRevokerInfo: FfiConverterRustBuffer {
             try AnonymityRevokerInfo(
                 identity: FfiConverterUInt32.read(from: &buf), 
                 description: FfiConverterTypeDescription.read(from: &buf), 
-                publicKeyHex: FfiConverterString.read(from: &buf)
+                publicKey: FfiConverterTypeBytes.read(from: &buf)
         )
     }
 
     public static func write(_ value: AnonymityRevokerInfo, into buf: inout [UInt8]) {
         FfiConverterUInt32.write(value.identity, into: &buf)
         FfiConverterTypeDescription.write(value.description, into: &buf)
-        FfiConverterString.write(value.publicKeyHex, into: &buf)
+        FfiConverterTypeBytes.write(value.publicKey, into: &buf)
     }
 }
 
@@ -844,13 +844,13 @@ public struct ArData {
     /**
      * Encryption in chunks (in little endian) of the PRF key share.
      */
-    public var encPrfKeyShareHex: String
+    public var encPrfKeyShare: Bytes
     /**
      * Response in the proof that the computed commitment to the share
      * contains the same value as the encryption.
      * The commitment to the share is not sent but computed from the commitments to the sharing coefficients.
      */
-    public var proofComEncEqHex: String
+    public var proofComEncEq: Bytes
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -858,33 +858,33 @@ public struct ArData {
         /**
          * Encryption in chunks (in little endian) of the PRF key share.
          */
-        encPrfKeyShareHex: String, 
+        encPrfKeyShare: Bytes, 
         /**
          * Response in the proof that the computed commitment to the share
          * contains the same value as the encryption.
          * The commitment to the share is not sent but computed from the commitments to the sharing coefficients.
          */
-        proofComEncEqHex: String) {
-        self.encPrfKeyShareHex = encPrfKeyShareHex
-        self.proofComEncEqHex = proofComEncEqHex
+        proofComEncEq: Bytes) {
+        self.encPrfKeyShare = encPrfKeyShare
+        self.proofComEncEq = proofComEncEq
     }
 }
 
 
 extension ArData: Equatable, Hashable {
     public static func ==(lhs: ArData, rhs: ArData) -> Bool {
-        if lhs.encPrfKeyShareHex != rhs.encPrfKeyShareHex {
+        if lhs.encPrfKeyShare != rhs.encPrfKeyShare {
             return false
         }
-        if lhs.proofComEncEqHex != rhs.proofComEncEqHex {
+        if lhs.proofComEncEq != rhs.proofComEncEq {
             return false
         }
         return true
     }
 
     public func hash(into hasher: inout Hasher) {
-        hasher.combine(encPrfKeyShareHex)
-        hasher.combine(proofComEncEqHex)
+        hasher.combine(encPrfKeyShare)
+        hasher.combine(proofComEncEq)
     }
 }
 
@@ -893,14 +893,14 @@ public struct FfiConverterTypeArData: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ArData {
         return
             try ArData(
-                encPrfKeyShareHex: FfiConverterString.read(from: &buf), 
-                proofComEncEqHex: FfiConverterString.read(from: &buf)
+                encPrfKeyShare: FfiConverterTypeBytes.read(from: &buf), 
+                proofComEncEq: FfiConverterTypeBytes.read(from: &buf)
         )
     }
 
     public static func write(_ value: ArData, into buf: inout [UInt8]) {
-        FfiConverterString.write(value.encPrfKeyShareHex, into: &buf)
-        FfiConverterString.write(value.proofComEncEqHex, into: &buf)
+        FfiConverterTypeBytes.write(value.encPrfKeyShare, into: &buf)
+        FfiConverterTypeBytes.write(value.proofComEncEq, into: &buf)
     }
 }
 
@@ -1215,27 +1215,27 @@ public func FfiConverterTypeBakerKeysPayload_lower(_ value: BakerKeysPayload) ->
  * Typically a vector of these will be sent to the chain.
  */
 public struct ChainArData {
-    public var encIdCredPubShareHex: String
+    public var encIdCredPubShare: Bytes
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(
-        encIdCredPubShareHex: String) {
-        self.encIdCredPubShareHex = encIdCredPubShareHex
+        encIdCredPubShare: Bytes) {
+        self.encIdCredPubShare = encIdCredPubShare
     }
 }
 
 
 extension ChainArData: Equatable, Hashable {
     public static func ==(lhs: ChainArData, rhs: ChainArData) -> Bool {
-        if lhs.encIdCredPubShareHex != rhs.encIdCredPubShareHex {
+        if lhs.encIdCredPubShare != rhs.encIdCredPubShare {
             return false
         }
         return true
     }
 
     public func hash(into hasher: inout Hasher) {
-        hasher.combine(encIdCredPubShareHex)
+        hasher.combine(encIdCredPubShare)
     }
 }
 
@@ -1244,12 +1244,12 @@ public struct FfiConverterTypeChainArData: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ChainArData {
         return
             try ChainArData(
-                encIdCredPubShareHex: FfiConverterString.read(from: &buf)
+                encIdCredPubShare: FfiConverterTypeBytes.read(from: &buf)
         )
     }
 
     public static func write(_ value: ChainArData, into buf: inout [UInt8]) {
-        FfiConverterString.write(value.encIdCredPubShareHex, into: &buf)
+        FfiConverterTypeBytes.write(value.encIdCredPubShare, into: &buf)
     }
 }
 
@@ -1625,11 +1625,11 @@ public struct GlobalContext {
      * Shared commitment key known to the chain and the account holder (i.e. it's public).
      * The account holder uses this commitment key to generate commitments to values in the attribute list.
      */
-    public var onChainCommitmentKeyHex: String
+    public var onChainCommitmentKey: Bytes
     /**
      * Generators for the bulletproofs.
      */
-    public var bulletproofGeneratorsHex: String
+    public var bulletproofGenerators: Bytes
     /**
      * Free-form string used to distinguish between different chains even if they share other parameters.
      */
@@ -1642,17 +1642,17 @@ public struct GlobalContext {
          * Shared commitment key known to the chain and the account holder (i.e. it's public).
          * The account holder uses this commitment key to generate commitments to values in the attribute list.
          */
-        onChainCommitmentKeyHex: String, 
+        onChainCommitmentKey: Bytes, 
         /**
          * Generators for the bulletproofs.
          */
-        bulletproofGeneratorsHex: String, 
+        bulletproofGenerators: Bytes, 
         /**
          * Free-form string used to distinguish between different chains even if they share other parameters.
          */
         genesisString: String) {
-        self.onChainCommitmentKeyHex = onChainCommitmentKeyHex
-        self.bulletproofGeneratorsHex = bulletproofGeneratorsHex
+        self.onChainCommitmentKey = onChainCommitmentKey
+        self.bulletproofGenerators = bulletproofGenerators
         self.genesisString = genesisString
     }
 }
@@ -1660,10 +1660,10 @@ public struct GlobalContext {
 
 extension GlobalContext: Equatable, Hashable {
     public static func ==(lhs: GlobalContext, rhs: GlobalContext) -> Bool {
-        if lhs.onChainCommitmentKeyHex != rhs.onChainCommitmentKeyHex {
+        if lhs.onChainCommitmentKey != rhs.onChainCommitmentKey {
             return false
         }
-        if lhs.bulletproofGeneratorsHex != rhs.bulletproofGeneratorsHex {
+        if lhs.bulletproofGenerators != rhs.bulletproofGenerators {
             return false
         }
         if lhs.genesisString != rhs.genesisString {
@@ -1673,8 +1673,8 @@ extension GlobalContext: Equatable, Hashable {
     }
 
     public func hash(into hasher: inout Hasher) {
-        hasher.combine(onChainCommitmentKeyHex)
-        hasher.combine(bulletproofGeneratorsHex)
+        hasher.combine(onChainCommitmentKey)
+        hasher.combine(bulletproofGenerators)
         hasher.combine(genesisString)
     }
 }
@@ -1684,15 +1684,15 @@ public struct FfiConverterTypeGlobalContext: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> GlobalContext {
         return
             try GlobalContext(
-                onChainCommitmentKeyHex: FfiConverterString.read(from: &buf), 
-                bulletproofGeneratorsHex: FfiConverterString.read(from: &buf), 
+                onChainCommitmentKey: FfiConverterTypeBytes.read(from: &buf), 
+                bulletproofGenerators: FfiConverterTypeBytes.read(from: &buf), 
                 genesisString: FfiConverterString.read(from: &buf)
         )
     }
 
     public static func write(_ value: GlobalContext, into buf: inout [UInt8]) {
-        FfiConverterString.write(value.onChainCommitmentKeyHex, into: &buf)
-        FfiConverterString.write(value.bulletproofGeneratorsHex, into: &buf)
+        FfiConverterTypeBytes.write(value.onChainCommitmentKey, into: &buf)
+        FfiConverterTypeBytes.write(value.bulletproofGenerators, into: &buf)
         FfiConverterString.write(value.genesisString, into: &buf)
     }
 }
@@ -1715,9 +1715,9 @@ public struct IdentityIssuanceRequestParameters {
     public var globalContext: GlobalContext
     public var arsInfos: [UInt32: AnonymityRevokerInfo]
     public var arThreshold: UInt8
-    public var prfKeyHex: String
-    public var idCredSecHex: String
-    public var blindingRandomnessHex: String
+    public var prfKey: Bytes
+    public var idCredSec: Bytes
+    public var blindingRandomness: Bytes
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -1726,16 +1726,16 @@ public struct IdentityIssuanceRequestParameters {
         globalContext: GlobalContext, 
         arsInfos: [UInt32: AnonymityRevokerInfo], 
         arThreshold: UInt8, 
-        prfKeyHex: String, 
-        idCredSecHex: String, 
-        blindingRandomnessHex: String) {
+        prfKey: Bytes, 
+        idCredSec: Bytes, 
+        blindingRandomness: Bytes) {
         self.ipInfo = ipInfo
         self.globalContext = globalContext
         self.arsInfos = arsInfos
         self.arThreshold = arThreshold
-        self.prfKeyHex = prfKeyHex
-        self.idCredSecHex = idCredSecHex
-        self.blindingRandomnessHex = blindingRandomnessHex
+        self.prfKey = prfKey
+        self.idCredSec = idCredSec
+        self.blindingRandomness = blindingRandomness
     }
 }
 
@@ -1754,13 +1754,13 @@ extension IdentityIssuanceRequestParameters: Equatable, Hashable {
         if lhs.arThreshold != rhs.arThreshold {
             return false
         }
-        if lhs.prfKeyHex != rhs.prfKeyHex {
+        if lhs.prfKey != rhs.prfKey {
             return false
         }
-        if lhs.idCredSecHex != rhs.idCredSecHex {
+        if lhs.idCredSec != rhs.idCredSec {
             return false
         }
-        if lhs.blindingRandomnessHex != rhs.blindingRandomnessHex {
+        if lhs.blindingRandomness != rhs.blindingRandomness {
             return false
         }
         return true
@@ -1771,9 +1771,9 @@ extension IdentityIssuanceRequestParameters: Equatable, Hashable {
         hasher.combine(globalContext)
         hasher.combine(arsInfos)
         hasher.combine(arThreshold)
-        hasher.combine(prfKeyHex)
-        hasher.combine(idCredSecHex)
-        hasher.combine(blindingRandomnessHex)
+        hasher.combine(prfKey)
+        hasher.combine(idCredSec)
+        hasher.combine(blindingRandomness)
     }
 }
 
@@ -1786,9 +1786,9 @@ public struct FfiConverterTypeIdentityIssuanceRequestParameters: FfiConverterRus
                 globalContext: FfiConverterTypeGlobalContext.read(from: &buf), 
                 arsInfos: FfiConverterDictionaryUInt32TypeAnonymityRevokerInfo.read(from: &buf), 
                 arThreshold: FfiConverterUInt8.read(from: &buf), 
-                prfKeyHex: FfiConverterString.read(from: &buf), 
-                idCredSecHex: FfiConverterString.read(from: &buf), 
-                blindingRandomnessHex: FfiConverterString.read(from: &buf)
+                prfKey: FfiConverterTypeBytes.read(from: &buf), 
+                idCredSec: FfiConverterTypeBytes.read(from: &buf), 
+                blindingRandomness: FfiConverterTypeBytes.read(from: &buf)
         )
     }
 
@@ -1797,9 +1797,9 @@ public struct FfiConverterTypeIdentityIssuanceRequestParameters: FfiConverterRus
         FfiConverterTypeGlobalContext.write(value.globalContext, into: &buf)
         FfiConverterDictionaryUInt32TypeAnonymityRevokerInfo.write(value.arsInfos, into: &buf)
         FfiConverterUInt8.write(value.arThreshold, into: &buf)
-        FfiConverterString.write(value.prfKeyHex, into: &buf)
-        FfiConverterString.write(value.idCredSecHex, into: &buf)
-        FfiConverterString.write(value.blindingRandomnessHex, into: &buf)
+        FfiConverterTypeBytes.write(value.prfKey, into: &buf)
+        FfiConverterTypeBytes.write(value.idCredSec, into: &buf)
+        FfiConverterTypeBytes.write(value.blindingRandomness, into: &buf)
     }
 }
 
@@ -1822,7 +1822,7 @@ public struct IdentityObject {
      * Chosen attribute list.
      */
     public var attributeList: AttributeList
-    public var signatureHex: String
+    public var signature: Bytes
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -1832,10 +1832,10 @@ public struct IdentityObject {
          * Chosen attribute list.
          */
         attributeList: AttributeList, 
-        signatureHex: String) {
+        signature: Bytes) {
         self.preIdentityObject = preIdentityObject
         self.attributeList = attributeList
-        self.signatureHex = signatureHex
+        self.signature = signature
     }
 }
 
@@ -1848,7 +1848,7 @@ extension IdentityObject: Equatable, Hashable {
         if lhs.attributeList != rhs.attributeList {
             return false
         }
-        if lhs.signatureHex != rhs.signatureHex {
+        if lhs.signature != rhs.signature {
             return false
         }
         return true
@@ -1857,7 +1857,7 @@ extension IdentityObject: Equatable, Hashable {
     public func hash(into hasher: inout Hasher) {
         hasher.combine(preIdentityObject)
         hasher.combine(attributeList)
-        hasher.combine(signatureHex)
+        hasher.combine(signature)
     }
 }
 
@@ -1868,14 +1868,14 @@ public struct FfiConverterTypeIdentityObject: FfiConverterRustBuffer {
             try IdentityObject(
                 preIdentityObject: FfiConverterTypePreIdentityObject.read(from: &buf), 
                 attributeList: FfiConverterTypeAttributeList.read(from: &buf), 
-                signatureHex: FfiConverterString.read(from: &buf)
+                signature: FfiConverterTypeBytes.read(from: &buf)
         )
     }
 
     public static func write(_ value: IdentityObject, into buf: inout [UInt8]) {
         FfiConverterTypePreIdentityObject.write(value.preIdentityObject, into: &buf)
         FfiConverterTypeAttributeList.write(value.attributeList, into: &buf)
-        FfiConverterString.write(value.signatureHex, into: &buf)
+        FfiConverterTypeBytes.write(value.signature, into: &buf)
     }
 }
 
@@ -1904,11 +1904,11 @@ public struct IdentityProviderInfo {
     /**
      * PS public key of the identity provider.
      */
-    public var verifyKeyHex: String
+    public var verifyKey: Bytes
     /**
      * Ed public key of the identity provider.
      */
-    public var cdiVerifyKeyHex: String
+    public var cdiVerifyKey: Bytes
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -1924,15 +1924,15 @@ public struct IdentityProviderInfo {
         /**
          * PS public key of the identity provider.
          */
-        verifyKeyHex: String, 
+        verifyKey: Bytes, 
         /**
          * Ed public key of the identity provider.
          */
-        cdiVerifyKeyHex: String) {
+        cdiVerifyKey: Bytes) {
         self.identity = identity
         self.description = description
-        self.verifyKeyHex = verifyKeyHex
-        self.cdiVerifyKeyHex = cdiVerifyKeyHex
+        self.verifyKey = verifyKey
+        self.cdiVerifyKey = cdiVerifyKey
     }
 }
 
@@ -1945,10 +1945,10 @@ extension IdentityProviderInfo: Equatable, Hashable {
         if lhs.description != rhs.description {
             return false
         }
-        if lhs.verifyKeyHex != rhs.verifyKeyHex {
+        if lhs.verifyKey != rhs.verifyKey {
             return false
         }
-        if lhs.cdiVerifyKeyHex != rhs.cdiVerifyKeyHex {
+        if lhs.cdiVerifyKey != rhs.cdiVerifyKey {
             return false
         }
         return true
@@ -1957,8 +1957,8 @@ extension IdentityProviderInfo: Equatable, Hashable {
     public func hash(into hasher: inout Hasher) {
         hasher.combine(identity)
         hasher.combine(description)
-        hasher.combine(verifyKeyHex)
-        hasher.combine(cdiVerifyKeyHex)
+        hasher.combine(verifyKey)
+        hasher.combine(cdiVerifyKey)
     }
 }
 
@@ -1969,16 +1969,16 @@ public struct FfiConverterTypeIdentityProviderInfo: FfiConverterRustBuffer {
             try IdentityProviderInfo(
                 identity: FfiConverterUInt32.read(from: &buf), 
                 description: FfiConverterTypeDescription.read(from: &buf), 
-                verifyKeyHex: FfiConverterString.read(from: &buf), 
-                cdiVerifyKeyHex: FfiConverterString.read(from: &buf)
+                verifyKey: FfiConverterTypeBytes.read(from: &buf), 
+                cdiVerifyKey: FfiConverterTypeBytes.read(from: &buf)
         )
     }
 
     public static func write(_ value: IdentityProviderInfo, into buf: inout [UInt8]) {
         FfiConverterUInt32.write(value.identity, into: &buf)
         FfiConverterTypeDescription.write(value.description, into: &buf)
-        FfiConverterString.write(value.verifyKeyHex, into: &buf)
-        FfiConverterString.write(value.cdiVerifyKeyHex, into: &buf)
+        FfiConverterTypeBytes.write(value.verifyKey, into: &buf)
+        FfiConverterTypeBytes.write(value.cdiVerifyKey, into: &buf)
     }
 }
 
@@ -1999,7 +1999,7 @@ public struct IdentityRecoveryRequestParameters {
     public var ipInfo: IdentityProviderInfo
     public var globalContext: GlobalContext
     public var timestamp: UInt64
-    public var idCredSecHex: String
+    public var idCredSec: Bytes
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -2007,11 +2007,11 @@ public struct IdentityRecoveryRequestParameters {
         ipInfo: IdentityProviderInfo, 
         globalContext: GlobalContext, 
         timestamp: UInt64, 
-        idCredSecHex: String) {
+        idCredSec: Bytes) {
         self.ipInfo = ipInfo
         self.globalContext = globalContext
         self.timestamp = timestamp
-        self.idCredSecHex = idCredSecHex
+        self.idCredSec = idCredSec
     }
 }
 
@@ -2027,7 +2027,7 @@ extension IdentityRecoveryRequestParameters: Equatable, Hashable {
         if lhs.timestamp != rhs.timestamp {
             return false
         }
-        if lhs.idCredSecHex != rhs.idCredSecHex {
+        if lhs.idCredSec != rhs.idCredSec {
             return false
         }
         return true
@@ -2037,7 +2037,7 @@ extension IdentityRecoveryRequestParameters: Equatable, Hashable {
         hasher.combine(ipInfo)
         hasher.combine(globalContext)
         hasher.combine(timestamp)
-        hasher.combine(idCredSecHex)
+        hasher.combine(idCredSec)
     }
 }
 
@@ -2049,7 +2049,7 @@ public struct FfiConverterTypeIdentityRecoveryRequestParameters: FfiConverterRus
                 ipInfo: FfiConverterTypeIdentityProviderInfo.read(from: &buf), 
                 globalContext: FfiConverterTypeGlobalContext.read(from: &buf), 
                 timestamp: FfiConverterUInt64.read(from: &buf), 
-                idCredSecHex: FfiConverterString.read(from: &buf)
+                idCredSec: FfiConverterTypeBytes.read(from: &buf)
         )
     }
 
@@ -2057,7 +2057,7 @@ public struct FfiConverterTypeIdentityRecoveryRequestParameters: FfiConverterRus
         FfiConverterTypeIdentityProviderInfo.write(value.ipInfo, into: &buf)
         FfiConverterTypeGlobalContext.write(value.globalContext, into: &buf)
         FfiConverterUInt64.write(value.timestamp, into: &buf)
-        FfiConverterString.write(value.idCredSecHex, into: &buf)
+        FfiConverterTypeBytes.write(value.idCredSec, into: &buf)
     }
 }
 
@@ -2236,7 +2236,7 @@ public func FfiConverterTypePolicy_lower(_ value: Policy) -> RustBuffer {
  * This is for the flow where no initial account is involved.
  */
 public struct PreIdentityObject {
-    public var idCredPubHex: String
+    public var idCredPub: Bytes
     /**
      * Anonymity revocation data for the chosen anonymity revokers.
      */
@@ -2250,24 +2250,24 @@ public struct PreIdentityObject {
      * Commitment to ID cred sec using the commitment key of the identity provider derived from the PS public key.
      * This is used to compute the message that the identity provider signs.
      */
-    public var idCredSecCommitmentHex: String
+    public var idCredSecCommitment: Bytes
     /**
      * Commitment to the PRF key in group G1.
      */
-    public var prfKeyCommitmentWithIpHex: String
+    public var prfKeyCommitmentWithIp: Bytes
     /**
      * Commitments to the coefficients of the polynomial used to share the PRF key.
      */
-    public var prfKeySharingCoeffCommitmentsHex: [String]
+    public var prfKeySharingCoeffCommitments: [Bytes]
     /**
      * Proof that the data sent to the identity provider is well-formed.
      */
-    public var proofsOfKnowledgeHex: String
+    public var proofsOfKnowledge: Bytes
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(
-        idCredPubHex: String, 
+        idCredPub: Bytes, 
         /**
          * Anonymity revocation data for the chosen anonymity revokers.
          */
@@ -2281,33 +2281,33 @@ public struct PreIdentityObject {
          * Commitment to ID cred sec using the commitment key of the identity provider derived from the PS public key.
          * This is used to compute the message that the identity provider signs.
          */
-        idCredSecCommitmentHex: String, 
+        idCredSecCommitment: Bytes, 
         /**
          * Commitment to the PRF key in group G1.
          */
-        prfKeyCommitmentWithIpHex: String, 
+        prfKeyCommitmentWithIp: Bytes, 
         /**
          * Commitments to the coefficients of the polynomial used to share the PRF key.
          */
-        prfKeySharingCoeffCommitmentsHex: [String], 
+        prfKeySharingCoeffCommitments: [Bytes], 
         /**
          * Proof that the data sent to the identity provider is well-formed.
          */
-        proofsOfKnowledgeHex: String) {
-        self.idCredPubHex = idCredPubHex
+        proofsOfKnowledge: Bytes) {
+        self.idCredPub = idCredPub
         self.ipArData = ipArData
         self.choiceArData = choiceArData
-        self.idCredSecCommitmentHex = idCredSecCommitmentHex
-        self.prfKeyCommitmentWithIpHex = prfKeyCommitmentWithIpHex
-        self.prfKeySharingCoeffCommitmentsHex = prfKeySharingCoeffCommitmentsHex
-        self.proofsOfKnowledgeHex = proofsOfKnowledgeHex
+        self.idCredSecCommitment = idCredSecCommitment
+        self.prfKeyCommitmentWithIp = prfKeyCommitmentWithIp
+        self.prfKeySharingCoeffCommitments = prfKeySharingCoeffCommitments
+        self.proofsOfKnowledge = proofsOfKnowledge
     }
 }
 
 
 extension PreIdentityObject: Equatable, Hashable {
     public static func ==(lhs: PreIdentityObject, rhs: PreIdentityObject) -> Bool {
-        if lhs.idCredPubHex != rhs.idCredPubHex {
+        if lhs.idCredPub != rhs.idCredPub {
             return false
         }
         if lhs.ipArData != rhs.ipArData {
@@ -2316,29 +2316,29 @@ extension PreIdentityObject: Equatable, Hashable {
         if lhs.choiceArData != rhs.choiceArData {
             return false
         }
-        if lhs.idCredSecCommitmentHex != rhs.idCredSecCommitmentHex {
+        if lhs.idCredSecCommitment != rhs.idCredSecCommitment {
             return false
         }
-        if lhs.prfKeyCommitmentWithIpHex != rhs.prfKeyCommitmentWithIpHex {
+        if lhs.prfKeyCommitmentWithIp != rhs.prfKeyCommitmentWithIp {
             return false
         }
-        if lhs.prfKeySharingCoeffCommitmentsHex != rhs.prfKeySharingCoeffCommitmentsHex {
+        if lhs.prfKeySharingCoeffCommitments != rhs.prfKeySharingCoeffCommitments {
             return false
         }
-        if lhs.proofsOfKnowledgeHex != rhs.proofsOfKnowledgeHex {
+        if lhs.proofsOfKnowledge != rhs.proofsOfKnowledge {
             return false
         }
         return true
     }
 
     public func hash(into hasher: inout Hasher) {
-        hasher.combine(idCredPubHex)
+        hasher.combine(idCredPub)
         hasher.combine(ipArData)
         hasher.combine(choiceArData)
-        hasher.combine(idCredSecCommitmentHex)
-        hasher.combine(prfKeyCommitmentWithIpHex)
-        hasher.combine(prfKeySharingCoeffCommitmentsHex)
-        hasher.combine(proofsOfKnowledgeHex)
+        hasher.combine(idCredSecCommitment)
+        hasher.combine(prfKeyCommitmentWithIp)
+        hasher.combine(prfKeySharingCoeffCommitments)
+        hasher.combine(proofsOfKnowledge)
     }
 }
 
@@ -2347,24 +2347,24 @@ public struct FfiConverterTypePreIdentityObject: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> PreIdentityObject {
         return
             try PreIdentityObject(
-                idCredPubHex: FfiConverterString.read(from: &buf), 
+                idCredPub: FfiConverterTypeBytes.read(from: &buf), 
                 ipArData: FfiConverterDictionaryUInt32TypeArData.read(from: &buf), 
                 choiceArData: FfiConverterTypeChoiceArParameters.read(from: &buf), 
-                idCredSecCommitmentHex: FfiConverterString.read(from: &buf), 
-                prfKeyCommitmentWithIpHex: FfiConverterString.read(from: &buf), 
-                prfKeySharingCoeffCommitmentsHex: FfiConverterSequenceString.read(from: &buf), 
-                proofsOfKnowledgeHex: FfiConverterString.read(from: &buf)
+                idCredSecCommitment: FfiConverterTypeBytes.read(from: &buf), 
+                prfKeyCommitmentWithIp: FfiConverterTypeBytes.read(from: &buf), 
+                prfKeySharingCoeffCommitments: FfiConverterSequenceTypeBytes.read(from: &buf), 
+                proofsOfKnowledge: FfiConverterTypeBytes.read(from: &buf)
         )
     }
 
     public static func write(_ value: PreIdentityObject, into buf: inout [UInt8]) {
-        FfiConverterString.write(value.idCredPubHex, into: &buf)
+        FfiConverterTypeBytes.write(value.idCredPub, into: &buf)
         FfiConverterDictionaryUInt32TypeArData.write(value.ipArData, into: &buf)
         FfiConverterTypeChoiceArParameters.write(value.choiceArData, into: &buf)
-        FfiConverterString.write(value.idCredSecCommitmentHex, into: &buf)
-        FfiConverterString.write(value.prfKeyCommitmentWithIpHex, into: &buf)
-        FfiConverterSequenceString.write(value.prfKeySharingCoeffCommitmentsHex, into: &buf)
-        FfiConverterString.write(value.proofsOfKnowledgeHex, into: &buf)
+        FfiConverterTypeBytes.write(value.idCredSecCommitment, into: &buf)
+        FfiConverterTypeBytes.write(value.prfKeyCommitmentWithIp, into: &buf)
+        FfiConverterSequenceTypeBytes.write(value.prfKeySharingCoeffCommitments, into: &buf)
+        FfiConverterTypeBytes.write(value.proofsOfKnowledge, into: &buf)
     }
 }
 
@@ -2385,33 +2385,33 @@ public struct Proofs {
     /**
      * Challenge used for all of the proofs.
      */
-    public var challengeHex: String
+    public var challenge: Bytes
     /**
      * List of commitments to the attributes.
      */
-    public var commitmentsHex: String
+    public var commitments: Bytes
     /**
      * Proof that credential counter is at most equal to the maximum allowed number of account.
      */
-    public var credCounterLessThanMaxAccountsHex: String
+    public var credCounterLessThanMaxAccounts: Bytes
     /**
      * Responses in the proof that the computed commitment to the share
      * contains the same value as the encryption.
      * The commitment to the share is not sent but computed from the commitments to the sharing coefficients.
      */
-    public var proofIdCredPubHex: [String: String]
+    public var proofIdCredPub: [String: Bytes]
     /**
      * Responses in the proof of knowledge of signature of the identity provider.
      */
-    public var proofIpSigHex: String
+    public var proofIpSig: Bytes
     /**
      * Proof that registration ID is valid and computed from the PRF key signed by the identity provider.
      */
-    public var proofRegIdHex: String
+    public var proofRegId: Bytes
     /**
      * (Blinded) signature derived from the signature on the pre-identity object by the identity provider.
      */
-    public var signatureHex: String
+    public var signature: Bytes
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -2419,78 +2419,78 @@ public struct Proofs {
         /**
          * Challenge used for all of the proofs.
          */
-        challengeHex: String, 
+        challenge: Bytes, 
         /**
          * List of commitments to the attributes.
          */
-        commitmentsHex: String, 
+        commitments: Bytes, 
         /**
          * Proof that credential counter is at most equal to the maximum allowed number of account.
          */
-        credCounterLessThanMaxAccountsHex: String, 
+        credCounterLessThanMaxAccounts: Bytes, 
         /**
          * Responses in the proof that the computed commitment to the share
          * contains the same value as the encryption.
          * The commitment to the share is not sent but computed from the commitments to the sharing coefficients.
          */
-        proofIdCredPubHex: [String: String], 
+        proofIdCredPub: [String: Bytes], 
         /**
          * Responses in the proof of knowledge of signature of the identity provider.
          */
-        proofIpSigHex: String, 
+        proofIpSig: Bytes, 
         /**
          * Proof that registration ID is valid and computed from the PRF key signed by the identity provider.
          */
-        proofRegIdHex: String, 
+        proofRegId: Bytes, 
         /**
          * (Blinded) signature derived from the signature on the pre-identity object by the identity provider.
          */
-        signatureHex: String) {
-        self.challengeHex = challengeHex
-        self.commitmentsHex = commitmentsHex
-        self.credCounterLessThanMaxAccountsHex = credCounterLessThanMaxAccountsHex
-        self.proofIdCredPubHex = proofIdCredPubHex
-        self.proofIpSigHex = proofIpSigHex
-        self.proofRegIdHex = proofRegIdHex
-        self.signatureHex = signatureHex
+        signature: Bytes) {
+        self.challenge = challenge
+        self.commitments = commitments
+        self.credCounterLessThanMaxAccounts = credCounterLessThanMaxAccounts
+        self.proofIdCredPub = proofIdCredPub
+        self.proofIpSig = proofIpSig
+        self.proofRegId = proofRegId
+        self.signature = signature
     }
 }
 
 
 extension Proofs: Equatable, Hashable {
     public static func ==(lhs: Proofs, rhs: Proofs) -> Bool {
-        if lhs.challengeHex != rhs.challengeHex {
+        if lhs.challenge != rhs.challenge {
             return false
         }
-        if lhs.commitmentsHex != rhs.commitmentsHex {
+        if lhs.commitments != rhs.commitments {
             return false
         }
-        if lhs.credCounterLessThanMaxAccountsHex != rhs.credCounterLessThanMaxAccountsHex {
+        if lhs.credCounterLessThanMaxAccounts != rhs.credCounterLessThanMaxAccounts {
             return false
         }
-        if lhs.proofIdCredPubHex != rhs.proofIdCredPubHex {
+        if lhs.proofIdCredPub != rhs.proofIdCredPub {
             return false
         }
-        if lhs.proofIpSigHex != rhs.proofIpSigHex {
+        if lhs.proofIpSig != rhs.proofIpSig {
             return false
         }
-        if lhs.proofRegIdHex != rhs.proofRegIdHex {
+        if lhs.proofRegId != rhs.proofRegId {
             return false
         }
-        if lhs.signatureHex != rhs.signatureHex {
+        if lhs.signature != rhs.signature {
             return false
         }
         return true
     }
 
     public func hash(into hasher: inout Hasher) {
-        hasher.combine(challengeHex)
-        hasher.combine(commitmentsHex)
-        hasher.combine(credCounterLessThanMaxAccountsHex)
-        hasher.combine(proofIdCredPubHex)
-        hasher.combine(proofIpSigHex)
-        hasher.combine(proofRegIdHex)
-        hasher.combine(signatureHex)
+        hasher.combine(challenge)
+        hasher.combine(commitments)
+        hasher.combine(credCounterLessThanMaxAccounts)
+        hasher.combine(proofIdCredPub)
+        hasher.combine(proofIpSig)
+        hasher.combine(proofRegId)
+        hasher.combine(signature)
     }
 }
 
@@ -2499,24 +2499,24 @@ public struct FfiConverterTypeProofs: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Proofs {
         return
             try Proofs(
-                challengeHex: FfiConverterString.read(from: &buf), 
-                commitmentsHex: FfiConverterString.read(from: &buf), 
-                credCounterLessThanMaxAccountsHex: FfiConverterString.read(from: &buf), 
-                proofIdCredPubHex: FfiConverterDictionaryStringString.read(from: &buf), 
-                proofIpSigHex: FfiConverterString.read(from: &buf), 
-                proofRegIdHex: FfiConverterString.read(from: &buf), 
-                signatureHex: FfiConverterString.read(from: &buf)
+                challenge: FfiConverterTypeBytes.read(from: &buf), 
+                commitments: FfiConverterTypeBytes.read(from: &buf), 
+                credCounterLessThanMaxAccounts: FfiConverterTypeBytes.read(from: &buf), 
+                proofIdCredPub: FfiConverterDictionaryStringTypeBytes.read(from: &buf), 
+                proofIpSig: FfiConverterTypeBytes.read(from: &buf), 
+                proofRegId: FfiConverterTypeBytes.read(from: &buf), 
+                signature: FfiConverterTypeBytes.read(from: &buf)
         )
     }
 
     public static func write(_ value: Proofs, into buf: inout [UInt8]) {
-        FfiConverterString.write(value.challengeHex, into: &buf)
-        FfiConverterString.write(value.commitmentsHex, into: &buf)
-        FfiConverterString.write(value.credCounterLessThanMaxAccountsHex, into: &buf)
-        FfiConverterDictionaryStringString.write(value.proofIdCredPubHex, into: &buf)
-        FfiConverterString.write(value.proofIpSigHex, into: &buf)
-        FfiConverterString.write(value.proofRegIdHex, into: &buf)
-        FfiConverterString.write(value.signatureHex, into: &buf)
+        FfiConverterTypeBytes.write(value.challenge, into: &buf)
+        FfiConverterTypeBytes.write(value.commitments, into: &buf)
+        FfiConverterTypeBytes.write(value.credCounterLessThanMaxAccounts, into: &buf)
+        FfiConverterDictionaryStringTypeBytes.write(value.proofIdCredPub, into: &buf)
+        FfiConverterTypeBytes.write(value.proofIpSig, into: &buf)
+        FfiConverterTypeBytes.write(value.proofRegId, into: &buf)
+        FfiConverterTypeBytes.write(value.signature, into: &buf)
     }
 }
 
@@ -2539,25 +2539,25 @@ public struct Randomness {
     /**
      * Randomness used to commit to any user-chosen attributes, such as country of nationality.
      */
-    public var attributesRandHex: [String: String]
+    public var attributesRand: [String: Bytes]
     /**
      * Randomness of the commitment to the credential nonce.
      * This nonce is the number that is used to ensure that only a limited number of credentials
      * can be created from a given identity object.
      */
-    public var credCounterRandHex: String
+    public var credCounterRand: Bytes
     /**
      * Randomness of the commitment to idCredSec.
      */
-    public var idCredSecRandHex: String
+    public var idCredSecRand: Bytes
     /**
      * Randomness of the commitment to the maximum number of accounts that may be created from the identity object.
      */
-    public var maxAccountsRandHex: String
+    public var maxAccountsRand: Bytes
     /**
      * Randomness of the commitment to the PRF key.
      */
-    public var prfRandHex: String
+    public var prfRand: Bytes
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -2565,60 +2565,60 @@ public struct Randomness {
         /**
          * Randomness used to commit to any user-chosen attributes, such as country of nationality.
          */
-        attributesRandHex: [String: String], 
+        attributesRand: [String: Bytes], 
         /**
          * Randomness of the commitment to the credential nonce.
          * This nonce is the number that is used to ensure that only a limited number of credentials
          * can be created from a given identity object.
          */
-        credCounterRandHex: String, 
+        credCounterRand: Bytes, 
         /**
          * Randomness of the commitment to idCredSec.
          */
-        idCredSecRandHex: String, 
+        idCredSecRand: Bytes, 
         /**
          * Randomness of the commitment to the maximum number of accounts that may be created from the identity object.
          */
-        maxAccountsRandHex: String, 
+        maxAccountsRand: Bytes, 
         /**
          * Randomness of the commitment to the PRF key.
          */
-        prfRandHex: String) {
-        self.attributesRandHex = attributesRandHex
-        self.credCounterRandHex = credCounterRandHex
-        self.idCredSecRandHex = idCredSecRandHex
-        self.maxAccountsRandHex = maxAccountsRandHex
-        self.prfRandHex = prfRandHex
+        prfRand: Bytes) {
+        self.attributesRand = attributesRand
+        self.credCounterRand = credCounterRand
+        self.idCredSecRand = idCredSecRand
+        self.maxAccountsRand = maxAccountsRand
+        self.prfRand = prfRand
     }
 }
 
 
 extension Randomness: Equatable, Hashable {
     public static func ==(lhs: Randomness, rhs: Randomness) -> Bool {
-        if lhs.attributesRandHex != rhs.attributesRandHex {
+        if lhs.attributesRand != rhs.attributesRand {
             return false
         }
-        if lhs.credCounterRandHex != rhs.credCounterRandHex {
+        if lhs.credCounterRand != rhs.credCounterRand {
             return false
         }
-        if lhs.idCredSecRandHex != rhs.idCredSecRandHex {
+        if lhs.idCredSecRand != rhs.idCredSecRand {
             return false
         }
-        if lhs.maxAccountsRandHex != rhs.maxAccountsRandHex {
+        if lhs.maxAccountsRand != rhs.maxAccountsRand {
             return false
         }
-        if lhs.prfRandHex != rhs.prfRandHex {
+        if lhs.prfRand != rhs.prfRand {
             return false
         }
         return true
     }
 
     public func hash(into hasher: inout Hasher) {
-        hasher.combine(attributesRandHex)
-        hasher.combine(credCounterRandHex)
-        hasher.combine(idCredSecRandHex)
-        hasher.combine(maxAccountsRandHex)
-        hasher.combine(prfRandHex)
+        hasher.combine(attributesRand)
+        hasher.combine(credCounterRand)
+        hasher.combine(idCredSecRand)
+        hasher.combine(maxAccountsRand)
+        hasher.combine(prfRand)
     }
 }
 
@@ -2627,20 +2627,20 @@ public struct FfiConverterTypeRandomness: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Randomness {
         return
             try Randomness(
-                attributesRandHex: FfiConverterDictionaryStringString.read(from: &buf), 
-                credCounterRandHex: FfiConverterString.read(from: &buf), 
-                idCredSecRandHex: FfiConverterString.read(from: &buf), 
-                maxAccountsRandHex: FfiConverterString.read(from: &buf), 
-                prfRandHex: FfiConverterString.read(from: &buf)
+                attributesRand: FfiConverterDictionaryStringTypeBytes.read(from: &buf), 
+                credCounterRand: FfiConverterTypeBytes.read(from: &buf), 
+                idCredSecRand: FfiConverterTypeBytes.read(from: &buf), 
+                maxAccountsRand: FfiConverterTypeBytes.read(from: &buf), 
+                prfRand: FfiConverterTypeBytes.read(from: &buf)
         )
     }
 
     public static func write(_ value: Randomness, into buf: inout [UInt8]) {
-        FfiConverterDictionaryStringString.write(value.attributesRandHex, into: &buf)
-        FfiConverterString.write(value.credCounterRandHex, into: &buf)
-        FfiConverterString.write(value.idCredSecRandHex, into: &buf)
-        FfiConverterString.write(value.maxAccountsRandHex, into: &buf)
-        FfiConverterString.write(value.prfRandHex, into: &buf)
+        FfiConverterDictionaryStringTypeBytes.write(value.attributesRand, into: &buf)
+        FfiConverterTypeBytes.write(value.credCounterRand, into: &buf)
+        FfiConverterTypeBytes.write(value.idCredSecRand, into: &buf)
+        FfiConverterTypeBytes.write(value.maxAccountsRand, into: &buf)
+        FfiConverterTypeBytes.write(value.prfRand, into: &buf)
     }
 }
 
@@ -2826,15 +2826,15 @@ public func FfiConverterTypeSecToPubTransferDataDeserializeResult_lower(_ value:
  */
 public struct SignedAccountCredential {
     public var credential: AccountCredential
-    public var signaturesHex: [UInt8: String]
+    public var signatures: [UInt8: Bytes]
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(
         credential: AccountCredential, 
-        signaturesHex: [UInt8: String]) {
+        signatures: [UInt8: Bytes]) {
         self.credential = credential
-        self.signaturesHex = signaturesHex
+        self.signatures = signatures
     }
 }
 
@@ -2844,7 +2844,7 @@ extension SignedAccountCredential: Equatable, Hashable {
         if lhs.credential != rhs.credential {
             return false
         }
-        if lhs.signaturesHex != rhs.signaturesHex {
+        if lhs.signatures != rhs.signatures {
             return false
         }
         return true
@@ -2852,7 +2852,7 @@ extension SignedAccountCredential: Equatable, Hashable {
 
     public func hash(into hasher: inout Hasher) {
         hasher.combine(credential)
-        hasher.combine(signaturesHex)
+        hasher.combine(signatures)
     }
 }
 
@@ -2862,13 +2862,13 @@ public struct FfiConverterTypeSignedAccountCredential: FfiConverterRustBuffer {
         return
             try SignedAccountCredential(
                 credential: FfiConverterTypeAccountCredential.read(from: &buf), 
-                signaturesHex: FfiConverterDictionaryUInt8String.read(from: &buf)
+                signatures: FfiConverterDictionaryUInt8TypeBytes.read(from: &buf)
         )
     }
 
     public static func write(_ value: SignedAccountCredential, into buf: inout [UInt8]) {
         FfiConverterTypeAccountCredential.write(value.credential, into: &buf)
-        FfiConverterDictionaryUInt8String.write(value.signaturesHex, into: &buf)
+        FfiConverterDictionaryUInt8TypeBytes.write(value.signatures, into: &buf)
     }
 }
 
@@ -3031,15 +3031,15 @@ public func FfiConverterTypeUpdateCredentialsPayloadDeserializeResult_lower(_ va
  */
 public struct VerifyKey {
     public var schemeId: String
-    public var keyHex: String
+    public var key: Bytes
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(
         schemeId: String, 
-        keyHex: String) {
+        key: Bytes) {
         self.schemeId = schemeId
-        self.keyHex = keyHex
+        self.key = key
     }
 }
 
@@ -3049,7 +3049,7 @@ extension VerifyKey: Equatable, Hashable {
         if lhs.schemeId != rhs.schemeId {
             return false
         }
-        if lhs.keyHex != rhs.keyHex {
+        if lhs.key != rhs.key {
             return false
         }
         return true
@@ -3057,7 +3057,7 @@ extension VerifyKey: Equatable, Hashable {
 
     public func hash(into hasher: inout Hasher) {
         hasher.combine(schemeId)
-        hasher.combine(keyHex)
+        hasher.combine(key)
     }
 }
 
@@ -3067,13 +3067,13 @@ public struct FfiConverterTypeVerifyKey: FfiConverterRustBuffer {
         return
             try VerifyKey(
                 schemeId: FfiConverterString.read(from: &buf), 
-                keyHex: FfiConverterString.read(from: &buf)
+                key: FfiConverterTypeBytes.read(from: &buf)
         )
     }
 
     public static func write(_ value: VerifyKey, into buf: inout [UInt8]) {
         FfiConverterString.write(value.schemeId, into: &buf)
-        FfiConverterString.write(value.keyHex, into: &buf)
+        FfiConverterTypeBytes.write(value.key, into: &buf)
     }
 }
 
@@ -3182,28 +3182,6 @@ fileprivate struct FfiConverterSequenceUInt32: FfiConverterRustBuffer {
     }
 }
 
-fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
-    typealias SwiftType = [String]
-
-    public static func write(_ value: [String], into buf: inout [UInt8]) {
-        let len = Int32(value.count)
-        writeInt(&buf, len)
-        for item in value {
-            FfiConverterString.write(item, into: &buf)
-        }
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [String] {
-        let len: Int32 = try readInt(&buf)
-        var seq = [String]()
-        seq.reserveCapacity(Int(len))
-        for _ in 0 ..< len {
-            seq.append(try FfiConverterString.read(from: &buf))
-        }
-        return seq
-    }
-}
-
 fileprivate struct FfiConverterSequenceTypeBytes: FfiConverterRustBuffer {
     typealias SwiftType = [Bytes]
 
@@ -3223,29 +3201,6 @@ fileprivate struct FfiConverterSequenceTypeBytes: FfiConverterRustBuffer {
             seq.append(try FfiConverterTypeBytes.read(from: &buf))
         }
         return seq
-    }
-}
-
-fileprivate struct FfiConverterDictionaryUInt8String: FfiConverterRustBuffer {
-    public static func write(_ value: [UInt8: String], into buf: inout [UInt8]) {
-        let len = Int32(value.count)
-        writeInt(&buf, len)
-        for (key, value) in value {
-            FfiConverterUInt8.write(key, into: &buf)
-            FfiConverterString.write(value, into: &buf)
-        }
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [UInt8: String] {
-        let len: Int32 = try readInt(&buf)
-        var dict = [UInt8: String]()
-        dict.reserveCapacity(Int(len))
-        for _ in 0..<len {
-            let key = try FfiConverterUInt8.read(from: &buf)
-            let value = try FfiConverterString.read(from: &buf)
-            dict[key] = value
-        }
-        return dict
     }
 }
 
@@ -3289,6 +3244,29 @@ fileprivate struct FfiConverterDictionaryUInt8TypeVerifyKey: FfiConverterRustBuf
         for _ in 0..<len {
             let key = try FfiConverterUInt8.read(from: &buf)
             let value = try FfiConverterTypeVerifyKey.read(from: &buf)
+            dict[key] = value
+        }
+        return dict
+    }
+}
+
+fileprivate struct FfiConverterDictionaryUInt8TypeBytes: FfiConverterRustBuffer {
+    public static func write(_ value: [UInt8: Bytes], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for (key, value) in value {
+            FfiConverterUInt8.write(key, into: &buf)
+            FfiConverterTypeBytes.write(value, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [UInt8: Bytes] {
+        let len: Int32 = try readInt(&buf)
+        var dict = [UInt8: Bytes]()
+        dict.reserveCapacity(Int(len))
+        for _ in 0..<len {
+            let key = try FfiConverterUInt8.read(from: &buf)
+            let value = try FfiConverterTypeBytes.read(from: &buf)
             dict[key] = value
         }
         return dict
@@ -3387,6 +3365,29 @@ fileprivate struct FfiConverterDictionaryStringString: FfiConverterRustBuffer {
     }
 }
 
+fileprivate struct FfiConverterDictionaryStringTypeBytes: FfiConverterRustBuffer {
+    public static func write(_ value: [String: Bytes], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for (key, value) in value {
+            FfiConverterString.write(key, into: &buf)
+            FfiConverterTypeBytes.write(value, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [String: Bytes] {
+        let len: Int32 = try readInt(&buf)
+        var dict = [String: Bytes]()
+        dict.reserveCapacity(Int(len))
+        for _ in 0..<len {
+            let key = try FfiConverterString.read(from: &buf)
+            let value = try FfiConverterTypeBytes.read(from: &buf)
+            dict[key] = value
+        }
+        return dict
+    }
+}
+
 
 /**
  * Typealias from the type name used in the UDL file to the builtin type.  This
@@ -3434,13 +3435,12 @@ public func accountCredential(params: AccountCredentialParameters) throws  -> Ac
 /**
  * Compute the attribute commitment randomness for the provided seed, identity indexes, credential counter, and attribute number.
  * Supported values for `network`: "Testnet", "Mainnet".
- * The result is hex encoded.
  */
-public func accountCredentialAttributeCommitmentRandomnessHex(seedHex: String, network: String, identityProviderId: UInt32, identityIndex: UInt32, credentialCounter: UInt8, attribute: UInt8) throws  -> String {
-    return try  FfiConverterString.lift(
+public func accountCredentialAttributeCommitmentRandomness(seed: Bytes, network: String, identityProviderId: UInt32, identityIndex: UInt32, credentialCounter: UInt8, attribute: UInt8) throws  -> Bytes {
+    return try  FfiConverterTypeBytes.lift(
         try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
-    uniffi_concordium_wallet_crypto_uniffi_fn_func_account_credential_attribute_commitment_randomness_hex(
-        FfiConverterString.lower(seedHex),
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_account_credential_attribute_commitment_randomness(
+        FfiConverterTypeBytes.lower(seed),
         FfiConverterString.lower(network),
         FfiConverterUInt32.lower(identityProviderId),
         FfiConverterUInt32.lower(identityIndex),
@@ -3451,12 +3451,11 @@ public func accountCredentialAttributeCommitmentRandomnessHex(seedHex: String, n
 }
 /**
  * Compute the hash of a new credential deployment to be signed by the account key derived for the credential.
- * The result is hex encoded.
  */
-public func accountCredentialDeploymentHashHex(credential: AccountCredential, expiryUnixSecs: UInt64) throws  -> String {
-    return try  FfiConverterString.lift(
+public func accountCredentialDeploymentHash(credential: AccountCredential, expiryUnixSecs: UInt64) throws  -> Bytes {
+    return try  FfiConverterTypeBytes.lift(
         try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
-    uniffi_concordium_wallet_crypto_uniffi_fn_func_account_credential_deployment_hash_hex(
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_account_credential_deployment_hash(
         FfiConverterTypeAccountCredential.lower(credential),
         FfiConverterUInt64.lower(expiryUnixSecs),$0)
 }
@@ -3464,12 +3463,11 @@ public func accountCredentialDeploymentHashHex(credential: AccountCredential, ex
 }
 /**
  * Serializes the credential deployment payload for submission as a "raw" payload to a node.
- * The result is hex encoded.
  */
-public func accountCredentialDeploymentSignedPayloadHex(credential: SignedAccountCredential) throws  -> String {
-    return try  FfiConverterString.lift(
+public func accountCredentialDeploymentSignedPayload(credential: SignedAccountCredential) throws  -> Bytes {
+    return try  FfiConverterTypeBytes.lift(
         try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
-    uniffi_concordium_wallet_crypto_uniffi_fn_func_account_credential_deployment_signed_payload_hex(
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_account_credential_deployment_signed_payload(
         FfiConverterTypeSignedAccountCredential.lower(credential),$0)
 }
     )
@@ -3477,31 +3475,29 @@ public func accountCredentialDeploymentSignedPayloadHex(credential: SignedAccoun
 /**
  * Compute the credential ID for the provided seed, identity indexes, credential counter, and the chain's commitment key.
  * Supported values for `network`: "Testnet", "Mainnet".
- * The result is hex encoded.
  */
-public func accountCredentialIdHex(seedHex: String, network: String, identityProviderId: UInt32, identityIndex: UInt32, credentialCounter: UInt8, commitmentKey: String) throws  -> String {
-    return try  FfiConverterString.lift(
+public func accountCredentialId(seed: Bytes, network: String, identityProviderId: UInt32, identityIndex: UInt32, credentialCounter: UInt8, commitmentKey: Bytes) throws  -> Bytes {
+    return try  FfiConverterTypeBytes.lift(
         try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
-    uniffi_concordium_wallet_crypto_uniffi_fn_func_account_credential_id_hex(
-        FfiConverterString.lower(seedHex),
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_account_credential_id(
+        FfiConverterTypeBytes.lower(seed),
         FfiConverterString.lower(network),
         FfiConverterUInt32.lower(identityProviderId),
         FfiConverterUInt32.lower(identityIndex),
         FfiConverterUInt8.lower(credentialCounter),
-        FfiConverterString.lower(commitmentKey),$0)
+        FfiConverterTypeBytes.lower(commitmentKey),$0)
 }
     )
 }
 /**
  * Compute the account credential public key for the provided seed, identity indexes, and credential counter.
  * Supported values for `network`: "Testnet", "Mainnet".
- * The result is hex encoded.
  */
-public func accountCredentialPublicKeyHex(seedHex: String, network: String, identityProviderId: UInt32, identityIndex: UInt32, credentialCounter: UInt8) throws  -> String {
-    return try  FfiConverterString.lift(
+public func accountCredentialPublicKey(seed: Bytes, network: String, identityProviderId: UInt32, identityIndex: UInt32, credentialCounter: UInt8) throws  -> Bytes {
+    return try  FfiConverterTypeBytes.lift(
         try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
-    uniffi_concordium_wallet_crypto_uniffi_fn_func_account_credential_public_key_hex(
-        FfiConverterString.lower(seedHex),
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_account_credential_public_key(
+        FfiConverterTypeBytes.lower(seed),
         FfiConverterString.lower(network),
         FfiConverterUInt32.lower(identityProviderId),
         FfiConverterUInt32.lower(identityIndex),
@@ -3512,13 +3508,12 @@ public func accountCredentialPublicKeyHex(seedHex: String, network: String, iden
 /**
  * Compute the account credential signing key for the provided seed, identity indexes, and credential counter.
  * Supported values for `network`: "Testnet", "Mainnet".
- * The result is hex encoded.
  */
-public func accountCredentialSigningKeyHex(seedHex: String, network: String, identityProviderId: UInt32, identityIndex: UInt32, credentialCounter: UInt8) throws  -> String {
-    return try  FfiConverterString.lift(
+public func accountCredentialSigningKey(seed: Bytes, network: String, identityProviderId: UInt32, identityIndex: UInt32, credentialCounter: UInt8) throws  -> Bytes {
+    return try  FfiConverterTypeBytes.lift(
         try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
-    uniffi_concordium_wallet_crypto_uniffi_fn_func_account_credential_signing_key_hex(
-        FfiConverterString.lower(seedHex),
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_account_credential_signing_key(
+        FfiConverterTypeBytes.lower(seed),
         FfiConverterString.lower(network),
         FfiConverterUInt32.lower(identityProviderId),
         FfiConverterUInt32.lower(identityIndex),
@@ -3561,13 +3556,12 @@ public func generateBakerKeys()  -> BakerKeyPairs {
 /**
  * Compute the signature blinding randomness for the provided seed and identity indexes.
  * Supported values for `network`: "Testnet", "Mainnet".
- * The result is hex encoded.
  */
-public func identityAttributesSignatureBlindingRandomnessHex(seedHex: String, network: String, identityProviderId: UInt32, identityIndex: UInt32) throws  -> String {
-    return try  FfiConverterString.lift(
+public func identityAttributesSignatureBlindingRandomness(seed: Bytes, network: String, identityProviderId: UInt32, identityIndex: UInt32) throws  -> Bytes {
+    return try  FfiConverterTypeBytes.lift(
         try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
-    uniffi_concordium_wallet_crypto_uniffi_fn_func_identity_attributes_signature_blinding_randomness_hex(
-        FfiConverterString.lower(seedHex),
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_identity_attributes_signature_blinding_randomness(
+        FfiConverterTypeBytes.lower(seed),
         FfiConverterString.lower(network),
         FfiConverterUInt32.lower(identityProviderId),
         FfiConverterUInt32.lower(identityIndex),$0)
@@ -3577,13 +3571,12 @@ public func identityAttributesSignatureBlindingRandomnessHex(seedHex: String, ne
 /**
  * Compute the IdCredSec for the provided seed and identity indexes.
  * Supported values for `network`: "Testnet", "Mainnet".
- * The result is hex encoded.
  */
-public func identityCredSecHex(seedHex: String, network: String, identityProviderId: UInt32, identityIndex: UInt32) throws  -> String {
-    return try  FfiConverterString.lift(
+public func identityCredSec(seed: Bytes, network: String, identityProviderId: UInt32, identityIndex: UInt32) throws  -> Bytes {
+    return try  FfiConverterTypeBytes.lift(
         try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
-    uniffi_concordium_wallet_crypto_uniffi_fn_func_identity_cred_sec_hex(
-        FfiConverterString.lower(seedHex),
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_identity_cred_sec(
+        FfiConverterTypeBytes.lower(seed),
         FfiConverterString.lower(network),
         FfiConverterUInt32.lower(identityProviderId),
         FfiConverterUInt32.lower(identityIndex),$0)
@@ -3606,13 +3599,12 @@ public func identityIssuanceRequestJson(params: IdentityIssuanceRequestParameter
 /**
  * Compute the PRF-key for the provided seed and identity indexes.
  * Supported values for `network`: "Testnet", "Mainnet".
- * The result is hex encoded.
  */
-public func identityPrfKeyHex(seedHex: String, network: String, identityProviderId: UInt32, identityIndex: UInt32) throws  -> String {
-    return try  FfiConverterString.lift(
+public func identityPrfKey(seed: Bytes, network: String, identityProviderId: UInt32, identityIndex: UInt32) throws  -> Bytes {
+    return try  FfiConverterTypeBytes.lift(
         try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
-    uniffi_concordium_wallet_crypto_uniffi_fn_func_identity_prf_key_hex(
-        FfiConverterString.lower(seedHex),
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_identity_prf_key(
+        FfiConverterTypeBytes.lower(seed),
         FfiConverterString.lower(network),
         FfiConverterUInt32.lower(identityProviderId),
         FfiConverterUInt32.lower(identityIndex),$0)
@@ -3671,13 +3663,12 @@ public func serializeCredentialDeploymentInfo(credInfo: CredentialDeploymentInfo
 /**
  * Compute the encoded verifiable credential backup encryption key for the provided seed.
  * Supported values for `network`: "Testnet", "Mainnet".
- * The result is hex encoded.
  */
-public func verifiableCredentialBackupEncryptionKeyHex(seedHex: String, network: String) throws  -> String {
-    return try  FfiConverterString.lift(
+public func verifiableCredentialBackupEncryptionKey(seed: Bytes, network: String) throws  -> Bytes {
+    return try  FfiConverterTypeBytes.lift(
         try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
-    uniffi_concordium_wallet_crypto_uniffi_fn_func_verifiable_credential_backup_encryption_key_hex(
-        FfiConverterString.lower(seedHex),
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_verifiable_credential_backup_encryption_key(
+        FfiConverterTypeBytes.lower(seed),
         FfiConverterString.lower(network),$0)
 }
     )
@@ -3685,13 +3676,12 @@ public func verifiableCredentialBackupEncryptionKeyHex(seedHex: String, network:
 /**
  * Compute the public key for the provided seed, issuer indexes, and verifiable credential index.
  * Supported values for `network`: "Testnet", "Mainnet".
- * The result is hex encoded.
  */
-public func verifiableCredentialPublicKeyHex(seedHex: String, network: String, issuerIndex: UInt64, issuerSubindex: UInt64, verifiableCredentialIndex: UInt32) throws  -> String {
-    return try  FfiConverterString.lift(
+public func verifiableCredentialPublicKey(seed: Bytes, network: String, issuerIndex: UInt64, issuerSubindex: UInt64, verifiableCredentialIndex: UInt32) throws  -> Bytes {
+    return try  FfiConverterTypeBytes.lift(
         try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
-    uniffi_concordium_wallet_crypto_uniffi_fn_func_verifiable_credential_public_key_hex(
-        FfiConverterString.lower(seedHex),
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_verifiable_credential_public_key(
+        FfiConverterTypeBytes.lower(seed),
         FfiConverterString.lower(network),
         FfiConverterUInt64.lower(issuerIndex),
         FfiConverterUInt64.lower(issuerSubindex),
@@ -3702,13 +3692,12 @@ public func verifiableCredentialPublicKeyHex(seedHex: String, network: String, i
 /**
  * Compute the signing key for the provided seed, issuer indexes, and verifiable credential index.
  * Supported values for `network`: "Testnet", "Mainnet".
- * The result is hex encoded.
  */
-public func verifiableCredentialSigningKeyHex(seedHex: String, network: String, issuerIndex: UInt64, issuerSubindex: UInt64, verifiableCredentialIndex: UInt32) throws  -> String {
-    return try  FfiConverterString.lift(
+public func verifiableCredentialSigningKey(seed: Bytes, network: String, issuerIndex: UInt64, issuerSubindex: UInt64, verifiableCredentialIndex: UInt32) throws  -> Bytes {
+    return try  FfiConverterTypeBytes.lift(
         try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
-    uniffi_concordium_wallet_crypto_uniffi_fn_func_verifiable_credential_signing_key_hex(
-        FfiConverterString.lower(seedHex),
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_verifiable_credential_signing_key(
+        FfiConverterTypeBytes.lower(seed),
         FfiConverterString.lower(network),
         FfiConverterUInt64.lower(issuerIndex),
         FfiConverterUInt64.lower(issuerSubindex),
@@ -3735,22 +3724,22 @@ private var initializationResult: InitializationResult {
     if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential() != 28347) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_attribute_commitment_randomness_hex() != 36552) {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_attribute_commitment_randomness() != 5266) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_deployment_hash_hex() != 5211) {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_deployment_hash() != 17693) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_deployment_signed_payload_hex() != 12194) {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_deployment_signed_payload() != 42141) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_id_hex() != 3361) {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_id() != 35467) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_public_key_hex() != 37156) {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_public_key() != 21709) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_signing_key_hex() != 14900) {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_signing_key() != 116) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_deserialize_sec_to_pub_transfer_data() != 15687) {
@@ -3762,16 +3751,16 @@ private var initializationResult: InitializationResult {
     if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_generate_baker_keys() != 22656) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_identity_attributes_signature_blinding_randomness_hex() != 52576) {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_identity_attributes_signature_blinding_randomness() != 51381) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_identity_cred_sec_hex() != 50297) {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_identity_cred_sec() != 9447) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_identity_issuance_request_json() != 28061) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_identity_prf_key_hex() != 44691) {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_identity_prf_key() != 34345) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_identity_recovery_request_json() != 33579) {
@@ -3786,13 +3775,13 @@ private var initializationResult: InitializationResult {
     if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_serialize_credential_deployment_info() != 61448) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_verifiable_credential_backup_encryption_key_hex() != 33639) {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_verifiable_credential_backup_encryption_key() != 58160) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_verifiable_credential_public_key_hex() != 45224) {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_verifiable_credential_public_key() != 57213) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_verifiable_credential_signing_key_hex() != 34189) {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_verifiable_credential_signing_key() != 59666) {
         return InitializationResult.apiChecksumMismatch
     }
 

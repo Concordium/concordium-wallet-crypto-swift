@@ -18,8 +18,8 @@ let package = Package(
     targets: [
         overridableFrameworkTarget(
             name: "ConcordiumWalletCryptoUniffi",
-            url: "https://github.com/Concordium/concordium-wallet-crypto-swift/releases/download/build%2F3.1.1-0/ConcordiumWalletCryptoUniffi.xcframework.zip",
-            checksum: "7af27968d9efe99ecb933e7385d0d1557a94d310a7395a90526acac44119a29e"
+            url: "https://github.com/Concordium/concordium-wallet-crypto-swift/releases/download/build%2F4.0.0-0/ConcordiumWalletCryptoUniffi.xcframework.zip",
+            checksum: "f85e9d00a19d231b0ffb696af47043ce9786e55a06e2fd95bc73b6d5eac08fb9"
         ),
         .target(
             name: "ConcordiumWalletCrypto",
