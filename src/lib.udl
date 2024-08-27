@@ -9,9 +9,9 @@ dictionary IdentityIssuanceRequestParameters {
     GlobalContext global_context;
     record<u32, AnonymityRevokerInfo> ars_infos;
     u8 ar_threshold;
-    string prf_key_hex;
-    string id_cred_sec_hex;
-    string blinding_randomness_hex;
+    Bytes prf_key;
+    Bytes id_cred_sec;
+    Bytes blinding_randomness;
 };
 
 /// Parameter object for `identity_recovery_request_json`.
@@ -19,7 +19,7 @@ dictionary IdentityRecoveryRequestParameters {
     IdentityProviderInfo ip_info;
     GlobalContext global_context;
     u64 timestamp;
-    string id_cred_sec_hex;
+    Bytes id_cred_sec;
 };
 
 /// Public information about an identity provider.
@@ -29,9 +29,9 @@ dictionary IdentityProviderInfo {
     /// Free form description, e.g., how to contact them off-chain.
     Description description;
     /// PS public key of the identity provider.
-    string verify_key_hex;
+    Bytes verify_key;
     /// Ed public key of the identity provider.
-    string cdi_verify_key_hex;
+    Bytes cdi_verify_key;
 };
 
 /// A set of cryptographic parameters that are particular to the chain and
@@ -39,9 +39,9 @@ dictionary IdentityProviderInfo {
 dictionary GlobalContext {
     /// Shared commitment key known to the chain and the account holder (i.e. it's public).
     /// The account holder uses this commitment key to generate commitments to values in the attribute list.
-    string on_chain_commitment_key_hex;
+    Bytes on_chain_commitment_key;
     /// Generators for the bulletproofs.
-    string bulletproof_generators_hex;
+    Bytes bulletproof_generators;
     /// Free-form string used to distinguish between different chains even if they share other parameters.
     string genesis_string;
 };
@@ -53,7 +53,7 @@ dictionary AnonymityRevokerInfo {
     /// Description of the anonymity revoker (e.g. name, contact number).
     Description description;
     /// Elgamal encryption key of the anonymity revoker.
-    string public_key_hex;
+    Bytes public_key;
 };
 
 /// Metadata of an identity provider or anonymity revoker
@@ -72,10 +72,10 @@ dictionary AccountCredentialParameters {
     IdentityObject id_object;
     sequence<u8> revealed_attributes;
     u8 cred_number;
-    string id_cred_sec_hex;
-    string prf_key_hex;
-    string blinding_randomness_hex;
-    record<string, string> attribute_randomness_hex;
+    Bytes id_cred_sec;
+    Bytes prf_key;
+    Bytes blinding_randomness;
+    record<string, Bytes> attribute_randomness;
     CredentialPublicKeys credential_public_keys;
 };
 
@@ -84,14 +84,14 @@ dictionary IdentityObject {
     PreIdentityObject pre_identity_object;
     /// Chosen attribute list.
     AttributeList attribute_list;
-    string signature_hex;
+    Bytes signature;
 };
 
 /// Information sent from the account holder to the identity provider.
 /// This includes only the cryptographic parts; the attribute list is in a different object below.
 /// This is for the flow where no initial account is involved.
 dictionary PreIdentityObject {
-    string id_cred_pub_hex;
+    Bytes id_cred_pub;
     /// Anonymity revocation data for the chosen anonymity revokers.
     record<u32, ArData> ip_ar_data;
     /// Choice of anonyimity revocation parameters.
@@ -99,13 +99,13 @@ dictionary PreIdentityObject {
     ChoiceArParameters choice_ar_data;
     /// Commitment to ID cred sec using the commitment key of the identity provider derived from the PS public key.
     /// This is used to compute the message that the identity provider signs.
-    string id_cred_sec_commitment_hex;
+    Bytes id_cred_sec_commitment;
     /// Commitment to the PRF key in group G1.
-    string prf_key_commitment_with_ip_hex;
+    Bytes prf_key_commitment_with_ip;
     /// Commitments to the coefficients of the polynomial used to share the PRF key.
-    sequence<string> prf_key_sharing_coeff_commitments_hex;
+    sequence<Bytes> prf_key_sharing_coeff_commitments;
     /// Proof that the data sent to the identity provider is well-formed.
-    string proofs_of_knowledge_hex;
+    Bytes proofs_of_knowledge;
 };
 
 /// Choice of anonymity revocation parameters.
@@ -119,11 +119,11 @@ dictionary ChoiceArParameters {
 /// Typically the account holder will send a vector of these.
 dictionary ArData {
     /// Encryption in chunks (in little endian) of the PRF key share.
-    string enc_prf_key_share_hex;
+    Bytes enc_prf_key_share;
     /// Response in the proof that the computed commitment to the share
     /// contains the same value as the encryption.
     /// The commitment to the share is not sent but computed from the commitments to the sharing coefficients.
-    string proof_com_enc_eq_hex;
+    Bytes proof_com_enc_eq;
 };
 
 /// An attribute list that is part of a normal credential.
@@ -152,25 +152,25 @@ dictionary AccountCredentialResult {
 /// for example reveal the committed value or prove a property of the value.
 dictionary Randomness {
     /// Randomness used to commit to any user-chosen attributes, such as country of nationality.
-    record<string, string> attributes_rand_hex;
+    record<string, Bytes> attributes_rand;
     /// Randomness of the commitment to the credential nonce.
     /// This nonce is the number that is used to ensure that only a limited number of credentials
     /// can be created from a given identity object.
-    string cred_counter_rand_hex;
+    Bytes cred_counter_rand;
     /// Randomness of the commitment to idCredSec.
-    string id_cred_sec_rand_hex;
+    Bytes id_cred_sec_rand;
     /// Randomness of the commitment to the maximum number of accounts that may be created from the identity object.
-    string max_accounts_rand_hex;
+    Bytes max_accounts_rand;
     /// Randomness of the commitment to the PRF key.
-    string prf_rand_hex;
+    Bytes prf_rand;
 };
 
 /// An account credential containing proofs without signatures.
 /// To deploy a credential, an object of this type is
-/// hashed using `account_credential_deployment_hash_hex`
+/// hashed using `account_credential_deployment_hash`
 /// which is signed using the key derived for the credential.
 /// The results are collected into a `SignedAccountCredential`
-/// and serialized using `account_credential_deployment_signed_payload_hex`.
+/// and serialized using `account_credential_deployment_signed_payload`.
 /// The result of this call can be submitted to the chain.
 dictionary AccountCredential {
     /// List of anonymity revokers which can revoke the identity.
@@ -178,7 +178,7 @@ dictionary AccountCredential {
     /// and permuting the list will invalidate the signature from the identity provider.
     record<u32, ChainArData> ar_data;
     /// Credential registration ID of the credential.
-    string cred_id_hex;
+    Bytes cred_id;
     /// Credential keys (i.e. account holder keys).
     CredentialPublicKeys credential_public_keys;
     /// Identity of the identity provider who signed the identity object
@@ -194,7 +194,7 @@ dictionary AccountCredential {
 /// Data relating to a single anonymity revoker constructed by the account holder.
 /// Typically a vector of these will be sent to the chain.
 dictionary ChainArData {
-    string enc_id_cred_pub_share_hex;
+    Bytes enc_id_cred_pub_share;
 };
 
 /// Public credential keys currently on the account.
@@ -208,7 +208,7 @@ dictionary CredentialPublicKeys {
 /// Currently the only supported value of `scheme_id` is "Ed25519".
 dictionary VerifyKey {
     string scheme_id;
-    string key_hex;
+    Bytes key;
 };
 
 /// A policy is (currently) revealed values of attributes that are part of the identity object.
@@ -222,27 +222,27 @@ dictionary Policy {
 /// All proofs required to prove ownership of an identity in a credential deployment.
 dictionary Proofs {
     /// Challenge used for all of the proofs.
-    string challenge_hex;
+    Bytes challenge;
     /// List of commitments to the attributes.
-    string commitments_hex;
+    Bytes commitments;
     /// Proof that credential counter is at most equal to the maximum allowed number of account.
-    string cred_counter_less_than_max_accounts_hex;
+    Bytes cred_counter_less_than_max_accounts;
     /// Responses in the proof that the computed commitment to the share
     /// contains the same value as the encryption.
     /// The commitment to the share is not sent but computed from the commitments to the sharing coefficients.
-    record<string, string> proof_id_cred_pub_hex;
+    record<string, Bytes> proof_id_cred_pub;
     /// Responses in the proof of knowledge of signature of the identity provider.
-    string proof_ip_sig_hex;
+    Bytes proof_ip_sig;
     /// Proof that registration ID is valid and computed from the PRF key signed by the identity provider.
-    string proof_reg_id_hex;
+    Bytes proof_reg_id;
     /// (Blinded) signature derived from the signature on the pre-identity object by the identity provider.
-    string signature_hex;
+    Bytes signature;
 };
 
 /// The credential deployment context required to serialize a credential deployment for submission to the chain.
 dictionary SignedAccountCredential {
     AccountCredential credential;
-    record<u8, string> signatures_hex;
+    record<u8, Bytes> signatures;
 };
 
 [Custom]
@@ -337,63 +337,53 @@ dictionary BakerKeysPayload {
 namespace crypto {
     /// Compute the IdCredSec for the provided seed and identity indexes.
     /// Supported values for `network`: "Testnet", "Mainnet".
-    /// The result is hex encoded.
     [Throws=ConcordiumWalletCryptoError]
-    string identity_cred_sec_hex(string seed_hex, string network, u32 identity_provider_id, u32 identity_index);
+    Bytes identity_cred_sec(Bytes seed, string network, u32 identity_provider_id, u32 identity_index);
 
     /// Compute the PRF-key for the provided seed and identity indexes.
     /// Supported values for `network`: "Testnet", "Mainnet".
-    /// The result is hex encoded.
     [Throws=ConcordiumWalletCryptoError]
-    string identity_prf_key_hex(string seed_hex, string network, u32 identity_provider_id, u32 identity_index);
+    Bytes identity_prf_key(Bytes seed, string network, u32 identity_provider_id, u32 identity_index);
 
     /// Compute the signature blinding randomness for the provided seed and identity indexes.
     /// Supported values for `network`: "Testnet", "Mainnet".
-    /// The result is hex encoded.
     [Throws=ConcordiumWalletCryptoError]
-    string identity_attributes_signature_blinding_randomness_hex(string seed_hex, string network, u32 identity_provider_id, u32 identity_index);
+    Bytes identity_attributes_signature_blinding_randomness(Bytes seed, string network, u32 identity_provider_id, u32 identity_index);
 
     /// Compute the account credential signing key for the provided seed, identity indexes, and credential counter.
     /// Supported values for `network`: "Testnet", "Mainnet".
-    /// The result is hex encoded.
     [Throws=ConcordiumWalletCryptoError]
-    string account_credential_signing_key_hex(string seed_hex, string network, u32 identity_provider_id, u32 identity_index, u8 credential_counter);
+    Bytes account_credential_signing_key(Bytes seed, string network, u32 identity_provider_id, u32 identity_index, u8 credential_counter);
 
     /// Compute the account credential public key for the provided seed, identity indexes, and credential counter.
     /// Supported values for `network`: "Testnet", "Mainnet".
-    /// The result is hex encoded.
     [Throws=ConcordiumWalletCryptoError]
-    string account_credential_public_key_hex(string seed_hex, string network, u32 identity_provider_id, u32 identity_index, u8 credential_counter);
+    Bytes account_credential_public_key(Bytes seed, string network, u32 identity_provider_id, u32 identity_index, u8 credential_counter);
 
     /// Compute the credential ID for the provided seed, identity indexes, credential counter, and the chain's commitment key.
     /// Supported values for `network`: "Testnet", "Mainnet".
-    /// The result is hex encoded.
     [Throws=ConcordiumWalletCryptoError]
-    string account_credential_id_hex(string seed_hex, string network, u32 identity_provider_id, u32 identity_index, u8 credential_counter, string commitment_key);
+    Bytes account_credential_id(Bytes seed, string network, u32 identity_provider_id, u32 identity_index, u8 credential_counter, Bytes commitment_key);
 
     /// Compute the attribute commitment randomness for the provided seed, identity indexes, credential counter, and attribute number.
     /// Supported values for `network`: "Testnet", "Mainnet".
-    /// The result is hex encoded.
     [Throws=ConcordiumWalletCryptoError]
-    string account_credential_attribute_commitment_randomness_hex(string seed_hex, string network, u32 identity_provider_id, u32 identity_index, u8 credential_counter, u8 attribute);
+    Bytes account_credential_attribute_commitment_randomness(Bytes seed, string network, u32 identity_provider_id, u32 identity_index, u8 credential_counter, u8 attribute);
 
     /// Compute the signing key for the provided seed, issuer indexes, and verifiable credential index.
     /// Supported values for `network`: "Testnet", "Mainnet".
-    /// The result is hex encoded.
     [Throws=ConcordiumWalletCryptoError]
-    string verifiable_credential_signing_key_hex(string seed_hex, string network, u64 issuer_index, u64 issuer_subindex, u32 verifiable_credential_index);
+    Bytes verifiable_credential_signing_key(Bytes seed, string network, u64 issuer_index, u64 issuer_subindex, u32 verifiable_credential_index);
 
     /// Compute the public key for the provided seed, issuer indexes, and verifiable credential index.
     /// Supported values for `network`: "Testnet", "Mainnet".
-    /// The result is hex encoded.
     [Throws=ConcordiumWalletCryptoError]
-    string verifiable_credential_public_key_hex(string seed_hex, string network, u64 issuer_index, u64 issuer_subindex, u32 verifiable_credential_index);
+    Bytes verifiable_credential_public_key(Bytes seed, string network, u64 issuer_index, u64 issuer_subindex, u32 verifiable_credential_index);
 
     /// Compute the encoded verifiable credential backup encryption key for the provided seed.
     /// Supported values for `network`: "Testnet", "Mainnet".
-    /// The result is hex encoded.
     [Throws=ConcordiumWalletCryptoError]
-    string verifiable_credential_backup_encryption_key_hex(string seed_hex, string network);
+    Bytes verifiable_credential_backup_encryption_key(Bytes seed, string network);
 
     /// Compute an identity issuance request for the identity contained in the provided parameters.
     /// The result is a versioned `PreIdentityObject` encoded as JSON,
@@ -411,14 +401,12 @@ namespace crypto {
     AccountCredentialResult account_credential(AccountCredentialParameters params);
 
     /// Compute the hash of a new credential deployment to be signed by the account key derived for the credential.
-    /// The result is hex encoded.
     [Throws=ConcordiumWalletCryptoError]
-    string account_credential_deployment_hash_hex(AccountCredential credential, u64 expiry_unix_secs);
+    Bytes account_credential_deployment_hash(AccountCredential credential, u64 expiry_unix_secs);
 
     /// Serializes the credential deployment payload for submission as a "raw" payload to a node.
-    /// The result is hex encoded.
     [Throws=ConcordiumWalletCryptoError]
-    string account_credential_deployment_signed_payload_hex(SignedAccountCredential credential);
+    Bytes account_credential_deployment_signed_payload(SignedAccountCredential credential);
 
     /// Construct the payload for a TransferToPublic transaction. The `to_transfer` amount is specififed in microCCD.
     [Throws=ConcordiumWalletCryptoError]

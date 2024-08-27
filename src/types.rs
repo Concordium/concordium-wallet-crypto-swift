@@ -15,6 +15,8 @@ pub enum ConcordiumWalletCryptoError {
     CallFailed { call: String, msg: String },
 }
 
+/// Used to enable easy conversion of errors into the (currently single) error type returned by any
+/// function in the library.
 pub trait ConvertError
 where
     Self: std::fmt::Display,
@@ -31,10 +33,22 @@ where
 impl ConvertError for serde_json::Error {}
 impl ConvertError for uniffi::deps::anyhow::Error {}
 impl ConvertError for AccountAddressParseError {}
+impl ConvertError for hex::FromHexError {}
 
+/// Used to represent a byte sequence.
+/// This should generally be used instead of hex string representation as it takes up half the space when compared to storing strings
 #[repr(transparent)]
-#[derive(Debug, Serialize, Deserialize, derive_more::From)]
+#[derive(Debug, Serialize, Deserialize, derive_more::From, Clone, PartialEq)]
 pub struct Bytes(#[serde(with = "hex")] Vec<u8>);
+
+impl TryFrom<&str> for Bytes {
+    type Error = hex::FromHexError;
+
+    fn try_from(value: &str) -> Result<Self, Self::Error> {
+        let bytes = hex::decode(value)?;
+        Ok(bytes.into())
+    }
+}
 
 impl AsRef<[u8]> for Bytes {
     fn as_ref(&self) -> &[u8] {
@@ -63,9 +77,9 @@ impl UniffiCustomTypeConverter for Bytes {
 #[derive(Clone, Debug, Serialize)]
 pub struct GlobalContext {
     #[serde(rename = "onChainCommitmentKey")]
-    pub on_chain_commitment_key_hex: String,
+    pub on_chain_commitment_key: Bytes,
     #[serde(rename = "bulletproofGenerators")]
-    pub bulletproof_generators_hex: String,
+    pub bulletproof_generators: Bytes,
     #[serde(rename = "genesisString")]
     pub genesis_string: String,
 }
@@ -89,7 +103,7 @@ impl TryFrom<GlobalContext> for concordium_base::id::types::GlobalContext<ArCurv
 #[derive(Debug, Deserialize, Serialize)]
 pub struct ChainArData {
     #[serde(rename = "encIdCredPubShare")]
-    pub enc_id_cred_pub_share_hex: String,
+    pub enc_id_cred_pub_share: Bytes,
 }
 
 /// UniFFI compatible bridge to [`concordium_base::id::types::Policy<concordium_base::id::constants::ArCurve,concordium_base::id::constants::AttributeKind> `],
@@ -124,7 +138,7 @@ pub struct VerifyKey {
     #[serde(rename = "schemeId")]
     pub scheme_id: String,
     #[serde(rename = "verifyKey")]
-    pub key_hex: String,
+    pub key: Bytes,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
