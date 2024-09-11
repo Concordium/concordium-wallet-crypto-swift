@@ -1,12 +1,7 @@
 use std::collections::HashMap;
 
 use crate::UniffiCustomTypeConverter;
-use concordium_base::{
-    contracts_common::{
-        schema::VersionedSchemaError, schema_json, AccountAddressParseError, ParseError,
-    },
-    id::constants::ArCurve,
-};
+use concordium_base::{contracts_common::AccountAddressParseError, id::constants::ArCurve};
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 use uniffi::deps::anyhow::Context;
@@ -39,10 +34,6 @@ impl ConvertError for serde_json::Error {}
 impl ConvertError for uniffi::deps::anyhow::Error {}
 impl ConvertError for AccountAddressParseError {}
 impl ConvertError for hex::FromHexError {}
-impl ConvertError for ParseError {}
-impl ConvertError for schema_json::ToJsonError {}
-impl ConvertError for schema_json::JsonError {}
-impl ConvertError for VersionedSchemaError {}
 
 /// Used to represent a byte sequence.
 /// This should generally be used instead of hex string representation as it takes up half the space when compared to storing strings

@@ -1,6 +1,16 @@
+/// Generic error while invoking FFI
 [Error]
 enum ConcordiumWalletCryptoError {
     "CallFailed"
+};
+
+/// Describes errors happening while interacting with contract schemas
+[Error]
+enum SchemaError {
+    /// Failed to convert value with schema
+    "Convert",
+    /// Failed parse the module schema
+    "ParseSchema",
 };
 
 /// Parameter object for `identity_issuance_request_json`.
@@ -454,31 +464,35 @@ namespace crypto {
     /// Create a set of baker keys
     BakerKeyPairs generate_baker_keys();
 
+    /// Returns the schema template for the given `TypeSchema`
+    [Throws=SchemaError]
+    string display_type_schema_template(TypeSchema schema);
+
     /// Deserialize the provided value into the JSON representation of a type corresponding to the provided `schema`
-    [Throws=ConcordiumWalletCryptoError]
+    [Throws=SchemaError]
     string deserialize_type_value(bytes value, TypeSchema schema);
 
     /// Serialize the provided value from the JSON representation of a type corresponding to the provided `schema`
-    [Throws=ConcordiumWalletCryptoError]
+    [Throws=SchemaError]
     bytes serialize_type_value(string json, TypeSchema schema);
 
     /// Get the `TypeSchema` for a parameter of a given receive function
-    [Throws=ConcordiumWalletCryptoError]
+    [Throws=SchemaError]
     TypeSchema get_receive_parameter_schema(ModuleSchema schema, string contract_name, string function_name);
 
     /// Get the `TypeSchema` for a return value of a given receive function
-    [Throws=ConcordiumWalletCryptoError]
+    [Throws=SchemaError]
     TypeSchema get_receive_return_value_schema(ModuleSchema schema, string contract_name, string function_name);
 
     /// Get the `TypeSchema` for an error of a given receive function
-    [Throws=ConcordiumWalletCryptoError]
+    [Throws=SchemaError]
     TypeSchema get_receive_error_schema(ModuleSchema schema, string contract_name, string function_name);
 
     /// Get the `TypeSchema` for a parameter of the init function of a contract
-    [Throws=ConcordiumWalletCryptoError]
+    [Throws=SchemaError]
     TypeSchema get_init_parameter_schema(ModuleSchema schema, string contract_name);
 
     /// Get the `TypeSchema` for an error of the init function of a contract
-    [Throws=ConcordiumWalletCryptoError]
+    [Throws=SchemaError]
     TypeSchema get_init_error_schema(ModuleSchema schema, string contract_name);
 };
