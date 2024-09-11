@@ -1,4 +1,5 @@
 mod creds;
+mod schema;
 mod transactions;
 mod types;
 
@@ -6,5 +7,6 @@ mod types;
 uniffi::include_scaffolding!("lib");
 
 pub use creds::*;
+pub use schema::*;
 pub use transactions::*;
 pub use types::*;
