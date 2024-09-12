@@ -1,6 +1,16 @@
+/// Generic error while invoking FFI
 [Error]
 enum ConcordiumWalletCryptoError {
     "CallFailed"
+};
+
+/// Describes errors happening while interacting with contract schemas
+[Error]
+enum SchemaError {
+    /// Failed to convert value with schema
+    "Convert",
+    /// Failed parse the module schema
+    "ParseSchema",
 };
 
 /// Parameter object for `identity_issuance_request_json`.
@@ -334,6 +344,29 @@ dictionary BakerKeysPayload {
     Bytes proof_aggregation;
 };
 
+/// Describes the different contract module schema versions
+enum ModuleSchemaVersion {
+    "V0",
+    "V1",
+    "V2",
+    "V3",
+};
+
+/// Represents a contract module schema of a specific version.
+dictionary ModuleSchema {
+    /// The module schema serialized as bytes.
+    bytes value;
+    /// The module schema version. This is optional, as this can also be included in the serialized schema value.
+    /// If the version is neither present in the serialized schema, nor defined explicitly, an error will be returned upon use.
+    ModuleSchemaVersion? version;
+};
+
+/// Represents a schema for a specific type used in a contract.
+dictionary TypeSchema {
+    /// The type schema serialized as bytes.
+    bytes value;
+};
+
 namespace crypto {
     /// Compute the IdCredSec for the provided seed and identity indexes.
     /// Supported values for `network`: "Testnet", "Mainnet".
@@ -430,4 +463,40 @@ namespace crypto {
 
     /// Create a set of baker keys
     BakerKeyPairs generate_baker_keys();
+
+    /// Returns the schema template for the given `TypeSchema`
+    [Throws=SchemaError]
+    string display_type_schema_template(TypeSchema schema);
+
+    /// Deserialize the provided value into the JSON representation of a type corresponding to the provided `schema`
+    [Throws=SchemaError]
+    string deserialize_type_value(bytes value, TypeSchema schema);
+
+    /// Serialize the provided value from the JSON representation of a type corresponding to the provided `schema`
+    [Throws=SchemaError]
+    bytes serialize_type_value(string json, TypeSchema schema);
+
+    /// Get the `TypeSchema` for a parameter of a given receive function
+    [Throws=SchemaError]
+    TypeSchema get_receive_parameter_schema(ModuleSchema schema, string contract_name, string function_name);
+
+    /// Get the `TypeSchema` for a return value of a given receive function
+    [Throws=SchemaError]
+    TypeSchema get_receive_return_value_schema(ModuleSchema schema, string contract_name, string function_name);
+
+    /// Get the `TypeSchema` for an error of a given receive function
+    [Throws=SchemaError]
+    TypeSchema get_receive_error_schema(ModuleSchema schema, string contract_name, string function_name);
+
+    /// Get the `TypeSchema` for a parameter of the init function of a contract
+    [Throws=SchemaError]
+    TypeSchema get_init_parameter_schema(ModuleSchema schema, string contract_name);
+
+    /// Get the `TypeSchema` for an error of the init function of a contract
+    [Throws=SchemaError]
+    TypeSchema get_init_error_schema(ModuleSchema schema, string contract_name);
+
+    /// Get the `TypeSchema` for events emitted by a contract
+    [Throws=SchemaError]
+    TypeSchema get_event_schema(ModuleSchema schema, string contract_name);
 };
