@@ -495,4 +495,8 @@ namespace crypto {
     /// Get the `TypeSchema` for an error of the init function of a contract
     [Throws=SchemaError]
     TypeSchema get_init_error_schema(ModuleSchema schema, string contract_name);
+
+    /// Get the `TypeSchema` for events emitted by a contract
+    [Throws=SchemaError]
+    TypeSchema get_event_schema(ModuleSchema schema, string contract_name);
 };

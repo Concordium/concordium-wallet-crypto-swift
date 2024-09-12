@@ -10,7 +10,7 @@ use serde_json::Value;
 /// A corresponding Swift type will be generated (via the UDL definition).
 #[derive(Debug, thiserror::Error)]
 pub enum SchemaError {
-    /// Failed to convert with schema
+    /// Failed to convert the value with the schema
     #[error("{0}")]
     Convert(String),
     /// Failed to parse the versioned module schema
@@ -77,7 +77,7 @@ pub struct TypeSchema {
 pub fn display_type_schema_template(schema: TypeSchema) -> Result<String, SchemaError> {
     let value_type: Type = from_bytes(&schema.value)?;
     let template = value_type.to_json_template();
-    Ok(serde_json::to_string(&template)?)
+    Ok(serde_json::to_string_pretty(&template)?)
 }
 
 pub fn deserialize_type_value(value: Vec<u8>, schema: TypeSchema) -> Result<String, SchemaError> {
@@ -128,11 +128,21 @@ pub fn get_init_parameter_schema(
     let schema = module_schema.get_init_param_schema(&contract_name)?;
     Ok(to_bytes(&schema).into())
 }
+
 pub fn get_init_error_schema(
     schema: ModuleSchema,
     contract_name: String,
 ) -> Result<TypeSchema, SchemaError> {
     let module_schema = VersionedModuleSchema::try_from(schema)?;
     let schema = module_schema.get_init_error_schema(&contract_name)?;
+    Ok(to_bytes(&schema).into())
+}
+
+pub fn get_event_schema(
+    schema: ModuleSchema,
+    contract_name: String,
+) -> Result<TypeSchema, SchemaError> {
+    let module_schema = VersionedModuleSchema::try_from(schema)?;
+    let schema = module_schema.get_event_schema(&contract_name)?;
     Ok(to_bytes(&schema).into())
 }
