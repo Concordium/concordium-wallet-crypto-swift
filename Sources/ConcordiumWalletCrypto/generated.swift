@@ -2160,6 +2160,81 @@ public func FfiConverterTypeInputEncryptedAmount_lower(_ value: InputEncryptedAm
 
 
 /**
+ * Represents a contract module schema of a specific version.
+ */
+public struct ModuleSchema {
+    /**
+     * The module schema serialized as bytes.
+     */
+    public var value: Data
+    /**
+     * The module schema version. This is optional, as this can also be included in the serialized schema value.
+     * If the version is neither present in the serialized schema, nor defined explicitly, an error will be returned upon use.
+     */
+    public var version: ModuleSchemaVersion?
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The module schema serialized as bytes.
+         */
+        value: Data, 
+        /**
+         * The module schema version. This is optional, as this can also be included in the serialized schema value.
+         * If the version is neither present in the serialized schema, nor defined explicitly, an error will be returned upon use.
+         */
+        version: ModuleSchemaVersion?) {
+        self.value = value
+        self.version = version
+    }
+}
+
+
+extension ModuleSchema: Equatable, Hashable {
+    public static func ==(lhs: ModuleSchema, rhs: ModuleSchema) -> Bool {
+        if lhs.value != rhs.value {
+            return false
+        }
+        if lhs.version != rhs.version {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(value)
+        hasher.combine(version)
+    }
+}
+
+
+public struct FfiConverterTypeModuleSchema: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ModuleSchema {
+        return
+            try ModuleSchema(
+                value: FfiConverterData.read(from: &buf), 
+                version: FfiConverterOptionTypeModuleSchemaVersion.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ModuleSchema, into buf: inout [UInt8]) {
+        FfiConverterData.write(value.value, into: &buf)
+        FfiConverterOptionTypeModuleSchemaVersion.write(value.version, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeModuleSchema_lift(_ buf: RustBuffer) throws -> ModuleSchema {
+    return try FfiConverterTypeModuleSchema.lift(buf)
+}
+
+public func FfiConverterTypeModuleSchema_lower(_ value: ModuleSchema) -> RustBuffer {
+    return FfiConverterTypeModuleSchema.lower(value)
+}
+
+
+/**
  * A policy is (currently) revealed values of attributes that are part of the identity object.
  * Policies are part of credentials.
  */
@@ -2882,6 +2957,64 @@ public func FfiConverterTypeSignedAccountCredential_lower(_ value: SignedAccount
 }
 
 
+/**
+ * Represents a schema for a specific type used in a contract.
+ */
+public struct TypeSchema {
+    /**
+     * The type schema serialized as bytes.
+     */
+    public var value: Data
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The type schema serialized as bytes.
+         */
+        value: Data) {
+        self.value = value
+    }
+}
+
+
+extension TypeSchema: Equatable, Hashable {
+    public static func ==(lhs: TypeSchema, rhs: TypeSchema) -> Bool {
+        if lhs.value != rhs.value {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(value)
+    }
+}
+
+
+public struct FfiConverterTypeTypeSchema: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> TypeSchema {
+        return
+            try TypeSchema(
+                value: FfiConverterData.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: TypeSchema, into buf: inout [UInt8]) {
+        FfiConverterData.write(value.value, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeTypeSchema_lift(_ buf: RustBuffer) throws -> TypeSchema {
+    return try FfiConverterTypeTypeSchema.lift(buf)
+}
+
+public func FfiConverterTypeTypeSchema_lower(_ value: TypeSchema) -> RustBuffer {
+    return FfiConverterTypeTypeSchema.lower(value)
+}
+
+
 public struct UpdateCredentialsPayload {
     /**
      * Credential infos and the respective indices to insert them at
@@ -3087,6 +3220,9 @@ public func FfiConverterTypeVerifyKey_lower(_ value: VerifyKey) -> RustBuffer {
 }
 
 
+/**
+ * Generic error while invoking FFI
+ */
 public enum ConcordiumWalletCryptoError {
 
     
@@ -3137,6 +3273,165 @@ public struct FfiConverterTypeConcordiumWalletCryptoError: FfiConverterRustBuffe
 extension ConcordiumWalletCryptoError: Equatable, Hashable {}
 
 extension ConcordiumWalletCryptoError: Error { }
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Describes the different contract module schema versions
+ */
+public enum ModuleSchemaVersion {
+    
+    case v0
+    case v1
+    case v2
+    case v3
+}
+
+public struct FfiConverterTypeModuleSchemaVersion: FfiConverterRustBuffer {
+    typealias SwiftType = ModuleSchemaVersion
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ModuleSchemaVersion {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .v0
+        
+        case 2: return .v1
+        
+        case 3: return .v2
+        
+        case 4: return .v3
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: ModuleSchemaVersion, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .v0:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .v1:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .v2:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .v3:
+            writeInt(&buf, Int32(4))
+        
+        }
+    }
+}
+
+
+public func FfiConverterTypeModuleSchemaVersion_lift(_ buf: RustBuffer) throws -> ModuleSchemaVersion {
+    return try FfiConverterTypeModuleSchemaVersion.lift(buf)
+}
+
+public func FfiConverterTypeModuleSchemaVersion_lower(_ value: ModuleSchemaVersion) -> RustBuffer {
+    return FfiConverterTypeModuleSchemaVersion.lower(value)
+}
+
+
+extension ModuleSchemaVersion: Equatable, Hashable {}
+
+
+
+
+/**
+ * Describes errors happening while interacting with contract schemas
+ */
+public enum SchemaError {
+
+    
+    
+    /**
+     * Failed to convert value with schema
+     */
+    case Convert(message: String)
+    
+    /**
+     * Failed parse the module schema
+     */
+    case ParseSchema(message: String)
+    
+
+    fileprivate static func uniffiErrorHandler(_ error: RustBuffer) throws -> Error {
+        return try FfiConverterTypeSchemaError.lift(error)
+    }
+}
+
+
+public struct FfiConverterTypeSchemaError: FfiConverterRustBuffer {
+    typealias SwiftType = SchemaError
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SchemaError {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+
+        
+
+        
+        case 1: return .Convert(
+            message: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 2: return .ParseSchema(
+            message: try FfiConverterString.read(from: &buf)
+        )
+        
+
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: SchemaError, into buf: inout [UInt8]) {
+        switch value {
+
+        
+
+        
+        case .Convert(_ /* message is ignored*/):
+            writeInt(&buf, Int32(1))
+        case .ParseSchema(_ /* message is ignored*/):
+            writeInt(&buf, Int32(2))
+
+        
+        }
+    }
+}
+
+
+extension SchemaError: Equatable, Hashable {}
+
+extension SchemaError: Error { }
+
+fileprivate struct FfiConverterOptionTypeModuleSchemaVersion: FfiConverterRustBuffer {
+    typealias SwiftType = ModuleSchemaVersion?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTypeModuleSchemaVersion.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTypeModuleSchemaVersion.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
 
 fileprivate struct FfiConverterSequenceUInt8: FfiConverterRustBuffer {
     typealias SwiftType = [UInt8]
@@ -3533,6 +3828,18 @@ public func deserializeSecToPubTransferData(bytes: Data) throws  -> SecToPubTran
     )
 }
 /**
+ * Deserialize the provided value into the JSON representation of a type corresponding to the provided `schema`
+ */
+public func deserializeTypeValue(value: Data, schema: TypeSchema) throws  -> String {
+    return try  FfiConverterString.lift(
+        try rustCallWithError(FfiConverterTypeSchemaError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_deserialize_type_value(
+        FfiConverterData.lower(value),
+        FfiConverterTypeTypeSchema.lower(schema),$0)
+}
+    )
+}
+/**
  * Attempt to deserialize UpdateCredentialsPayloadDeserializeResult from the supplied bytes. This will fail if the number of bytes does not exactly match the expected number.
  */
 public func deserializeUpdateCredentialsPayload(bytes: Data) throws  -> UpdateCredentialsPayloadDeserializeResult {
@@ -3544,12 +3851,98 @@ public func deserializeUpdateCredentialsPayload(bytes: Data) throws  -> UpdateCr
     )
 }
 /**
+ * Returns the schema template for the given `TypeSchema`
+ */
+public func displayTypeSchemaTemplate(schema: TypeSchema) throws  -> String {
+    return try  FfiConverterString.lift(
+        try rustCallWithError(FfiConverterTypeSchemaError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_display_type_schema_template(
+        FfiConverterTypeTypeSchema.lower(schema),$0)
+}
+    )
+}
+/**
  * Create a set of baker keys
  */
 public func generateBakerKeys()  -> BakerKeyPairs {
     return try!  FfiConverterTypeBakerKeyPairs.lift(
         try! rustCall() {
     uniffi_concordium_wallet_crypto_uniffi_fn_func_generate_baker_keys($0)
+}
+    )
+}
+/**
+ * Get the `TypeSchema` for events emitted by a contract
+ */
+public func getEventSchema(schema: ModuleSchema, contractName: String) throws  -> TypeSchema {
+    return try  FfiConverterTypeTypeSchema.lift(
+        try rustCallWithError(FfiConverterTypeSchemaError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_get_event_schema(
+        FfiConverterTypeModuleSchema.lower(schema),
+        FfiConverterString.lower(contractName),$0)
+}
+    )
+}
+/**
+ * Get the `TypeSchema` for an error of the init function of a contract
+ */
+public func getInitErrorSchema(schema: ModuleSchema, contractName: String) throws  -> TypeSchema {
+    return try  FfiConverterTypeTypeSchema.lift(
+        try rustCallWithError(FfiConverterTypeSchemaError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_get_init_error_schema(
+        FfiConverterTypeModuleSchema.lower(schema),
+        FfiConverterString.lower(contractName),$0)
+}
+    )
+}
+/**
+ * Get the `TypeSchema` for a parameter of the init function of a contract
+ */
+public func getInitParameterSchema(schema: ModuleSchema, contractName: String) throws  -> TypeSchema {
+    return try  FfiConverterTypeTypeSchema.lift(
+        try rustCallWithError(FfiConverterTypeSchemaError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_get_init_parameter_schema(
+        FfiConverterTypeModuleSchema.lower(schema),
+        FfiConverterString.lower(contractName),$0)
+}
+    )
+}
+/**
+ * Get the `TypeSchema` for an error of a given receive function
+ */
+public func getReceiveErrorSchema(schema: ModuleSchema, contractName: String, functionName: String) throws  -> TypeSchema {
+    return try  FfiConverterTypeTypeSchema.lift(
+        try rustCallWithError(FfiConverterTypeSchemaError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_get_receive_error_schema(
+        FfiConverterTypeModuleSchema.lower(schema),
+        FfiConverterString.lower(contractName),
+        FfiConverterString.lower(functionName),$0)
+}
+    )
+}
+/**
+ * Get the `TypeSchema` for a parameter of a given receive function
+ */
+public func getReceiveParameterSchema(schema: ModuleSchema, contractName: String, functionName: String) throws  -> TypeSchema {
+    return try  FfiConverterTypeTypeSchema.lift(
+        try rustCallWithError(FfiConverterTypeSchemaError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_get_receive_parameter_schema(
+        FfiConverterTypeModuleSchema.lower(schema),
+        FfiConverterString.lower(contractName),
+        FfiConverterString.lower(functionName),$0)
+}
+    )
+}
+/**
+ * Get the `TypeSchema` for a return value of a given receive function
+ */
+public func getReceiveReturnValueSchema(schema: ModuleSchema, contractName: String, functionName: String) throws  -> TypeSchema {
+    return try  FfiConverterTypeTypeSchema.lift(
+        try rustCallWithError(FfiConverterTypeSchemaError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_get_receive_return_value_schema(
+        FfiConverterTypeModuleSchema.lower(schema),
+        FfiConverterString.lower(contractName),
+        FfiConverterString.lower(functionName),$0)
 }
     )
 }
@@ -3661,6 +4054,18 @@ public func serializeCredentialDeploymentInfo(credInfo: CredentialDeploymentInfo
     )
 }
 /**
+ * Serialize the provided value from the JSON representation of a type corresponding to the provided `schema`
+ */
+public func serializeTypeValue(json: String, schema: TypeSchema) throws  -> Data {
+    return try  FfiConverterData.lift(
+        try rustCallWithError(FfiConverterTypeSchemaError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_serialize_type_value(
+        FfiConverterString.lower(json),
+        FfiConverterTypeTypeSchema.lower(schema),$0)
+}
+    )
+}
+/**
  * Compute the encoded verifiable credential backup encryption key for the provided seed.
  * Supported values for `network`: "Testnet", "Mainnet".
  */
@@ -3745,10 +4150,34 @@ private var initializationResult: InitializationResult {
     if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_deserialize_sec_to_pub_transfer_data() != 15687) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_deserialize_type_value() != 39476) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_deserialize_update_credentials_payload() != 65247) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_display_type_schema_template() != 53699) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_generate_baker_keys() != 22656) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_get_event_schema() != 34116) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_get_init_error_schema() != 41457) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_get_init_parameter_schema() != 54176) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_get_receive_error_schema() != 54098) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_get_receive_parameter_schema() != 54281) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_get_receive_return_value_schema() != 56848) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_identity_attributes_signature_blinding_randomness() != 51381) {
@@ -3773,6 +4202,9 @@ private var initializationResult: InitializationResult {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_serialize_credential_deployment_info() != 61448) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_serialize_type_value() != 39554) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_verifiable_credential_backup_encryption_key() != 58160) {
