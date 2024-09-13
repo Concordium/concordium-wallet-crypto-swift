@@ -26,6 +26,7 @@ jobs:
       run: |
         rustup default "${{matrix.rust-version}}"
         rustup component add rustfmt clippy
+        rustup target add x86_64-apple-darwin
     - name: Check out sources
       uses: actions/checkout@v4
       with:
@@ -35,7 +36,7 @@ jobs:
     - name: Run linter
       run: cargo clippy --all-targets --all-features -- -Dwarnings
     - name: Run tests
-      run: cargo test
+      run: make test
     - name: Build Swift package (macOS/x86_64 only)
       if: runner.os == 'macOS' && runner.arch == 'X64'
       run: |

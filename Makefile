@@ -37,7 +37,7 @@ framework: clean-generated swift-bindings lib-darwin lib-ios lib-ios-sim
 
 .PHONY: swift-bindings
 swift-bindings: # produces './generated/bindings'
-	$(cargo) run --bin=uniffi-bindgen generate src/lib.udl --language=swift --out-dir=./generated/bindings
+	$(cargo) run --target=x86_64-apple-darwin --bin=uniffi-bindgen generate src/lib.udl --language=swift --out-dir=./generated/bindings
 	mkdir -p ./Sources/ConcordiumWalletCrypto
 	# Move Swift bridge code to source folder.
 	# The remaining files (header and renamed modulemap) should go into the framework
@@ -112,4 +112,4 @@ lint-fix:
 
 .PHONY: test
 test:
-	$(cargo) test
+	$(cargo) test --target=x86_64-apple-darwin # needed due to name collission when concordium_base is included in build dependencies
