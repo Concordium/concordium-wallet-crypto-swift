@@ -3922,18 +3922,6 @@ public func accountCredentialSigningKey(seed: Bytes, network: String, identityPr
     )
 }
 /**
- * Attempt to combine two encrypted amounts
- */
-public func combineEncryptedAmounts(left: Bytes, right: Bytes) throws  -> Bytes {
-    return try  FfiConverterTypeBytes.lift(
-        try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
-    uniffi_concordium_wallet_crypto_uniffi_fn_func_combine_encrypted_amounts(
-        FfiConverterTypeBytes.lower(left),
-        FfiConverterTypeBytes.lower(right),$0)
-}
-    )
-}
-/**
  * Attempt to create the encryption keys associated with an account at the given credential index
  */
 public func decryptAmount(encryptedAmount: Bytes, encryptionSecretKey: Bytes) throws  -> MicroCCDAmount {
@@ -4287,9 +4275,6 @@ private var initializationResult: InitializationResult {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_signing_key() != 116) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_combine_encrypted_amounts() != 56311) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_decrypt_amount() != 53254) {
