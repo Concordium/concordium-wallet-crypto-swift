@@ -258,6 +258,9 @@ dictionary SignedAccountCredential {
 [Custom]
 typedef bytes Bytes;
 
+[Custom]
+typedef u64 MicroCCDAmount;
+
 /// An encrypted amount input to transfer from
 dictionary InputEncryptedAmount {
     /// The aggregated encrypted amount.
@@ -274,8 +277,7 @@ dictionary SecToPubTransferData {
     /// Serialized according to the [`Serial`] implementation of [`concordium_base::encrypted_transfers::types::EncryptedAmount`]
     Bytes remaining_amount;
     /// The amount to transfer in microCCD.
-    /// For historic reasons, amounts are serialized as strings.
-    string transfer_amount;
+    MicroCCDAmount transfer_amount;
     /// The transfer index of the transfer
     u64 index;
     /// The serialized proof that the transfer is correct.
@@ -367,6 +369,14 @@ dictionary TypeSchema {
     bytes value;
 };
 
+/// Encryption keypair for an account, used to handle the encrypted amount associated with a specific account.
+dictionary EncryptionKeys {
+    /// The secret key serialized as bytes.
+    Bytes secret;
+    /// The public key serialized as bytes.
+    Bytes public;
+};
+
 namespace crypto {
     /// Compute the IdCredSec for the provided seed and identity indexes.
     /// Supported values for `network`: "Testnet", "Mainnet".
@@ -443,7 +453,7 @@ namespace crypto {
 
     /// Construct the payload for a TransferToPublic transaction. The `to_transfer` amount is specififed in microCCD.
     [Throws=ConcordiumWalletCryptoError]
-    SecToPubTransferData sec_to_pub_transfer_data(GlobalContext ctx, Bytes sender_secret_key, InputEncryptedAmount input_amount, u64 to_transfer);
+    SecToPubTransferData sec_to_pub_transfer_data(GlobalContext ctx, Bytes sender_secret_key, InputEncryptedAmount input_amount, MicroCCDAmount to_transfer);
 
     /// Attempt to deserialize SecToPubTransferData from the supplied bytes. This will fail if the number of bytes does not exactly match the expected number.
     [Throws=ConcordiumWalletCryptoError]
@@ -499,4 +509,12 @@ namespace crypto {
     /// Get the `TypeSchema` for events emitted by a contract
     [Throws=SchemaError]
     TypeSchema get_event_schema(ModuleSchema schema, string contract_name);
+
+    /// Attempt to create the encryption keys associated with an account at the given credential index
+    [Throws=ConcordiumWalletCryptoError]
+    EncryptionKeys get_encryption_keys(GlobalContext global_context, Bytes prf_key, u8 credential_index);
+
+    /// Attempt to create the encryption keys associated with an account at the given credential index
+    [Throws=ConcordiumWalletCryptoError]
+    MicroCCDAmount decrypt_amount(Bytes encrypted_amount, Bytes encryption_secret_key);
 };

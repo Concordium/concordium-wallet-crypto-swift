@@ -1,6 +1,7 @@
 /.idea
 /target
 /generated
+table_bytes.bin
 
 .DS_Store
 /.build

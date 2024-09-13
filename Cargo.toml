@@ -24,6 +24,9 @@ path = "./concordium-base/rust-src/wallet_library"
 [build-dependencies]
 uniffi = { version = "0.26", features = ["build"] }
 
+[build-dependencies.concordium_base]
+path = "./concordium-base/rust-src/concordium_base"
+
 [[bin]]
 name = "uniffi-bindgen"
 path = "uniffi-bindgen.rs"

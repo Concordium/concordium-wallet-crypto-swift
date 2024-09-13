@@ -1,7 +1,10 @@
 use std::collections::HashMap;
 
 use crate::UniffiCustomTypeConverter;
-use concordium_base::{contracts_common::AccountAddressParseError, id::constants::ArCurve};
+use concordium_base::{
+    contracts_common::{AccountAddressParseError, Amount},
+    id::constants::ArCurve,
+};
 use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 use uniffi::deps::anyhow::Context;
@@ -68,6 +71,55 @@ impl UniffiCustomTypeConverter for Bytes {
 
     fn from_custom(obj: Self) -> Self::Builtin {
         obj.0
+    }
+}
+
+/// u64 wrapper which serializes as `String`, thus forming a bridge to
+/// [`Amount`]
+#[repr(transparent)]
+#[derive(Debug, derive_more::From, Clone, PartialEq)]
+pub struct MicroCCDAmount(pub u64);
+
+impl serde::Serialize for MicroCCDAmount {
+    fn serialize<S: serde::Serializer>(&self, ser: S) -> Result<S::Ok, S::Error> {
+        ser.serialize_str(&self.0.to_string())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for MicroCCDAmount {
+    fn deserialize<D: serde::de::Deserializer<'de>>(des: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(des)?;
+        let micro_ccd = s
+            .parse::<u64>()
+            .map_err(|e| serde::de::Error::custom(format!("{}", e)))?;
+        Ok(MicroCCDAmount(micro_ccd))
+    }
+}
+
+impl UniffiCustomTypeConverter for MicroCCDAmount {
+    type Builtin = u64;
+
+    fn into_custom(val: Self::Builtin) -> uniffi::Result<Self>
+    where
+        Self: Sized,
+    {
+        Ok(MicroCCDAmount(val))
+    }
+
+    fn from_custom(obj: Self) -> Self::Builtin {
+        obj.0
+    }
+}
+
+impl From<MicroCCDAmount> for Amount {
+    fn from(value: MicroCCDAmount) -> Self {
+        Amount { micro_ccd: value.0 }
+    }
+}
+
+impl From<Amount> for MicroCCDAmount {
+    fn from(value: Amount) -> Self {
+        MicroCCDAmount(value.micro_ccd)
     }
 }
 

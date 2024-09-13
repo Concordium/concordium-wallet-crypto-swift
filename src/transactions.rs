@@ -60,8 +60,8 @@ impl TryFrom<InputEncryptedAmount> for AggregatedDecryptedAmount<ArCurve> {
 pub struct SecToPubTransferData {
     /// Serialized according to the [`Serial`] implementation of [`concordium_base::encrypted_transfers::types::EncryptedAmount`]
     pub remaining_amount: Bytes,
-    /// In microCCD. For historic resons, amounts are serialized as strings
-    pub transfer_amount: String,
+    /// In microCCD.
+    pub transfer_amount: MicroCCDAmount,
     pub index: u64,
     /// Serialized according to the [`Serial`] implementation of [`concordium_base::encrypted_transfers::types::SecToPubAmountTransferProof`]
     pub proof: Bytes,
@@ -88,7 +88,7 @@ impl SecToPubTransferData {
         ctx: GlobalContext,
         sender_secret_key: Bytes,
         input_amount: InputEncryptedAmount,
-        to_transfer: u64, // In microCCD
+        to_transfer: MicroCCDAmount, // In microCCD
     ) -> anyhow::Result<SecToPubTransferData> {
         let ctx = concordium_base::id::types::GlobalContext::try_from(ctx)?;
         let sk: concordium_base::elgamal::SecretKey<ArCurve> =
@@ -97,16 +97,13 @@ impl SecToPubTransferData {
                 .context("Failed to parse sender secret key")?;
         let input_amount = AggregatedDecryptedAmount::try_from(input_amount)
             .context("Failed to parse input amount")?;
-        let to_transfer = Amount {
-            micro_ccd: to_transfer,
-        };
         let mut csprng = thread_rng();
 
         let transfer_data = encrypted_transfers::make_sec_to_pub_transfer_data(
             &ctx,
             &sk,
             &input_amount,
-            to_transfer,
+            to_transfer.into(),
             &mut csprng,
         )
         .context("Failed to create transfer data")?;
@@ -128,7 +125,7 @@ pub fn sec_to_pub_transfer_data(
     ctx: GlobalContext,
     sender_secret_key: Bytes,
     input_amount: InputEncryptedAmount,
-    to_transfer: u64, // In microCCD
+    to_transfer: MicroCCDAmount, // In microCCD
 ) -> Result<SecToPubTransferData, ConcordiumWalletCryptoError> {
     SecToPubTransferData::create(ctx, sender_secret_key, input_amount, to_transfer)
         .map_err(|e| e.to_call_failed("sec_to_pub_transfer_data(...)".to_string()))
