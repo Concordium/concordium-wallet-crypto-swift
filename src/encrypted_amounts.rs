@@ -38,6 +38,14 @@ impl TryFrom<Bytes> for EncryptedAmount<ArCurve> {
     }
 }
 
+impl TryFrom<EncryptedAmount<ArCurve>> for Bytes {
+    type Error = serde_json::Error;
+
+    fn try_from(value: EncryptedAmount<ArCurve>) -> Result<Self, Self::Error> {
+        serde_json::to_string(&value).and_then(|s| serde_json::from_str(&s))
+    }
+}
+
 pub fn get_encryption_keys(
     global_context: GlobalContext,
     prf_key: Bytes,
@@ -92,4 +100,20 @@ pub fn decrypt_amount(
         &encrypted_amount,
     );
     Ok(amount.into())
+}
+
+pub fn combine_encrypted_amounts(
+    left: Bytes,
+    right: Bytes,
+) -> Result<Bytes, ConcordiumWalletCryptoError> {
+    let fn_name = "combine_encrypted_amounts";
+    let left = left
+        .try_into()
+        .map_err(|e: serde_json::Error| e.to_call_failed(fn_name.to_string()))?;
+    let right = right
+        .try_into()
+        .map_err(|e: serde_json::Error| e.to_call_failed(fn_name.to_string()))?;
+    encrypted_transfers::aggregate::<ArCurve>(&left, &right)
+        .try_into()
+        .map_err(|e: serde_json::Error| e.to_call_failed(fn_name.to_string()))
 }

@@ -517,4 +517,8 @@ namespace crypto {
     /// Attempt to create the encryption keys associated with an account at the given credential index
     [Throws=ConcordiumWalletCryptoError]
     MicroCCDAmount decrypt_amount(Bytes encrypted_amount, Bytes encryption_secret_key);
+
+    /// Attempt to combine two encrypted amounts
+    [Throws=ConcordiumWalletCryptoError]
+    Bytes combine_encrypted_amounts(Bytes left, Bytes right);
 };
