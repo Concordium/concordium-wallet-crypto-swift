@@ -1617,79 +1617,6 @@ public func FfiConverterTypeDescription_lower(_ value: Description) -> RustBuffe
 
 
 /**
- * Encryption keypair for an account, used to handle the encrypted amount associated with a specific account.
- */
-public struct EncryptionKeys {
-    /**
-     * The secret key serialized as bytes.
-     */
-    public var secret: Bytes
-    /**
-     * The public key serialized as bytes.
-     */
-    public var `public`: Bytes
-
-    // Default memberwise initializers are never public by default, so we
-    // declare one manually.
-    public init(
-        /**
-         * The secret key serialized as bytes.
-         */
-        secret: Bytes, 
-        /**
-         * The public key serialized as bytes.
-         */
-        `public`: Bytes) {
-        self.secret = secret
-        self.`public` = `public`
-    }
-}
-
-
-extension EncryptionKeys: Equatable, Hashable {
-    public static func ==(lhs: EncryptionKeys, rhs: EncryptionKeys) -> Bool {
-        if lhs.secret != rhs.secret {
-            return false
-        }
-        if lhs.`public` != rhs.`public` {
-            return false
-        }
-        return true
-    }
-
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(secret)
-        hasher.combine(`public`)
-    }
-}
-
-
-public struct FfiConverterTypeEncryptionKeys: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EncryptionKeys {
-        return
-            try EncryptionKeys(
-                secret: FfiConverterTypeBytes.read(from: &buf), 
-                public: FfiConverterTypeBytes.read(from: &buf)
-        )
-    }
-
-    public static func write(_ value: EncryptionKeys, into buf: inout [UInt8]) {
-        FfiConverterTypeBytes.write(value.secret, into: &buf)
-        FfiConverterTypeBytes.write(value.`public`, into: &buf)
-    }
-}
-
-
-public func FfiConverterTypeEncryptionKeys_lift(_ buf: RustBuffer) throws -> EncryptionKeys {
-    return try FfiConverterTypeEncryptionKeys.lift(buf)
-}
-
-public func FfiConverterTypeEncryptionKeys_lower(_ value: EncryptionKeys) -> RustBuffer {
-    return FfiConverterTypeEncryptionKeys.lower(value)
-}
-
-
-/**
  * A set of cryptographic parameters that are particular to the chain and
  * shared by everybody that interacts with the chain.
  */
@@ -2813,8 +2740,9 @@ public struct SecToPubTransferData {
     public var remainingAmount: Bytes
     /**
      * The amount to transfer in microCCD.
+     * For historic reasons, amounts are serialized as strings.
      */
-    public var transferAmount: MicroCCDAmount
+    public var transferAmount: String
     /**
      * The transfer index of the transfer
      */
@@ -2835,8 +2763,9 @@ public struct SecToPubTransferData {
         remainingAmount: Bytes, 
         /**
          * The amount to transfer in microCCD.
+         * For historic reasons, amounts are serialized as strings.
          */
-        transferAmount: MicroCCDAmount, 
+        transferAmount: String, 
         /**
          * The transfer index of the transfer
          */
@@ -2885,7 +2814,7 @@ public struct FfiConverterTypeSecToPubTransferData: FfiConverterRustBuffer {
         return
             try SecToPubTransferData(
                 remainingAmount: FfiConverterTypeBytes.read(from: &buf), 
-                transferAmount: FfiConverterTypeMicroCCDAmount.read(from: &buf), 
+                transferAmount: FfiConverterString.read(from: &buf), 
                 index: FfiConverterUInt64.read(from: &buf), 
                 proof: FfiConverterTypeBytes.read(from: &buf)
         )
@@ -2893,7 +2822,7 @@ public struct FfiConverterTypeSecToPubTransferData: FfiConverterRustBuffer {
 
     public static func write(_ value: SecToPubTransferData, into buf: inout [UInt8]) {
         FfiConverterTypeBytes.write(value.remainingAmount, into: &buf)
-        FfiConverterTypeMicroCCDAmount.write(value.transferAmount, into: &buf)
+        FfiConverterString.write(value.transferAmount, into: &buf)
         FfiConverterUInt64.write(value.index, into: &buf)
         FfiConverterTypeBytes.write(value.proof, into: &buf)
     }
@@ -3787,40 +3716,6 @@ public func FfiConverterTypeBytes_lower(_ value: Bytes) -> RustBuffer {
     return FfiConverterTypeBytes.lower(value)
 }
 
-
-
-/**
- * Typealias from the type name used in the UDL file to the builtin type.  This
- * is needed because the UDL type name is used in function/method signatures.
- */
-public typealias MicroCCDAmount = UInt64
-public struct FfiConverterTypeMicroCCDAmount: FfiConverter {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MicroCCDAmount {
-        return try FfiConverterUInt64.read(from: &buf)
-    }
-
-    public static func write(_ value: MicroCCDAmount, into buf: inout [UInt8]) {
-        return FfiConverterUInt64.write(value, into: &buf)
-    }
-
-    public static func lift(_ value: UInt64) throws -> MicroCCDAmount {
-        return try FfiConverterUInt64.lift(value)
-    }
-
-    public static func lower(_ value: MicroCCDAmount) -> UInt64 {
-        return FfiConverterUInt64.lower(value)
-    }
-}
-
-
-public func FfiConverterTypeMicroCCDAmount_lift(_ value: UInt64) throws -> MicroCCDAmount {
-    return try FfiConverterTypeMicroCCDAmount.lift(value)
-}
-
-public func FfiConverterTypeMicroCCDAmount_lower(_ value: MicroCCDAmount) -> UInt64 {
-    return FfiConverterTypeMicroCCDAmount.lower(value)
-}
-
 /**
  * Construct an account credential from the information contained in the provided parameters.
  */
@@ -3922,18 +3817,6 @@ public func accountCredentialSigningKey(seed: Bytes, network: String, identityPr
     )
 }
 /**
- * Attempt to create the encryption keys associated with an account at the given credential index
- */
-public func decryptAmount(encryptedAmount: Bytes, encryptionSecretKey: Bytes) throws  -> MicroCCDAmount {
-    return try  FfiConverterTypeMicroCCDAmount.lift(
-        try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
-    uniffi_concordium_wallet_crypto_uniffi_fn_func_decrypt_amount(
-        FfiConverterTypeBytes.lower(encryptedAmount),
-        FfiConverterTypeBytes.lower(encryptionSecretKey),$0)
-}
-    )
-}
-/**
  * Attempt to deserialize SecToPubTransferData from the supplied bytes. This will fail if the number of bytes does not exactly match the expected number.
  */
 public func deserializeSecToPubTransferData(bytes: Data) throws  -> SecToPubTransferDataDeserializeResult {
@@ -3985,19 +3868,6 @@ public func generateBakerKeys()  -> BakerKeyPairs {
     return try!  FfiConverterTypeBakerKeyPairs.lift(
         try! rustCall() {
     uniffi_concordium_wallet_crypto_uniffi_fn_func_generate_baker_keys($0)
-}
-    )
-}
-/**
- * Attempt to create the encryption keys associated with an account at the given credential index
- */
-public func getEncryptionKeys(globalContext: GlobalContext, prfKey: Bytes, credentialIndex: UInt8) throws  -> EncryptionKeys {
-    return try  FfiConverterTypeEncryptionKeys.lift(
-        try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
-    uniffi_concordium_wallet_crypto_uniffi_fn_func_get_encryption_keys(
-        FfiConverterTypeGlobalContext.lower(globalContext),
-        FfiConverterTypeBytes.lower(prfKey),
-        FfiConverterUInt8.lower(credentialIndex),$0)
 }
     )
 }
@@ -4161,14 +4031,14 @@ public func makeConfigureBakerKeysPayload(accountBase58: String, bakerKeys: Bake
 /**
  * Construct the payload for a TransferToPublic transaction. The `to_transfer` amount is specififed in microCCD.
  */
-public func secToPubTransferData(ctx: GlobalContext, senderSecretKey: Bytes, inputAmount: InputEncryptedAmount, toTransfer: MicroCCDAmount) throws  -> SecToPubTransferData {
+public func secToPubTransferData(ctx: GlobalContext, senderSecretKey: Bytes, inputAmount: InputEncryptedAmount, toTransfer: UInt64) throws  -> SecToPubTransferData {
     return try  FfiConverterTypeSecToPubTransferData.lift(
         try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
     uniffi_concordium_wallet_crypto_uniffi_fn_func_sec_to_pub_transfer_data(
         FfiConverterTypeGlobalContext.lower(ctx),
         FfiConverterTypeBytes.lower(senderSecretKey),
         FfiConverterTypeInputEncryptedAmount.lower(inputAmount),
-        FfiConverterTypeMicroCCDAmount.lower(toTransfer),$0)
+        FfiConverterUInt64.lower(toTransfer),$0)
 }
     )
 }
@@ -4277,9 +4147,6 @@ private var initializationResult: InitializationResult {
     if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_signing_key() != 116) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_decrypt_amount() != 53254) {
-        return InitializationResult.apiChecksumMismatch
-    }
     if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_deserialize_sec_to_pub_transfer_data() != 15687) {
         return InitializationResult.apiChecksumMismatch
     }
@@ -4293,9 +4160,6 @@ private var initializationResult: InitializationResult {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_generate_baker_keys() != 22656) {
-        return InitializationResult.apiChecksumMismatch
-    }
-    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_get_encryption_keys() != 21403) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_get_event_schema() != 34116) {
@@ -4334,7 +4198,7 @@ private var initializationResult: InitializationResult {
     if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_make_configure_baker_keys_payload() != 25683) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_sec_to_pub_transfer_data() != 40421) {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_sec_to_pub_transfer_data() != 30839) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_serialize_credential_deployment_info() != 61448) {
