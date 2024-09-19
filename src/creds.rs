@@ -1,6 +1,15 @@
 use crate::types::*;
+use concordium_base::{
+    common::{Versioned, VERSION_0},
+    id::{
+        constants::{ArCurve, AttributeKind, IpPairing},
+        id_proof_types::{ProofVersion, StatementWithContext},
+        types::{IdentityObjectV1, IpInfo},
+    },
+};
+use key_derivation::{CredentialContext, Net};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{collections::HashMap, str::FromStr};
 use uniffi::deps::anyhow::Context;
 use wallet_library::{
     credential::{
@@ -18,6 +27,7 @@ use wallet_library::{
         get_prf_key_aux, get_signature_blinding_randomness_aux,
         get_verifiable_credential_backup_encryption_key_aux,
         get_verifiable_credential_public_key_aux, get_verifiable_credential_signing_key_aux,
+        get_wallet,
     },
 };
 
@@ -261,6 +271,14 @@ pub struct IdentityProviderInfo {
     pub cdi_verify_key: Bytes,
 }
 
+impl TryFrom<IdentityProviderInfo> for IpInfo<IpPairing> {
+    type Error = serde_json::Error;
+
+    fn try_from(value: IdentityProviderInfo) -> Result<Self, Self::Error> {
+        serde_json::to_string(&value).and_then(|s| serde_json::from_str(&s))
+    }
+}
+
 /// UniFFI compatible bridge to [`concordium_base::id::types::ArInfo<concordium_base::id::constants::ArCurve>`],
 /// providing the implementation of the UDL declaration of the same name.
 /// The translation is performed using Serde.
@@ -316,7 +334,7 @@ pub struct AccountCredentialParameters {
     pub credential_public_keys: CredentialPublicKeys,
 }
 
-/// UniFFI compatible bridge to [`concordium_base::id::types::IdentityObjectV1<concordium_base::id::constants::IpPairing,concordium_base::id::constants::ArCurve,concordium_base::id::constants::AttributeKind>`],
+/// UniFFI compatible bridge to [`concordium_base::id::types::IdentityObjectV1<IpPairing,ArCurve,AttributeKind>`],
 /// providing the implementation of the UDL declaration of the same name.
 /// The translation is performed using Serde.
 #[derive(Debug, Serialize)]
@@ -327,6 +345,16 @@ pub struct IdentityObject {
     pub attribute_list: AttributeList,
     #[serde(rename = "signature")]
     pub signature: Bytes,
+}
+
+impl TryFrom<IdentityObject>
+    for concordium_base::id::types::IdentityObjectV1<IpPairing, ArCurve, AttributeKind>
+{
+    type Error = serde_json::Error;
+
+    fn try_from(value: IdentityObject) -> Result<Self, Self::Error> {
+        serde_json::to_string(&value).and_then(|s| serde_json::from_str(&s))
+    }
 }
 
 /// UniFFI compatible bridge to [`concordium_base::id::types::PreIdentityObjectV1<concordium_base::id::constants::IpPairing,concordium_base::id::constants::ArCurve>`],
@@ -605,10 +633,10 @@ pub struct AttributeInRangeStatement {
     pub attribute_tag: String,
     /// The lower bound on the range.
     #[serde(rename = "lower")]
-    pub lower:         String,
+    pub lower: String,
     #[serde(rename = "upper")]
     /// The upper bound of the range.
-    pub upper:         String,
+    pub upper: String,
 }
 
 /// For the case where the verifier wants the user to prove that an attribute is
@@ -622,7 +650,7 @@ pub struct AttributeInSetStatement {
     pub attribute_tag: String,
     /// The set that the attribute should lie in.
     #[serde(rename = "set")]
-    pub set:           std::collections::BTreeSet<String>,
+    pub set: std::collections::BTreeSet<String>,
 }
 
 /// For the case where the verifier wants the user to prove that an attribute is
@@ -637,7 +665,7 @@ pub struct AttributeNotInSetStatement {
     pub attribute_tag: String,
     /// The set that the attribute should not lie in.
     #[serde(rename = "set")]
-    pub set:           std::collections::BTreeSet<String>,
+    pub set: std::collections::BTreeSet<String>,
 }
 
 /// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::AtomicStatement<ArCurve, AttributeTag, AttributeKind>`]
@@ -666,13 +694,61 @@ pub enum AtomicStatement {
     },
 }
 
-/// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::Statement<ArCurve, AttributeTag, AttributeKind>`]
+/// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::Statement<ArCurve, AttributeKind>`]
 #[derive(Debug, Serialize)]
 #[serde(transparent)]
 pub struct Statement {
     pub statements: Vec<AtomicStatement>,
 }
 
+impl TryFrom<Statement> for concordium_base::id::id_proof_types::Statement<ArCurve, AttributeKind> {
+    type Error = serde_json::Error;
+
+    fn try_from(value: Statement) -> Result<Self, Self::Error> {
+        serde_json::to_string(&value).and_then(|s| serde_json::from_str(&s))
+    }
+}
+
+/// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::AtomicProof<ArCurve, AttributeTag>`]
+#[derive(Debug, Deserialize)]
+#[serde(tag = "type")]
+pub enum AtomicProof {
+    /// The atomic statement stating that an attribute should be revealed.
+    RevealAttribute { attribute: String, proof: Bytes },
+    /// The atomic proof stating that an attribute is in a range.
+    AttributeInRange { proof: Bytes },
+    /// The atomic proof stating that an attribute is in a set.
+    AttributeInSet { proof: Bytes },
+    /// The atomic proof stating that an attribute is not in a set.
+    AttributeNotInSet { proof: Bytes },
+}
+
+/// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::Proof<ArCurve, AttributeKind>`]
+#[derive(Debug, Deserialize)]
+pub struct IdProof {
+    pub proofs: Vec<AtomicProof>,
+}
+
+/// Serves as a uniFFI compatible bridge to [`Versioned<concordium_base::id::id_proof_types::Proof<ArCurve, AttributeKind>>`]
+#[derive(Debug, Deserialize)]
+pub struct VersionedIdProof {
+    version: u32,
+    value: IdProof,
+}
+
+impl TryFrom<Versioned<concordium_base::id::id_proof_types::Proof<ArCurve, AttributeKind>>>
+    for VersionedIdProof
+{
+    type Error = serde_json::Error;
+
+    fn try_from(
+        value: Versioned<concordium_base::id::id_proof_types::Proof<ArCurve, AttributeKind>>,
+    ) -> Result<Self, Self::Error> {
+        serde_json::to_string(&value).and_then(|s| serde_json::from_str(&s))
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
 pub fn prove_id_statement(
     seed: Bytes,
     net: String,
@@ -683,6 +759,60 @@ pub fn prove_id_statement(
     identity_object: IdentityObject,
     statement: Statement,
     challenge: Bytes,
-) -> Result<(), ConcordiumWalletCryptoError> {
-    todo!()
+) -> Result<VersionedIdProof, ConcordiumWalletCryptoError> {
+    let fn_name = "prove_id_statement";
+
+    let net = Net::from_str(&net)
+        .context("Failed to parse network")
+        .map_err(|e| e.to_call_failed(fn_name.to_string()))?;
+    let wallet =
+        get_wallet(hex::encode(seed), net).map_err(|e| e.to_call_failed(fn_name.to_string()))?;
+    let ip_info = IpInfo::<IpPairing>::try_from(ip_info)
+        .map_err(|e| e.to_call_failed(fn_name.to_string()))?;
+    let identity_provider_index = ip_info.ip_identity;
+    let global_context =
+        concordium_base::id::types::GlobalContext::<ArCurve>::try_from(global_context)
+            .map_err(|e| e.to_call_failed(fn_name.to_string()))?;
+    let id_object =
+        IdentityObjectV1::<IpPairing, ArCurve, AttributeKind>::try_from(identity_object)
+            .map_err(|e| e.to_call_failed(fn_name.to_string()))?;
+
+    let credential_context = CredentialContext {
+        wallet,
+        identity_provider_index,
+        identity_index,
+        credential_index,
+    };
+    let cred_id = credential_context
+        .wallet
+        .get_prf_key(identity_provider_index.0, identity_index)
+        .context("Failed to get PRF key")
+        .and_then(|key| {
+            key.prf(&global_context.on_chain_commitment_key.g, credential_index)
+                .context("Failed to compute PRF")
+        })
+        .map_err(|e| e.to_call_failed(fn_name.to_string()))?;
+
+    let statement =
+        concordium_base::id::id_proof_types::Statement::<ArCurve, AttributeKind>::try_from(
+            statement,
+        )
+        .map_err(|e| e.to_call_failed(fn_name.to_string()))?;
+    let statement = StatementWithContext {
+        statement,
+        credential: cred_id,
+    };
+
+    let proof = statement
+        .prove(
+            ProofVersion::Version1,
+            &global_context,
+            challenge.as_ref(),
+            &id_object.alist,
+            &credential_context,
+        )
+        .context("Could not produce proof.")
+        .map_err(|e| e.to_call_failed(fn_name.to_string()))?;
+    VersionedIdProof::try_from(Versioned::new(VERSION_0, proof))
+        .map_err(|e| e.to_call_failed(fn_name.to_string()))
 }

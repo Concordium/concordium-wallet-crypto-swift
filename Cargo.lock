@@ -549,6 +549,7 @@ dependencies = [
  "concordium_base",
  "derive_more",
  "hex",
+ "key_derivation",
  "rand",
  "serde",
  "serde_json",
