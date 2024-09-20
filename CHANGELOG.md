@@ -9,11 +9,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- **BREAKING** - `SecToPubTransferData.transfer_amount` has been changed to `MicroCCDAmount` which is an alias in generated code for `u64`
+- **BREAKING** - `SecToPubTransferData.transfer_amount` has been changed to `MicroCCDAmount` (previously `String`) which is an alias in generated code for `u64`
 
 ### Added
 
 - `get_encryption_keys`, `decrypt_amount`, and `combine_encrypted_amounts` functions for handling encrypted amounts.
+- `prove_statement_v1` for producing proofs related to Concordium identities.
 
 ## [4.1.0]
 
