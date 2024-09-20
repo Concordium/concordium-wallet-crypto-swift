@@ -14,7 +14,8 @@ use uniffi::deps::anyhow::Context;
 use wallet_library::wallet::get_wallet;
 
 use crate::{
-    Bytes, ConcordiumWalletCryptoError, ConvertError, GlobalContext, IdentityObject, IdentityProviderInfo, Versioned
+    Bytes, ConcordiumWalletCryptoError, ConvertError, GlobalContext, IdentityObject,
+    IdentityProviderInfo, Versioned,
 };
 
 /// For the case where the verifier wants the user to show the value of an
@@ -133,10 +134,7 @@ impl TryFrom<StatementV1>
 }
 
 #[derive(Deserialize)]
-#[serde(
-    tag = "type",
-    bound(deserialize = "Value: Deserialize<'de>"))
-]
+#[serde(tag = "type", bound(deserialize = "Value: Deserialize<'de>"))]
 pub enum AtomicProof<Value> {
     /// The atomic statement stating that an attribute should be revealed.
     RevealAttribute { attribute: Value, proof: Bytes },
@@ -163,13 +161,19 @@ pub type ProofV1 = Proof<String>;
 /// Serves as a uniFFI compatible bridge to [`concordium_base::common::Versioned<concordium_base::id::id_proof_types::Proof<ArCurve, AttributeKind>>`]
 pub type VersionedProofV1 = Versioned<ProofV1>;
 
-impl TryFrom<concordium_base::common::Versioned<concordium_base::id::id_proof_types::Proof<ArCurve, AttributeKind>>>
-    for VersionedProofV1
+impl
+    TryFrom<
+        concordium_base::common::Versioned<
+            concordium_base::id::id_proof_types::Proof<ArCurve, AttributeKind>,
+        >,
+    > for VersionedProofV1
 {
     type Error = serde_json::Error;
 
     fn try_from(
-        value: concordium_base::common::Versioned<concordium_base::id::id_proof_types::Proof<ArCurve, AttributeKind>>,
+        value: concordium_base::common::Versioned<
+            concordium_base::id::id_proof_types::Proof<ArCurve, AttributeKind>,
+        >,
     ) -> Result<Self, Self::Error> {
         serde_json::to_string(&value).and_then(|s| serde_json::from_str(&s))
     }

@@ -1,10 +1,10 @@
 use crate::types::*;
 use concordium_base::id::{
-    constants::{ArCurve, IpPairing, AttributeKind},
+    constants::{ArCurve, AttributeKind, IpPairing},
     types::IpInfo,
 };
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap};
+use std::collections::HashMap;
 use uniffi::deps::anyhow::Context;
 use wallet_library::{
     credential::{
