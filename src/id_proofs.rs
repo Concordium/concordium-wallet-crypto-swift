@@ -134,7 +134,7 @@ impl TryFrom<StatementV1>
 }
 
 #[derive(Deserialize)]
-#[serde(tag = "type", bound(deserialize = "Value: Deserialize<'de>"))]
+#[serde(tag = "type")]
 pub enum AtomicProof<Value> {
     /// The atomic statement stating that an attribute should be revealed.
     RevealAttribute { attribute: Value, proof: Bytes },
@@ -150,7 +150,6 @@ pub enum AtomicProof<Value> {
 pub type AtomicProofV1 = AtomicProof<String>;
 
 #[derive(Deserialize)]
-#[serde(bound(deserialize = "Value: Deserialize<'de>"))]
 pub struct Proof<Value> {
     pub proofs: Vec<AtomicProof<Value>>,
 }

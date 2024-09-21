@@ -233,8 +233,8 @@ pub fn generate_baker_keys() -> BakerKeyPairs {
 
 /// Serves as a uniFFI compatible bridge to [`concordium_base::common::Versioned`]
 #[derive(Deserialize)]
-#[serde(bound(deserialize = "V: Deserialize<'de>"))]
 pub struct Versioned<V> {
+    #[serde(rename = "v")]
     pub version: u32,
     pub value: V,
 }
