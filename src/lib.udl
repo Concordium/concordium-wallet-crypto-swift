@@ -609,5 +609,5 @@ namespace crypto {
 
     /// Prove the supplied statement in the context of a given identity and credential
     [Throws=ConcordiumWalletCryptoError]
-    VersionedProofV1 prove_statement_v1(Bytes seed, string net, GlobalContext global_context, IdentityProviderInfo ip_info, u32 identity_index, u8 credential_index, IdentityObject identity_object, StatementV1 statement, Bytes challenge);
+    VersionedProofV1 prove_statement_v1(Bytes seed, string net, GlobalContext global_context, u32 ip_index, u32 identity_index, u8 credential_index, IdentityObject identity_object, StatementV1 statement, Bytes challenge);
 };

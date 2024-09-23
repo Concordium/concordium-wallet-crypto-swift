@@ -5,7 +5,7 @@ use concordium_base::{
     id::{
         constants::{ArCurve, AttributeKind, IpPairing},
         id_proof_types::{ProofVersion, StatementWithContext},
-        types::{IdentityObjectV1, IpInfo},
+        types::IdentityObjectV1,
     },
 };
 use key_derivation::{CredentialContext, Net};
@@ -14,8 +14,7 @@ use uniffi::deps::anyhow::Context;
 use wallet_library::wallet::get_wallet;
 
 use crate::{
-    Bytes, ConcordiumWalletCryptoError, ConvertError, GlobalContext, IdentityObject,
-    IdentityProviderInfo, Versioned,
+    Bytes, ConcordiumWalletCryptoError, ConvertError, GlobalContext, IdentityObject, Versioned,
 };
 
 /// For the case where the verifier wants the user to show the value of an
@@ -184,7 +183,7 @@ pub fn prove_statement_v1(
     seed: Bytes,
     net: String,
     global_context: GlobalContext,
-    ip_info: IdentityProviderInfo,
+    ip_index: u32,
     identity_index: u32,
     credential_index: u8,
     identity_object: IdentityObject,
@@ -198,9 +197,6 @@ pub fn prove_statement_v1(
         .map_err(|e| e.to_call_failed(fn_name.to_string()))?;
     let wallet =
         get_wallet(hex::encode(seed), net).map_err(|e| e.to_call_failed(fn_name.to_string()))?;
-    let ip_info = IpInfo::<IpPairing>::try_from(ip_info)
-        .map_err(|e| e.to_call_failed(fn_name.to_string()))?;
-    let identity_provider_index = ip_info.ip_identity;
     let global_context =
         concordium_base::id::types::GlobalContext::<ArCurve>::try_from(global_context)
             .map_err(|e| e.to_call_failed(fn_name.to_string()))?;
@@ -210,13 +206,13 @@ pub fn prove_statement_v1(
 
     let credential_context = CredentialContext {
         wallet,
-        identity_provider_index,
+        identity_provider_index: ip_index.into(),
         identity_index,
         credential_index,
     };
     let cred_id = credential_context
         .wallet
-        .get_prf_key(identity_provider_index.0, identity_index)
+        .get_prf_key(ip_index, identity_index)
         .context("Failed to get PRF key")
         .and_then(|key| {
             key.prf(&global_context.on_chain_commitment_key.g, credential_index)
