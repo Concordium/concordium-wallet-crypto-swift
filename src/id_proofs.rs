@@ -132,7 +132,7 @@ impl TryFrom<StatementV1>
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum AtomicProof<Value> {
     /// The atomic statement stating that an attribute should be revealed.

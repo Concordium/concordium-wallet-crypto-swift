@@ -44,6 +44,15 @@ impl ConvertError for hex::FromHexError {}
 #[derive(Debug, Serialize, Deserialize, derive_more::From, Clone, PartialEq)]
 pub struct Bytes(#[serde(with = "hex")] Vec<u8>);
 
+impl std::fmt::Display for Bytes {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for byte in &self.0 {
+            write!(f, "{:02x}", byte)?;
+        }
+        Ok(())
+    }
+}
+
 impl TryFrom<&str> for Bytes {
     type Error = hex::FromHexError;
 
