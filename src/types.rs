@@ -42,7 +42,7 @@ impl ConvertError for hex::FromHexError {}
 /// This should generally be used instead of hex string representation as it takes up half the space when compared to storing strings
 #[repr(transparent)]
 #[derive(Debug, Serialize, Deserialize, derive_more::From, Clone, PartialEq)]
-pub struct Bytes(#[serde(with = "hex")] Vec<u8>);
+pub struct Bytes(#[serde(with = "hex")] pub Vec<u8>);
 
 impl std::fmt::Display for Bytes {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

@@ -1,41 +1,57 @@
-use std::collections::HashMap;
+use std::{
+    collections::{BTreeSet, HashMap},
+    time::{SystemTime, UNIX_EPOCH},
+};
 
+use chrono::{DateTime, Utc};
 use concordium_base::{
     base::ContractAddress,
     contracts_common::Timestamp,
     id::constants::{ArCurve, AttributeKind},
-    web3id,
+    web3id::{self, Presentation},
+};
+use uniffi::deps::anyhow::Context;
+
+use crate::{
+    AtomicProof, AtomicStatement, AtomicStatementV1, Bytes, ConcordiumWalletCryptoError,
+    ConvertError, GlobalContext,
 };
 
-use crate::{AtomicProof, AtomicStatement, AtomicStatementV1, Bytes};
-
+/// Serves as a uniFFI compatible bridge to [`web3id::Web3IdAttribute`]
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
+#[serde(from = "web3id::Web3IdAttribute", into = "web3id::Web3IdAttribute")]
 pub enum Web3IdAttribute {
     String(String),
     Numeric(u64),
-    Timestamp { millis: u64 },
+    Timestamp(SystemTime),
 }
 
-impl From<&Web3IdAttribute> for web3id::Web3IdAttribute {
-    fn from(value: &Web3IdAttribute) -> Self {
+impl From<Web3IdAttribute> for web3id::Web3IdAttribute {
+    fn from(value: Web3IdAttribute) -> Self {
         match value {
             Web3IdAttribute::String(value) => {
                 web3id::Web3IdAttribute::String(AttributeKind(value.to_string()))
             }
-            Web3IdAttribute::Numeric(value) => web3id::Web3IdAttribute::Numeric(*value),
-            Web3IdAttribute::Timestamp { millis } => {
-                web3id::Web3IdAttribute::Timestamp(Timestamp { millis: *millis })
+            Web3IdAttribute::Numeric(value) => web3id::Web3IdAttribute::Numeric(value),
+            Web3IdAttribute::Timestamp(value) => {
+                let v = DateTime::<Utc>::from(value);
+                web3id::Web3IdAttribute::Timestamp(Timestamp {
+                    millis: v.timestamp_millis() as u64,
+                })
             }
         }
     }
 }
 
-impl serde::Serialize for Web3IdAttribute {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let v = concordium_base::web3id::Web3IdAttribute::from(self);
-        v.serialize(serializer)
+impl From<web3id::Web3IdAttribute> for Web3IdAttribute {
+    fn from(value: web3id::Web3IdAttribute) -> Self {
+        match value {
+            web3id::Web3IdAttribute::String(value) => Web3IdAttribute::String(value.0),
+            web3id::Web3IdAttribute::Numeric(value) => Web3IdAttribute::Numeric(value),
+            web3id::Web3IdAttribute::Timestamp(value) => Web3IdAttribute::Timestamp(
+                UNIX_EPOCH + std::time::Duration::from_millis(value.millis),
+            ),
+        }
     }
 }
 
@@ -73,39 +89,37 @@ pub enum VerifiableCredentialStatement {
     },
 }
 
-// NOTE: copied from the implementation from `concordium_base::web3id`
-impl serde::Serialize for VerifiableCredentialStatement {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        match self {
+impl TryFrom<VerifiableCredentialStatement>
+    for web3id::CredentialStatement<ArCurve, web3id::Web3IdAttribute>
+{
+    type Error = serde_json::Error;
+
+    fn try_from(value: VerifiableCredentialStatement) -> Result<Self, Self::Error> {
+        let cred_statement = match value {
             VerifiableCredentialStatement::Account {
                 network,
                 cred_id,
                 statement,
-            } => {
-                let json = serde_json::json!({
-                    "id": format!("did:ccd:{network}:cred:{cred_id}"),
-                    "statement": statement,
-                });
-                json.serialize(serializer)
-            }
+            } => Self::Account {
+                network: serde_json::to_value(network).and_then(serde_json::from_value)?,
+                cred_id: serde_json::to_value(cred_id).and_then(serde_json::from_value)?,
+                statement: serde_json::to_value(statement).and_then(serde_json::from_value)?,
+            },
             VerifiableCredentialStatement::Web3Id {
                 network,
                 contract,
                 holder_id,
                 statement,
                 cred_type,
-            } => {
-                let json = serde_json::json!({
-                    "type": cred_type,
-                    "id": format!("did:ccd:{network}:sci:{}:{}/credentialEntry/{}", contract.index, contract.subindex, holder_id),
-                    "statement": statement,
-                });
-                json.serialize(serializer)
-            }
-        }
+            } => Self::Web3Id {
+                ty: BTreeSet::from_iter(cred_type),
+                network: serde_json::to_value(network).and_then(serde_json::from_value)?,
+                contract,
+                credential: serde_json::to_value(holder_id).and_then(serde_json::from_value)?,
+                statement: serde_json::to_value(statement).and_then(serde_json::from_value)?,
+            },
+        };
+        Ok(cred_statement)
     }
 }
 
@@ -113,7 +127,6 @@ impl serde::Serialize for VerifiableCredentialStatement {
 /// comes separately.
 ///
 /// Serves as a uniFFI compatible bridge to [`web3id::Request<ArCurve, Web3IdAttribute>`]
-#[derive(serde::Serialize)]
 pub struct VerifiablePresentationRequest {
     pub challenge: Bytes,
     pub statements: Vec<VerifiableCredentialStatement>,
@@ -123,7 +136,15 @@ impl TryFrom<VerifiablePresentationRequest> for web3id::Request<ArCurve, web3id:
     type Error = serde_json::Error;
 
     fn try_from(value: VerifiablePresentationRequest) -> Result<Self, Self::Error> {
-        serde_json::to_value(value).and_then(serde_json::from_value)
+        let converted = Self {
+            challenge: serde_json::to_value(value.challenge).and_then(serde_json::from_value)?,
+            credential_statements: value
+                .statements
+                .into_iter()
+                .map(web3id::CredentialStatement::try_from)
+                .collect::<Result<Vec<_>, _>>()?,
+        };
+        Ok(converted)
     }
 }
 
@@ -156,18 +177,48 @@ pub enum VerifiableCredentialCommitmentInputs {
     },
 }
 
+impl TryFrom<VerifiableCredentialCommitmentInputs>
+    for web3id::OwnedCommitmentInputs<
+        ArCurve,
+        web3id::Web3IdAttribute,
+        concordium_base::ed25519::SecretKey,
+    >
+{
+    type Error = serde_json::Error;
+
+    fn try_from(value: VerifiableCredentialCommitmentInputs) -> Result<Self, Self::Error> {
+        serde_json::to_value(value).and_then(serde_json::from_value)
+    }
+}
+
+/// Serves as a uniFFI compatible bridge to [`id::id_proof_types::AtomicProof<ArCurve, Web3IdAttribute>`]
+pub type AtomicProofV2 = AtomicProof<Web3IdAttribute>;
+
 /// A pair of a statement and a proof.
 ///
 /// Serves as a uniFFI compatible bridge to [`web3id::StatementWithProof<ArCurve, String, Value>`]
-pub struct StatementWithProof<Value: serde::Serialize> {
-    statement: AtomicStatement<String, Value>,
-    proof: AtomicProof<Value>,
+#[derive(serde::Deserialize)]
+#[serde(from = "(AtomicStatement<String, Value>, AtomicProof<Value>)")]
+pub struct StatementWithProof<Value> {
+    pub statement: AtomicStatement<String, Value>,
+    pub proof: AtomicProof<Value>,
+}
+
+impl<Value> From<(AtomicStatement<String, Value>, AtomicProof<Value>)>
+    for StatementWithProof<Value>
+{
+    fn from(value: (AtomicStatement<String, Value>, AtomicProof<Value>)) -> Self {
+        Self {
+            statement: value.0,
+            proof: value.1,
+        }
+    }
 }
 
 /// Commitments signed by the issuer.
 ///
 /// Serves as a uniFFI compatible bridge to [`web3id::SignedCommitments<ArCurve>`]
-#[derive(serde::Serialize)]
+#[derive(serde::Deserialize)]
 pub struct SignedCommitments {
     pub signature: Bytes,
     pub commitments: HashMap<String, Bytes>,
@@ -181,9 +232,9 @@ pub struct SignedCommitments {
 /// Serves as a uniFFI compatible bridge to [`web3id::CredentialProof<ArCurve, Web3IdAttribute>`]
 pub enum VerifiableCredentialProof {
     Account {
-        /// Creation timestamp of the proof. UNIX timestamp
+        /// Creation timestamp of the proof.
         /// RFC 3339 formatted datetime
-        created: String,
+        created: SystemTime,
         /// [`web3id::did::Network`]
         network: String,
         /// Reference to the credential to which this statement applies.
@@ -196,7 +247,7 @@ pub enum VerifiableCredentialProof {
     Web3Id {
         /// Creation timestamp of the proof.
         /// RFC 3339 formatted datetime
-        created: String,
+        created: SystemTime,
         /// Owner of the credential, a public key.
         /// [`web3id::CredentialHolderId`].
         holder_id: Bytes,
@@ -216,86 +267,67 @@ pub enum VerifiableCredentialProof {
     },
 }
 
-// NOTE: copied from the implementation from `concordium_base::web3id`
-impl serde::Serialize for VerifiableCredentialProof {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        match self {
-            VerifiableCredentialProof::Account {
+impl TryFrom<web3id::CredentialProof<ArCurve, web3id::Web3IdAttribute>>
+    for VerifiableCredentialProof
+{
+    type Error = serde_json::Error;
+
+    fn try_from(
+        value: web3id::CredentialProof<ArCurve, web3id::Web3IdAttribute>,
+    ) -> Result<Self, Self::Error> {
+        let converted = match value {
+            web3id::CredentialProof::Account {
                 created,
                 network,
                 cred_id,
                 issuer,
                 proofs,
-            } => {
-                let json = serde_json::json!({
-                    "type": ["VerifiableCredential", "ConcordiumVerifiableCredential"],
-                    "issuer": format!("did:ccd:{network}:idp:{issuer}"),
-                    "credentialSubject": {
-                        "id": format!("did:ccd:{network}:cred:{cred_id}"),
-                        "statement": proofs.iter().map(|x| &x.statement).collect::<Vec<_>>(),
-                        "proof": {
-                            "type": "ConcordiumZKProofV3",
-                            "created": created,
-                            "proofValue": proofs.iter().map(|x| &x.proof).collect::<Vec<_>>(),
-                        }
-                    }
-                });
-                json.serialize(serializer)
-            }
-            VerifiableCredentialProof::Web3Id {
+            } => Self::Account {
+                created: created.into(),
+                network: serde_json::to_value(network).and_then(serde_json::from_value)?,
+                cred_id: serde_json::to_value(cred_id).and_then(serde_json::from_value)?,
+                issuer: issuer.0,
+                proofs: serde_json::to_value(proofs).and_then(serde_json::from_value)?,
+            },
+            web3id::CredentialProof::Web3Id {
                 created,
+                holder,
                 network,
                 contract,
-                cred_type,
+                ty,
                 commitments,
                 proofs,
-                holder_id,
-            } => {
-                let json = serde_json::json!({
-                    "type": cred_type,
-                    "issuer": format!("did:ccd:{network}:sci:{}:{}/issuer", contract.index, contract.subindex),
-                    "credentialSubject": {
-                        "id": format!("did:ccd:{network}:pkc:{}", holder_id),
-                        "statement": proofs.iter().map(|x| &x.statement).collect::<Vec<_>>(),
-                        "proof": {
-                            "type": "ConcordiumZKProofV3",
-                            "created": created,
-                            "commitments": commitments,
-                            "proofValue": proofs.iter().map(|x| &x.proof).collect::<Vec<_>>(),
-                        }
-                    }
-                });
-                json.serialize(serializer)
-            }
-        }
+            } => Self::Web3Id {
+                created: created.into(),
+                holder_id: serde_json::to_value(holder).and_then(serde_json::from_value)?,
+                network: serde_json::to_value(network).and_then(serde_json::from_value)?,
+                contract,
+                cred_type: ty.into_iter().collect(),
+                commitments: serde_json::to_value(commitments).and_then(serde_json::from_value)?,
+                proofs: serde_json::to_value(proofs).and_then(serde_json::from_value)?,
+            },
+        };
+        Ok(converted)
     }
 }
-///
+
+fn deserialize_system_time<'de, D>(deserializer: D) -> Result<SystemTime, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    let dt: DateTime<Utc> = serde::Deserialize::deserialize(deserializer)?;
+    Ok(dt.into())
+}
+
 /// A proof that establishes that the owner of the credential has indeed created
 /// the presentation. At present this is a list of signatures.
 ///
 /// Serves as a uniFFI compatible bridge to [`web3id::LinkingProof`]
+#[derive(serde::Deserialize)]
 pub struct LinkingProof {
-    /// RFC 3339 formatted datetime
-    pub created: String,
+    #[serde(deserialize_with = "deserialize_system_time")]
+    pub created: SystemTime,
     pub proof_value: Vec<Bytes>,
-}
-
-impl serde::Serialize for LinkingProof {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let json = serde_json::json!({
-            "type": "ConcordiumWeakLinkingProofV1",
-            "created": self.created,
-            "proofValue": self.proof_value,
-        });
-        json.serialize(serializer)
-    }
 }
 
 /// A presentation is the response to a [`Request`]. It contains proofs for
@@ -311,18 +343,50 @@ pub struct VerifiablePresentation {
     pub linking_proof: LinkingProof,
 }
 
-// NOTE: copied from the implementation from `concordium_base::web3id`
-impl serde::Serialize for VerifiablePresentation {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: serde::Serializer,
-    {
-        let json = serde_json::json!({
-            "type": "VerifiablePresentation",
-            "presentationContext": self.presentation_context,
-            "verifiableCredential": &self.verifiable_credential,
-            "proof": &self.linking_proof
-        });
-        json.serialize(serializer)
+impl TryFrom<Presentation<ArCurve, web3id::Web3IdAttribute>> for VerifiablePresentation {
+    type Error = serde_json::Error;
+
+    fn try_from(
+        value: Presentation<ArCurve, web3id::Web3IdAttribute>,
+    ) -> Result<Self, Self::Error> {
+        let verifiable_credential: Result<Vec<_>, _> = value
+            .verifiable_credential
+            .into_iter()
+            .map(VerifiableCredentialProof::try_from)
+            .collect();
+        let converted = Self {
+            presentation_context: serde_json::to_value(value.presentation_context)
+                .and_then(serde_json::from_value)?,
+            linking_proof: serde_json::to_value(value.linking_proof)
+                .and_then(serde_json::from_value)?,
+            verifiable_credential: verifiable_credential?,
+        };
+        Ok(converted)
     }
+}
+
+/// Create a verifiable presentation from a [`VerifiablePresentationRequest`], the associated
+/// commitment inputs and the cryptographic parameters of the chain.
+pub fn create_verifiable_presentation(
+    request: VerifiablePresentationRequest,
+    global: GlobalContext,
+    commitment_inputs: Vec<VerifiableCredentialCommitmentInputs>,
+) -> Result<VerifiablePresentation, ConcordiumWalletCryptoError> {
+    let fn_name = "create_verifiable_presentation";
+    let request =
+        web3id::Request::try_from(request).map_err(|e| e.to_call_failed(fn_name.to_string()))?;
+    let global = concordium_base::id::types::GlobalContext::<ArCurve>::try_from(global)
+        .map_err(|e| e.to_call_failed(fn_name.to_string()))?;
+    let commitment_inputs: Vec<_> = commitment_inputs
+        .into_iter()
+        .map(web3id::OwnedCommitmentInputs::try_from)
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_call_failed(fn_name.to_string()))?;
+
+    let presentation = request
+        .prove(&global, commitment_inputs.iter().map(Into::into))
+        .context("Failed to create verifiable presentation")
+        .map_err(|e| e.to_call_failed(fn_name.to_string()))?;
+    VerifiablePresentation::try_from(presentation)
+        .map_err(|e| e.to_call_failed(fn_name.to_string()))
 }
