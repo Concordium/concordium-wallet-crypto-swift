@@ -381,7 +381,7 @@ dictionary EncryptionKeys {
 /// attribute and prove that it is indeed the value inside the on-chain
 /// commitment. Since the verifier does not know the attribute value before
 /// seing the proof, the value is not present here.
-dictionary RevealAttributeStatementV1 {
+dictionary RevealAttributeStatement {
     /// The attribute that the verifier wants the user to reveal.
     string attribute_tag;
 };
@@ -422,7 +422,7 @@ dictionary AttributeNotInSetStatementV1 {
 [Enum]
 interface AtomicStatementV1 {
     /// The atomic statement stating that an attribute should be revealed.
-    RevealAttribute(RevealAttributeStatementV1 statement);
+    RevealAttribute(RevealAttributeStatement statement);
     /// The atomic statement stating that an attribute is in a range.
     AttributeInRange(AttributeInRangeStatementV1 statement);
     /// The atomic statement stating that an attribute is in a set.
@@ -460,6 +460,157 @@ dictionary VersionedProofV1 {
     u32 version;
     /// The proof
     ProofV1 value;
+};
+
+/// A value of an attribute. This is the low-level representation. The
+/// different variants are present to enable different representations in JSON,
+/// and different embeddings as field elements when constructing and verifying
+/// proofs.
+[Enum]
+interface Web3IdAttribute {
+    String(string value);
+    Numeric(u64 value);
+    Timestamp(timestamp value);
+};
+
+/// For the case where the verifier wants the user to prove that an attribute is
+/// in a range. The statement is that the attribute value lies in `[lower,
+/// upper)` in the scalar field.
+dictionary AttributeInRangeStatementV2 {
+    /// The attribute that the verifier wants the user to prove is in a range.
+    string attribute_tag;
+    /// The lower bound on the range.
+    Web3IdAttribute lower;
+    /// The upper bound of the range.
+    Web3IdAttribute upper;
+};
+
+/// For the case where the verifier wants the user to prove that an attribute is
+/// in a set of attributes.
+dictionary AttributeInSetStatementV2 {
+    /// The attribute that the verifier wants the user prove lies in a set.
+    string attribute_tag;
+    /// The set that the attribute should lie in.
+    sequence<Web3IdAttribute> set;
+};
+
+/// For the case where the verifier wants the user to prove that an attribute is
+/// not in a set of attributes.
+dictionary AttributeNotInSetStatementV2 {
+    /// The attribute that the verifier wants the user to prove does not lie in
+    /// a set.
+    string attribute_tag;
+    /// The set that the attribute should not lie in.
+    sequence<Web3IdAttribute> set;
+};
+
+/// Statements are composed of one or more atomic statements.
+/// This type defines the different types of atomic statements.
+[Enum]
+interface AtomicStatementV2 {
+    /// The atomic statement stating that an attribute should be revealed.
+    RevealAttribute(RevealAttributeStatement statement);
+    /// The atomic statement stating that an attribute is in a range.
+    AttributeInRange(AttributeInRangeStatementV2 statement);
+    /// The atomic statement stating that an attribute is in a set.
+    AttributeInSet(AttributeInSetStatementV2 statement);
+    /// The atomic statement stating that an attribute is not in a set.
+    AttributeNotInSet(AttributeNotInSetStatementV2 statement);
+};
+
+/// Represents an address of a smart contract
+dictionary ContractAddress {
+    u64 index;
+    u64 subindex;
+};
+
+/// A statement about a single credential, either an identity credential or a
+/// Web3 credential.
+[Enum]
+interface VerifiableCredentialStatement {
+    /// Statement about a credential derived from an identity issued by an
+    /// identity provider.
+    Account(string network, Bytes cred_id, sequence<AtomicStatementV1> statement);
+    /// Statement about a credential issued by a Web3 identity provider, a smart
+    /// contract.
+    Web3Id(sequence<string> cred_type, string network, ContractAddress contract, Bytes holder_id,  sequence<AtomicStatementV2> statement);
+};
+
+
+/// A request for a proof. This is the statement and challenge. The secret data
+/// comes separately.
+dictionary VerifiablePresentationRequest {
+    Bytes challenge;
+    sequence<VerifiableCredentialStatement> statements;
+};
+
+/// The different types of proofs, corresponding to the statements above.
+[Enum]
+interface AtomicProofV2 {
+    /// The atomic statement stating that an attribute should be revealed.
+    RevealAttribute(Web3IdAttribute attribute, Bytes proof);
+    /// The atomic proof stating that an attribute is in a range.
+    AttributeInRange(Bytes proof);
+    /// The atomic proof stating that an attribute is in a set.
+    AttributeInSet(Bytes proof);
+    /// The atomic proof stating that an attribute is not in a set.
+    AttributeNotInSet(Bytes proof);
+};
+
+/// The additional inputs, additional to the `VerifiablePresentationRequest` that are needed to
+/// produce a `VerifablePresentation`.
+[Enum]
+interface VerifiableCredentialCommitmentInputs {
+    /// Inputs are for an identity credential issued by an identity provider.
+    Account(u32 issuer, record<string, string> values, record<string, Bytes> randomness);
+    /// Inputs are for a credential issued by Web3ID issuer.
+    Web3Issuer(Bytes signature, Bytes signer, record<string, Web3IdAttribute> values, record<string, Bytes> randomness);
+};
+
+/// A pair of a statement and a proof for an account credential statement.
+dictionary AccountStatementWithProof {
+    AtomicStatementV1 statement;
+    AtomicProofV1 proof;
+};
+
+/// A pair of a statement and a proof for a Web3 ID credential statement.
+dictionary Web3IdStatementWithProof {
+    AtomicStatementV2 statement;
+    AtomicProofV2 proof;
+};
+
+/// Commitments signed by the issuer.
+dictionary SignedCommitments {
+    Bytes signature;
+    record<string, Bytes> commitments;
+};
+
+/// A proof corresponding to one `VerifiableCredentialStatement`. This contains almost
+/// all the information needed to verify it, except the issuer's public key in
+/// case of the `Web3Id` proof, and the public commitments in case of the
+/// `Account` proof.
+[Enum]
+interface VerifiableCredentialProof {
+    Account(timestamp created, string network, Bytes cred_id, u32 issuer, sequence<AccountStatementWithProof> proofs);
+    Web3Id(timestamp created, Bytes holder_id, string network, ContractAddress contract, sequence<string> cred_type, SignedCommitments commitments, sequence<Web3IdStatementWithProof> proofs);
+};
+
+/// A proof that establishes that the owner of the credential has indeed created
+/// the presentation. At present this is a list of signatures.
+dictionary LinkingProof {
+    timestamp created;
+    sequence<Bytes> proof_value;
+};
+
+/// A presentation is the response to a `VerifiableCredentialRequest`. It contains proofs for
+/// statements, ownership proof for all Web3 credentials, and a context. The
+/// only missing part to verify the proof are the public commitments.
+dictionary VerifiablePresentation {
+    Bytes presentation_context;
+    sequence<VerifiableCredentialProof> verifiable_credential;
+    /// Signatures from keys of Web3 credentials (not from ID credentials).
+    /// The order is the same as that in the `credential_proofs` field.
+    LinkingProof linking_proof;
 };
 
 namespace crypto {
@@ -610,4 +761,9 @@ namespace crypto {
     /// Prove the supplied statement in the context of a given identity and credential
     [Throws=ConcordiumWalletCryptoError]
     VersionedProofV1 prove_statement_v1(Bytes seed, string net, GlobalContext global_context, u32 ip_index, u32 identity_index, u8 credential_index, IdentityObject identity_object, StatementV1 statement, Bytes challenge);
+
+    /// Create a verifiable presentation from a `VerifiablePresentationRequest`, the associated
+    /// commitment inputs and the cryptographic parameters of the chain.
+    [Throws=ConcordiumWalletCryptoError]
+    VerifiablePresentation create_verifiable_presentation(VerifiablePresentationRequest request, GlobalContext global, sequence<VerifiableCredentialCommitmentInputs> commitment_inputs);
 };

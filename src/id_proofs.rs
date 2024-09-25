@@ -22,23 +22,20 @@ use crate::{
 /// commitment. Since the verifier does not know the attribute value before
 /// seing the proof, the value is not present here.
 #[derive(Serialize, Deserialize)]
-pub struct RevealAttributeStatement<Tag> {
+pub struct RevealAttributeStatement {
     /// The attribute that the verifier wants the user to reveal.
     #[serde(rename = "attributeTag")]
-    pub attribute_tag: Tag,
+    pub attribute_tag: String,
 }
-
-/// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::RevealAttributeStatement<ArCurve, AttributeTag>`]
-pub type RevealAttributeStatementV1 = RevealAttributeStatement<String>;
 
 /// For the case where the verifier wants the user to prove that an attribute is
 /// in a range. The statement is that the attribute value lies in `[lower,
 /// upper)` in the scalar field.
 #[derive(Serialize, Deserialize)]
-pub struct AttributeInRangeStatement<Tag, Value> {
+pub struct AttributeInRangeStatement<Value> {
     /// The attribute that the verifier wants the user to prove is in a range.
     #[serde(rename = "attributeTag")]
-    pub attribute_tag: Tag,
+    pub attribute_tag: String,
     /// The lower bound on the range.
     #[serde(rename = "lower")]
     pub lower: Value,
@@ -48,79 +45,79 @@ pub struct AttributeInRangeStatement<Tag, Value> {
 }
 
 /// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::AttributeInRangeStatement<ArCurve, AttributeTag, AttributeKind>`]
-pub type AttributeInRangeStatementV1 = AttributeInRangeStatement<String, String>;
+pub type AttributeInRangeStatementV1 = AttributeInRangeStatement<String>;
 
 /// For the case where the verifier wants the user to prove that an attribute is
 /// in a set of attributes.
 ///
 /// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::AttributeInSetStatement<ArCurve, AttributeTag, AttributeKind>`]
 #[derive(Serialize, Deserialize)]
-pub struct AttributeInSetStatement<Tag, Value> {
+pub struct AttributeInSetStatement<Value> {
     /// The attribute that the verifier wants the user prove lies in a set.
     #[serde(rename = "attributeTag")]
-    pub attribute_tag: Tag,
+    pub attribute_tag: String,
     /// The set that the attribute should lie in.
     #[serde(rename = "set")]
     pub set: Vec<Value>,
 }
 
 /// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::AttributeInSetStatement<ArCurve, AttributeTag, AttributeKind>`]
-pub type AttributeInSetStatementV1 = AttributeInSetStatement<String, String>;
+pub type AttributeInSetStatementV1 = AttributeInSetStatement<String>;
 
 /// For the case where the verifier wants the user to prove that an attribute is
 /// not in a set of attributes.
 ///
 /// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::AttributeNotInSetStatement<ArCurve, AttributeTag, AttributeKind>`]
 #[derive(Serialize, Deserialize)]
-pub struct AttributeNotInSetStatement<Tag, Value> {
+pub struct AttributeNotInSetStatement<Value> {
     /// The attribute that the verifier wants the user to prove does not lie in
     /// a set.
     #[serde(rename = "attributeTag")]
-    pub attribute_tag: Tag,
+    pub attribute_tag: String,
     /// The set that the attribute should not lie in.
     #[serde(rename = "set")]
     pub set: Vec<Value>,
 }
 
 /// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::AttributeNotInSetStatement<ArCurve, AttributeTag, AttributeKind>`]
-pub type AttributeNotInSetStatementV1 = AttributeNotInSetStatement<String, String>;
+pub type AttributeNotInSetStatementV1 = AttributeNotInSetStatement<String>;
 
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type")]
-pub enum AtomicStatement<Tag, Value> {
+pub enum AtomicStatement<Value> {
     /// The atomic statement stating that an attribute should be revealed.
     RevealAttribute {
         #[serde(flatten)]
-        statement: RevealAttributeStatement<Tag>,
+        statement: RevealAttributeStatement,
     },
     /// The atomic statement stating that an attribute is in a range.
     AttributeInRange {
         #[serde(flatten)]
-        statement: AttributeInRangeStatement<Tag, Value>,
+        statement: AttributeInRangeStatement<Value>,
     },
     /// The atomic statement stating that an attribute is in a set.
     AttributeInSet {
         #[serde(flatten)]
-        statement: AttributeInSetStatement<Tag, Value>,
+        statement: AttributeInSetStatement<Value>,
     },
     /// The atomic statement stating that an attribute is not in a set.
     AttributeNotInSet {
         #[serde(flatten)]
-        statement: AttributeNotInSetStatement<Tag, Value>,
+        statement: AttributeNotInSetStatement<Value>,
     },
 }
 
 /// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::AtomicStatement<ArCurve, AttributeTag, AttributeKind>`]
-pub type AtomicStatementV1 = AtomicStatement<String, String>;
+pub type AtomicStatementV1 = AtomicStatement<String>;
 
 #[derive(Serialize)]
 #[serde(transparent)]
-pub struct Statement<Tag, Value> {
-    pub statements: Vec<AtomicStatement<Tag, Value>>,
+pub struct Statement<Value> {
+    pub statements: Vec<AtomicStatement<Value>>,
 }
 
 /// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::Statement<ArCurve, AttributeKind>`]
-pub type StatementV1 = Statement<String, String>;
+pub type StatementV1 = Statement<String>;
 
 impl TryFrom<StatementV1>
     for concordium_base::id::id_proof_types::Statement<ArCurve, AttributeKind>

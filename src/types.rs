@@ -247,3 +247,27 @@ pub struct Versioned<V> {
     pub version: u32,
     pub value: V,
 }
+
+/// Serves as a uniFFI compatible bridge to [`concordium_base::base::ContractAddress`]
+pub struct ContractAddress {
+    pub index: u64,
+    pub subindex: u64,
+}
+
+impl From<ContractAddress> for concordium_base::base::ContractAddress {
+    fn from(value: ContractAddress) -> Self {
+        Self {
+            index: value.index,
+            subindex: value.subindex,
+        }
+    }
+}
+
+impl From<concordium_base::base::ContractAddress> for ContractAddress {
+    fn from(value: concordium_base::base::ContractAddress) -> Self {
+        Self {
+            index: value.index,
+            subindex: value.subindex,
+        }
+    }
+}

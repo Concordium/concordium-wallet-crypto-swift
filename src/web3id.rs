@@ -5,7 +5,6 @@ use std::{
 
 use chrono::{DateTime, Utc};
 use concordium_base::{
-    base::ContractAddress,
     contracts_common::Timestamp,
     id::constants::{ArCurve, AttributeKind},
     web3id::{self, Presentation},
@@ -13,27 +12,33 @@ use concordium_base::{
 use uniffi::deps::anyhow::Context;
 
 use crate::{
-    AtomicProof, AtomicStatement, AtomicStatementV1, Bytes, ConcordiumWalletCryptoError,
-    ConvertError, GlobalContext,
+    types::ContractAddress, AtomicProof, AtomicStatement, AtomicStatementV1,
+    AttributeInRangeStatement, AttributeInSetStatement, AttributeNotInSetStatement, Bytes,
+    ConcordiumWalletCryptoError, ConvertError, GlobalContext,
 };
 
+/// A value of an attribute. This is the low-level representation. The
+/// different variants are present to enable different representations in JSON,
+/// and different embeddings as field elements when constructing and verifying
+/// proofs.
+///
 /// Serves as a uniFFI compatible bridge to [`web3id::Web3IdAttribute`]
 #[derive(Clone, serde::Serialize, serde::Deserialize)]
 #[serde(from = "web3id::Web3IdAttribute", into = "web3id::Web3IdAttribute")]
 pub enum Web3IdAttribute {
-    String(String),
-    Numeric(u64),
-    Timestamp(SystemTime),
+    String { value: String },
+    Numeric { value: u64 },
+    Timestamp { value: SystemTime },
 }
 
 impl From<Web3IdAttribute> for web3id::Web3IdAttribute {
     fn from(value: Web3IdAttribute) -> Self {
         match value {
-            Web3IdAttribute::String(value) => {
+            Web3IdAttribute::String { value } => {
                 web3id::Web3IdAttribute::String(AttributeKind(value.to_string()))
             }
-            Web3IdAttribute::Numeric(value) => web3id::Web3IdAttribute::Numeric(value),
-            Web3IdAttribute::Timestamp(value) => {
+            Web3IdAttribute::Numeric { value } => web3id::Web3IdAttribute::Numeric(value),
+            Web3IdAttribute::Timestamp { value } => {
                 let v = DateTime::<Utc>::from(value);
                 web3id::Web3IdAttribute::Timestamp(Timestamp {
                     millis: v.timestamp_millis() as u64,
@@ -46,17 +51,22 @@ impl From<Web3IdAttribute> for web3id::Web3IdAttribute {
 impl From<web3id::Web3IdAttribute> for Web3IdAttribute {
     fn from(value: web3id::Web3IdAttribute) -> Self {
         match value {
-            web3id::Web3IdAttribute::String(value) => Web3IdAttribute::String(value.0),
-            web3id::Web3IdAttribute::Numeric(value) => Web3IdAttribute::Numeric(value),
-            web3id::Web3IdAttribute::Timestamp(value) => Web3IdAttribute::Timestamp(
-                UNIX_EPOCH + std::time::Duration::from_millis(value.millis),
-            ),
+            web3id::Web3IdAttribute::String(value) => Web3IdAttribute::String { value: value.0 },
+            web3id::Web3IdAttribute::Numeric(value) => Web3IdAttribute::Numeric { value },
+            web3id::Web3IdAttribute::Timestamp(value) => Web3IdAttribute::Timestamp {
+                value: UNIX_EPOCH + std::time::Duration::from_millis(value.millis),
+            },
         }
     }
 }
-
+/// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::AttributeInRangeStatement<ArCurve, String, Web3IdAttribute>`]
+pub type AttributeInRangeStatementV2 = AttributeInRangeStatement<Web3IdAttribute>;
+/// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::AttributeInSetStatement<ArCurve, String, Web3IdAttribute>`]
+pub type AttributeInSetStatementV2 = AttributeInSetStatement<Web3IdAttribute>;
+/// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::AttributeNotInSetStatement<ArCurve, String, Web3IdAttribute>`]
+pub type AttributeNotInSetStatementV2 = AttributeNotInSetStatement<Web3IdAttribute>;
 /// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::AtomicStatement<ArCurve, String, Web3IdAttribute>`]
-pub type AtomicStatementV2 = AtomicStatement<String, Web3IdAttribute>;
+pub type AtomicStatementV2 = AtomicStatement<Web3IdAttribute>;
 
 /// A statement about a single credential, either an identity credential or a
 /// Web3 credential.
@@ -114,7 +124,7 @@ impl TryFrom<VerifiableCredentialStatement>
             } => Self::Web3Id {
                 ty: BTreeSet::from_iter(cred_type),
                 network: serde_json::to_value(network).and_then(serde_json::from_value)?,
-                contract,
+                contract: contract.into(),
                 credential: serde_json::to_value(holder_id).and_then(serde_json::from_value)?,
                 statement: serde_json::to_value(statement).and_then(serde_json::from_value)?,
             },
@@ -195,19 +205,23 @@ impl TryFrom<VerifiableCredentialCommitmentInputs>
 pub type AtomicProofV2 = AtomicProof<Web3IdAttribute>;
 
 /// A pair of a statement and a proof.
-///
-/// Serves as a uniFFI compatible bridge to [`web3id::StatementWithProof<ArCurve, String, Value>`]
 #[derive(serde::Deserialize)]
-#[serde(from = "(AtomicStatement<String, Value>, AtomicProof<Value>)")]
-pub struct StatementWithProof<Value> {
-    pub statement: AtomicStatement<String, Value>,
+#[serde(from = "(AtomicStatement<Value>, AtomicProof<Value>)")]
+pub struct CredentialStatementWithProof<Value> {
+    pub statement: AtomicStatement<Value>,
     pub proof: AtomicProof<Value>,
 }
 
-impl<Value> From<(AtomicStatement<String, Value>, AtomicProof<Value>)>
-    for StatementWithProof<Value>
+/// Serves as a uniFFI compatible bridge to [`web3id::StatementWithProof<ArCurve, String, String>`]
+pub type AccountStatementWithProof = CredentialStatementWithProof<String>;
+
+/// Serves as a uniFFI compatible bridge to [`web3id::StatementWithProof<ArCurve, String, Web3IdAttribute>`]
+pub type Web3IdStatementWithProof = CredentialStatementWithProof<Web3IdAttribute>;
+
+impl<Value> From<(AtomicStatement<Value>, AtomicProof<Value>)>
+    for CredentialStatementWithProof<Value>
 {
-    fn from(value: (AtomicStatement<String, Value>, AtomicProof<Value>)) -> Self {
+    fn from(value: (AtomicStatement<Value>, AtomicProof<Value>)) -> Self {
         Self {
             statement: value.0,
             proof: value.1,
@@ -242,7 +256,7 @@ pub enum VerifiableCredentialProof {
         /// Issuer of this credential, the identity provider index on the
         /// relevant network.
         issuer: u32,
-        proofs: Vec<StatementWithProof<String>>,
+        proofs: Vec<CredentialStatementWithProof<String>>,
     },
     Web3Id {
         /// Creation timestamp of the proof.
@@ -263,7 +277,7 @@ pub enum VerifiableCredentialProof {
         /// [`web3id::SignedCommitments<ArCurve>`]
         commitments: SignedCommitments,
         /// Individual proofs for statements.
-        proofs: Vec<StatementWithProof<Web3IdAttribute>>,
+        proofs: Vec<CredentialStatementWithProof<Web3IdAttribute>>,
     },
 }
 
@@ -301,7 +315,7 @@ impl TryFrom<web3id::CredentialProof<ArCurve, web3id::Web3IdAttribute>>
                 created: created.into(),
                 holder_id: serde_json::to_value(holder).and_then(serde_json::from_value)?,
                 network: serde_json::to_value(network).and_then(serde_json::from_value)?,
-                contract,
+                contract: contract.into(),
                 cred_type: ty.into_iter().collect(),
                 commitments: serde_json::to_value(commitments).and_then(serde_json::from_value)?,
                 proofs: serde_json::to_value(proofs).and_then(serde_json::from_value)?,

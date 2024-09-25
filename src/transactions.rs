@@ -135,7 +135,7 @@ pub fn sec_to_pub_transfer_data(
 /// Deserialize [`SecToPubTransferData`] from serialization format used by concordium nodes
 pub fn deserialize_sec_to_pub_transfer_data(
     bytes: Vec<u8>,
-) -> Result<DeserializeResult<SecToPubTransferData>, ConcordiumWalletCryptoError> {
+) -> Result<SecToPubTransferDataDeserializeResult, ConcordiumWalletCryptoError> {
     let fn_name = "deserialize_sec_to_pub_transfer_data";
     let mut bytes = std::io::Cursor::new(bytes);
     let transfer_data = SecToPubAmountTransferData::deserial(&mut bytes)
@@ -245,7 +245,7 @@ pub type UpdateCredentialsPayloadDeserializeResult = DeserializeResult<UpdateCre
 /// Deserialize [`UpdateCredentialsPayload`] from serialization format used by concordium nodes
 pub fn deserialize_update_credentials_payload(
     bytes: Vec<u8>,
-) -> Result<DeserializeResult<UpdateCredentialsPayload>, ConcordiumWalletCryptoError> {
+) -> Result<UpdateCredentialsPayloadDeserializeResult, ConcordiumWalletCryptoError> {
     let fn_name = "deserialize_update_credentials_payload";
 
     let mut bytes = std::io::Cursor::new(bytes);
