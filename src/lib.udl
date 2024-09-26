@@ -13,6 +13,78 @@ enum SchemaError {
     "ParseSchema",
 };
 
+enum Network {
+    "Testnet",
+    "Mainnet",
+};
+
+/// The supported set of attributes which are stored on identities and optionally revealed by accounts.
+/// In some contexts (such as the gRPC API), attribute tags are represented by a byte (the raw type of this enum).
+/// Where human readability is a concern, the string representation implemented by ``description`` is used.
+/// Note that since ``AttributeList`` (which is a component of ``IdentityObject``) is defined in another library, it cannot use this type.
+/// Instead, its field `chosenAttributes` is a map from the string representation of the tag to the value.
+/// Use the appropriate initializer of this type to convert it.
+/// All attribute values are strings of 31 bytes or less. The expected format of the values is documented
+/// [here](https://docs.google.com/spreadsheets/d/1CxpFvtAoUcylHQyeBtRBaRt1zsibtpmQOVsk7bsHPGA/edit).
+enum AttributeTag {
+    /// First name (format: string up to 31 bytes).
+    "FirstName",
+    /// Last name (format: string up to 31 bytes).
+    "LastName",
+    /// Sex (format: ISO/IEC 5218).
+    "Sex",
+    /// Date of birth (format: ISO8601 YYYYMMDD).
+    "DateOfBirth",
+    /// Country of residence (format: ISO3166-1 alpha-2).
+    "CountryOfResidence",
+    /// Country of nationality (format: ISO3166-1 alpha-2).
+    "Nationality",
+    /// Identity document type
+    ///
+    /// Format:
+    /// - 0 : na
+    /// - 1 : passport
+    /// - 2 : national ID card
+    /// - 3 : driving license
+    /// - 4 : immigration card
+    /// - eID string (see below)
+    ///
+    /// eID strings as of Apr 2024:
+    /// - DK:MITID        : Danish MitId
+    /// - SE:BANKID       : Swedish BankID
+    /// - NO:BANKID       : Norwegian BankID
+    /// - NO:VIPPS        : Norwegian Vipps
+    /// - FI:TRUSTNETWORK : Finnish Trust Network
+    /// - NL:DIGID        : Netherlands DigiD
+    /// - NL:IDIN         : Netherlands iDIN
+    /// - BE:EID          : Belgian eID
+    /// - ITSME           : (Cross-national) ItsME
+    /// - SOFORT          : (Cross-national) Sofort
+    "IdDocType",
+    /// Identity document number (format: string up to 31 bytes).
+    "IdDocNo",
+    /// Identity document issuer (format: ISO3166-1 alpha-2 or ISO3166-2 if applicable).
+    "IdDocIssuer",
+    /// Time from which the ID is valid (format: ISO8601 YYYYMMDD).
+    "IdDocIssuedAt",
+    /// Time to which the ID is valid (format: ISO8601 YYYYMMDD).
+    "IdDocExpiresAt",
+    /// National ID number (format: string up to 31 bytes).
+    "NationalIdNo",
+    /// Tax ID number (format: string up to 31 bytes).
+    "TaxIdNo",
+    /// LEI-code - companies only (format: ISO17442).
+    "LegalEntityId",
+    /// Legal name - companies only
+    "LegalName",
+    /// Legal country - companies only
+    "LegalCountry",
+    /// Business number associated with the company - companies only
+    "BusinessNumber",
+    /// Registration authority - companies only
+    "RegistrationAuth",
+};
+
 /// Parameter object for `identity_issuance_request_json`.
 dictionary IdentityIssuanceRequestParameters {
     IdentityProviderInfo ip_info;
@@ -381,9 +453,9 @@ dictionary EncryptionKeys {
 /// attribute and prove that it is indeed the value inside the on-chain
 /// commitment. Since the verifier does not know the attribute value before
 /// seing the proof, the value is not present here.
-dictionary RevealAttributeStatement {
+dictionary RevealAttributeStatementV1 {
     /// The attribute that the verifier wants the user to reveal.
-    string attribute_tag;
+    AttributeTag attribute_tag;
 };
 
 /// For the case where the verifier wants the user to prove that an attribute is
@@ -391,7 +463,7 @@ dictionary RevealAttributeStatement {
 /// upper)` in the scalar field.
 dictionary AttributeInRangeStatementV1 {
     /// The attribute that the verifier wants the user to prove is in a range.
-    string attribute_tag;
+    AttributeTag attribute_tag;
     /// The lower bound on the range.
     string lower;
     /// The upper bound of the range.
@@ -402,7 +474,7 @@ dictionary AttributeInRangeStatementV1 {
 /// in a set of attributes.
 dictionary AttributeInSetStatementV1 {
     /// The attribute that the verifier wants the user prove lies in a set.
-    string attribute_tag;
+    AttributeTag attribute_tag;
     /// The set that the attribute should lie in.
     sequence<string> set;
 };
@@ -412,7 +484,7 @@ dictionary AttributeInSetStatementV1 {
 dictionary AttributeNotInSetStatementV1 {
     /// The attribute that the verifier wants the user to prove does not lie in
     /// a set.
-    string attribute_tag;
+    AttributeTag attribute_tag;
     /// The set that the attribute should not lie in.
     sequence<string> set;
 };
@@ -422,7 +494,7 @@ dictionary AttributeNotInSetStatementV1 {
 [Enum]
 interface AtomicStatementV1 {
     /// The atomic statement stating that an attribute should be revealed.
-    RevealAttribute(RevealAttributeStatement statement);
+    RevealAttribute(RevealAttributeStatementV1 statement);
     /// The atomic statement stating that an attribute is in a range.
     AttributeInRange(AttributeInRangeStatementV1 statement);
     /// The atomic statement stating that an attribute is in a set.
@@ -472,6 +544,14 @@ interface Web3IdAttribute {
     Numeric(u64 value);
     Timestamp(timestamp value);
 };
+/// For the case where the verifier wants the user to show the value of an
+/// attribute and prove that it is indeed the value inside the on-chain
+/// commitment. Since the verifier does not know the attribute value before
+/// seing the proof, the value is not present here.
+dictionary RevealAttributeStatementV2 {
+    /// The attribute that the verifier wants the user to reveal.
+    string attribute_tag;
+};
 
 /// For the case where the verifier wants the user to prove that an attribute is
 /// in a range. The statement is that the attribute value lies in `[lower,
@@ -509,7 +589,7 @@ dictionary AttributeNotInSetStatementV2 {
 [Enum]
 interface AtomicStatementV2 {
     /// The atomic statement stating that an attribute should be revealed.
-    RevealAttribute(RevealAttributeStatement statement);
+    RevealAttribute(RevealAttributeStatementV2 statement);
     /// The atomic statement stating that an attribute is in a range.
     AttributeInRange(AttributeInRangeStatementV2 statement);
     /// The atomic statement stating that an attribute is in a set.
@@ -530,10 +610,10 @@ dictionary ContractAddress {
 interface VerifiableCredentialStatement {
     /// Statement about a credential derived from an identity issued by an
     /// identity provider.
-    Account(string network, Bytes cred_id, sequence<AtomicStatementV1> statement);
+    Account(Network network, Bytes cred_id, sequence<AtomicStatementV1> statement);
     /// Statement about a credential issued by a Web3 identity provider, a smart
     /// contract.
-    Web3Id(sequence<string> cred_type, string network, ContractAddress contract, Bytes holder_id,  sequence<AtomicStatementV2> statement);
+    Web3Id(sequence<string> cred_type, Network network, ContractAddress contract, Bytes holder_id,  sequence<AtomicStatementV2> statement);
 };
 
 
@@ -562,7 +642,7 @@ interface AtomicProofV2 {
 [Enum]
 interface VerifiableCredentialCommitmentInputs {
     /// Inputs are for an identity credential issued by an identity provider.
-    Account(u32 issuer, record<string, string> values, record<string, Bytes> randomness);
+    Account(u32 issuer, record<AttributeTag, string> values, record<AttributeTag, Bytes> randomness);
     /// Inputs are for a credential issued by Web3ID issuer.
     Web3Issuer(Bytes signature, Bytes signer, record<string, Web3IdAttribute> values, record<string, Bytes> randomness);
 };
@@ -591,8 +671,8 @@ dictionary SignedCommitments {
 /// `Account` proof.
 [Enum]
 interface VerifiableCredentialProof {
-    Account(timestamp created, string network, Bytes cred_id, u32 issuer, sequence<AccountStatementWithProof> proofs);
-    Web3Id(timestamp created, Bytes holder_id, string network, ContractAddress contract, sequence<string> cred_type, SignedCommitments commitments, sequence<Web3IdStatementWithProof> proofs);
+    Account(timestamp created, Network network, Bytes cred_id, u32 issuer, sequence<AccountStatementWithProof> proofs);
+    Web3Id(timestamp created, Bytes holder_id, Network network, ContractAddress contract, sequence<string> cred_type, SignedCommitments commitments, sequence<Web3IdStatementWithProof> proofs);
 };
 
 /// A proof that establishes that the owner of the credential has indeed created
@@ -615,54 +695,44 @@ dictionary VerifiablePresentation {
 
 namespace crypto {
     /// Compute the IdCredSec for the provided seed and identity indexes.
-    /// Supported values for `network`: "Testnet", "Mainnet".
     [Throws=ConcordiumWalletCryptoError]
-    Bytes identity_cred_sec(Bytes seed, string network, u32 identity_provider_id, u32 identity_index);
+    Bytes identity_cred_sec(Bytes seed, Network network, u32 identity_provider_id, u32 identity_index);
 
     /// Compute the PRF-key for the provided seed and identity indexes.
-    /// Supported values for `network`: "Testnet", "Mainnet".
     [Throws=ConcordiumWalletCryptoError]
-    Bytes identity_prf_key(Bytes seed, string network, u32 identity_provider_id, u32 identity_index);
+    Bytes identity_prf_key(Bytes seed, Network network, u32 identity_provider_id, u32 identity_index);
 
     /// Compute the signature blinding randomness for the provided seed and identity indexes.
-    /// Supported values for `network`: "Testnet", "Mainnet".
     [Throws=ConcordiumWalletCryptoError]
-    Bytes identity_attributes_signature_blinding_randomness(Bytes seed, string network, u32 identity_provider_id, u32 identity_index);
+    Bytes identity_attributes_signature_blinding_randomness(Bytes seed, Network network, u32 identity_provider_id, u32 identity_index);
 
     /// Compute the account credential signing key for the provided seed, identity indexes, and credential counter.
-    /// Supported values for `network`: "Testnet", "Mainnet".
     [Throws=ConcordiumWalletCryptoError]
-    Bytes account_credential_signing_key(Bytes seed, string network, u32 identity_provider_id, u32 identity_index, u8 credential_counter);
+    Bytes account_credential_signing_key(Bytes seed, Network network, u32 identity_provider_id, u32 identity_index, u8 credential_counter);
 
     /// Compute the account credential public key for the provided seed, identity indexes, and credential counter.
-    /// Supported values for `network`: "Testnet", "Mainnet".
     [Throws=ConcordiumWalletCryptoError]
-    Bytes account_credential_public_key(Bytes seed, string network, u32 identity_provider_id, u32 identity_index, u8 credential_counter);
+    Bytes account_credential_public_key(Bytes seed, Network network, u32 identity_provider_id, u32 identity_index, u8 credential_counter);
 
     /// Compute the credential ID for the provided seed, identity indexes, credential counter, and the chain's commitment key.
-    /// Supported values for `network`: "Testnet", "Mainnet".
     [Throws=ConcordiumWalletCryptoError]
-    Bytes account_credential_id(Bytes seed, string network, u32 identity_provider_id, u32 identity_index, u8 credential_counter, Bytes commitment_key);
+    Bytes account_credential_id(Bytes seed, Network network, u32 identity_provider_id, u32 identity_index, u8 credential_counter, Bytes commitment_key);
 
     /// Compute the attribute commitment randomness for the provided seed, identity indexes, credential counter, and attribute number.
-    /// Supported values for `network`: "Testnet", "Mainnet".
     [Throws=ConcordiumWalletCryptoError]
-    Bytes account_credential_attribute_commitment_randomness(Bytes seed, string network, u32 identity_provider_id, u32 identity_index, u8 credential_counter, u8 attribute);
+    Bytes account_credential_attribute_commitment_randomness(Bytes seed, Network network, u32 identity_provider_id, u32 identity_index, u8 credential_counter, u8 attribute);
 
     /// Compute the signing key for the provided seed, issuer indexes, and verifiable credential index.
-    /// Supported values for `network`: "Testnet", "Mainnet".
     [Throws=ConcordiumWalletCryptoError]
-    Bytes verifiable_credential_signing_key(Bytes seed, string network, u64 issuer_index, u64 issuer_subindex, u32 verifiable_credential_index);
+    Bytes verifiable_credential_signing_key(Bytes seed, Network network, u64 issuer_index, u64 issuer_subindex, u32 verifiable_credential_index);
 
     /// Compute the public key for the provided seed, issuer indexes, and verifiable credential index.
-    /// Supported values for `network`: "Testnet", "Mainnet".
     [Throws=ConcordiumWalletCryptoError]
-    Bytes verifiable_credential_public_key(Bytes seed, string network, u64 issuer_index, u64 issuer_subindex, u32 verifiable_credential_index);
+    Bytes verifiable_credential_public_key(Bytes seed, Network network, u64 issuer_index, u64 issuer_subindex, u32 verifiable_credential_index);
 
     /// Compute the encoded verifiable credential backup encryption key for the provided seed.
-    /// Supported values for `network`: "Testnet", "Mainnet".
     [Throws=ConcordiumWalletCryptoError]
-    Bytes verifiable_credential_backup_encryption_key(Bytes seed, string network);
+    Bytes verifiable_credential_backup_encryption_key(Bytes seed, Network network);
 
     /// Compute an identity issuance request for the identity contained in the provided parameters.
     /// The result is a versioned `PreIdentityObject` encoded as JSON,
@@ -760,7 +830,7 @@ namespace crypto {
 
     /// Prove the supplied statement in the context of a given identity and credential
     [Throws=ConcordiumWalletCryptoError]
-    VersionedProofV1 prove_statement_v1(Bytes seed, string net, GlobalContext global_context, u32 ip_index, u32 identity_index, u8 credential_index, IdentityObject identity_object, StatementV1 statement, Bytes challenge);
+    VersionedProofV1 prove_statement_v1(Bytes seed, Network net, GlobalContext global_context, u32 ip_index, u32 identity_index, u8 credential_index, IdentityObject identity_object, StatementV1 statement, Bytes challenge);
 
     /// Create a verifiable presentation from a `VerifiablePresentationRequest`, the associated
     /// commitment inputs and the cryptographic parameters of the chain.

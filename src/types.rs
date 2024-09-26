@@ -132,6 +132,48 @@ impl From<Amount> for MicroCCDAmount {
     }
 }
 
+#[repr(u8)]
+pub enum Network {
+    Testnet,
+    Mainnet,
+}
+
+impl Network {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Testnet => "testnet",
+            Self::Mainnet => "mainnet",
+        }
+    }
+}
+
+impl From<Network> for concordium_base::web3id::did::Network {
+    fn from(value: Network) -> Self {
+        match value {
+            Network::Testnet => Self::Testnet,
+            Network::Mainnet => Self::Mainnet,
+        }
+    }
+}
+
+impl From<concordium_base::web3id::did::Network> for Network {
+    fn from(value: concordium_base::web3id::did::Network) -> Self {
+        match value {
+            concordium_base::web3id::did::Network::Testnet => Self::Testnet,
+            concordium_base::web3id::did::Network::Mainnet => Self::Mainnet,
+        }
+    }
+}
+
+impl From<Network> for key_derivation::Net {
+    fn from(value: Network) -> Self {
+        match value {
+            Network::Testnet => key_derivation::Net::Testnet,
+            Network::Mainnet => key_derivation::Net::Mainnet,
+        }
+    }
+}
+
 /// UniFFI compatible bridge to [`concordium_base::id::types::GlobalContext<concordium_base::id::constants::ArCurve>`],
 /// providing the implementation of the UDL declaration of the same name.
 /// The translation is performed using Serde.

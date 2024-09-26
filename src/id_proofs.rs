@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use concordium_base::{
     common::VERSION_0,
     id::{
@@ -8,13 +6,14 @@ use concordium_base::{
         types::IdentityObjectV1,
     },
 };
-use key_derivation::{CredentialContext, Net};
+use key_derivation::CredentialContext;
 use serde::{Deserialize, Serialize};
 use uniffi::deps::anyhow::Context;
 use wallet_library::wallet::get_wallet;
 
 use crate::{
-    Bytes, ConcordiumWalletCryptoError, ConvertError, GlobalContext, IdentityObject, Versioned,
+    AttributeTag, Bytes, ConcordiumWalletCryptoError, ConvertError, GlobalContext, IdentityObject,
+    Network, Versioned,
 };
 
 /// For the case where the verifier wants the user to show the value of an
@@ -22,20 +21,23 @@ use crate::{
 /// commitment. Since the verifier does not know the attribute value before
 /// seing the proof, the value is not present here.
 #[derive(Serialize, Deserialize)]
-pub struct RevealAttributeStatement {
+pub struct RevealAttributeStatement<Tag> {
     /// The attribute that the verifier wants the user to reveal.
     #[serde(rename = "attributeTag")]
-    pub attribute_tag: String,
+    pub attribute_tag: Tag,
 }
+
+/// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::RevealAttributeStatement<ArCurve, AttributeTag>`]
+pub type RevealAttributeStatementV1 = RevealAttributeStatement<AttributeTag>;
 
 /// For the case where the verifier wants the user to prove that an attribute is
 /// in a range. The statement is that the attribute value lies in `[lower,
 /// upper)` in the scalar field.
 #[derive(Serialize, Deserialize)]
-pub struct AttributeInRangeStatement<Value> {
+pub struct AttributeInRangeStatement<Tag, Value> {
     /// The attribute that the verifier wants the user to prove is in a range.
     #[serde(rename = "attributeTag")]
-    pub attribute_tag: String,
+    pub attribute_tag: Tag,
     /// The lower bound on the range.
     #[serde(rename = "lower")]
     pub lower: Value,
@@ -45,79 +47,79 @@ pub struct AttributeInRangeStatement<Value> {
 }
 
 /// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::AttributeInRangeStatement<ArCurve, AttributeTag, AttributeKind>`]
-pub type AttributeInRangeStatementV1 = AttributeInRangeStatement<String>;
+pub type AttributeInRangeStatementV1 = AttributeInRangeStatement<AttributeTag, String>;
 
 /// For the case where the verifier wants the user to prove that an attribute is
 /// in a set of attributes.
 ///
 /// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::AttributeInSetStatement<ArCurve, AttributeTag, AttributeKind>`]
 #[derive(Serialize, Deserialize)]
-pub struct AttributeInSetStatement<Value> {
+pub struct AttributeInSetStatement<Tag, Value> {
     /// The attribute that the verifier wants the user prove lies in a set.
     #[serde(rename = "attributeTag")]
-    pub attribute_tag: String,
+    pub attribute_tag: Tag,
     /// The set that the attribute should lie in.
     #[serde(rename = "set")]
     pub set: Vec<Value>,
 }
 
 /// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::AttributeInSetStatement<ArCurve, AttributeTag, AttributeKind>`]
-pub type AttributeInSetStatementV1 = AttributeInSetStatement<String>;
+pub type AttributeInSetStatementV1 = AttributeInSetStatement<AttributeTag, String>;
 
 /// For the case where the verifier wants the user to prove that an attribute is
 /// not in a set of attributes.
 ///
 /// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::AttributeNotInSetStatement<ArCurve, AttributeTag, AttributeKind>`]
 #[derive(Serialize, Deserialize)]
-pub struct AttributeNotInSetStatement<Value> {
+pub struct AttributeNotInSetStatement<Tag, Value> {
     /// The attribute that the verifier wants the user to prove does not lie in
     /// a set.
     #[serde(rename = "attributeTag")]
-    pub attribute_tag: String,
+    pub attribute_tag: Tag,
     /// The set that the attribute should not lie in.
     #[serde(rename = "set")]
     pub set: Vec<Value>,
 }
 
 /// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::AttributeNotInSetStatement<ArCurve, AttributeTag, AttributeKind>`]
-pub type AttributeNotInSetStatementV1 = AttributeNotInSetStatement<String>;
+pub type AttributeNotInSetStatementV1 = AttributeNotInSetStatement<AttributeTag, String>;
 
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type")]
-pub enum AtomicStatement<Value> {
+pub enum AtomicStatement<Tag, Value> {
     /// The atomic statement stating that an attribute should be revealed.
     RevealAttribute {
         #[serde(flatten)]
-        statement: RevealAttributeStatement,
+        statement: RevealAttributeStatement<Tag>,
     },
     /// The atomic statement stating that an attribute is in a range.
     AttributeInRange {
         #[serde(flatten)]
-        statement: AttributeInRangeStatement<Value>,
+        statement: AttributeInRangeStatement<Tag, Value>,
     },
     /// The atomic statement stating that an attribute is in a set.
     AttributeInSet {
         #[serde(flatten)]
-        statement: AttributeInSetStatement<Value>,
+        statement: AttributeInSetStatement<Tag, Value>,
     },
     /// The atomic statement stating that an attribute is not in a set.
     AttributeNotInSet {
         #[serde(flatten)]
-        statement: AttributeNotInSetStatement<Value>,
+        statement: AttributeNotInSetStatement<Tag, Value>,
     },
 }
 
 /// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::AtomicStatement<ArCurve, AttributeTag, AttributeKind>`]
-pub type AtomicStatementV1 = AtomicStatement<String>;
+pub type AtomicStatementV1 = AtomicStatement<AttributeTag, String>;
 
 #[derive(Serialize)]
 #[serde(transparent)]
-pub struct Statement<Value> {
-    pub statements: Vec<AtomicStatement<Value>>,
+pub struct Statement<Tag, Value> {
+    pub statements: Vec<AtomicStatement<Tag, Value>>,
 }
 
 /// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::Statement<ArCurve, AttributeKind>`]
-pub type StatementV1 = Statement<String>;
+pub type StatementV1 = Statement<AttributeTag, String>;
 
 impl TryFrom<StatementV1>
     for concordium_base::id::id_proof_types::Statement<ArCurve, AttributeKind>
@@ -178,7 +180,7 @@ impl
 #[allow(clippy::too_many_arguments)]
 pub fn prove_statement_v1(
     seed: Bytes,
-    net: String,
+    net: Network,
     global_context: GlobalContext,
     ip_index: u32,
     identity_index: u32,
@@ -189,11 +191,8 @@ pub fn prove_statement_v1(
 ) -> Result<VersionedProofV1, ConcordiumWalletCryptoError> {
     let fn_name = "prove_id_statement";
 
-    let net = Net::from_str(&net)
-        .context("Failed to parse network")
+    let wallet = get_wallet(hex::encode(seed), net.into())
         .map_err(|e| e.to_call_failed(fn_name.to_string()))?;
-    let wallet =
-        get_wallet(hex::encode(seed), net).map_err(|e| e.to_call_failed(fn_name.to_string()))?;
     let global_context =
         concordium_base::id::types::GlobalContext::<ArCurve>::try_from(global_context)
             .map_err(|e| e.to_call_failed(fn_name.to_string()))?;
