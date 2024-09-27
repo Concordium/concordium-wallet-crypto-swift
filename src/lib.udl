@@ -665,6 +665,27 @@ dictionary SignedCommitments {
     record<string, Bytes> commitments;
 };
 
+[Enum]
+interface IdentifierType {
+    /// Reference to an account via an address.
+    Account(string address_base58);
+    /// Reference to a specific credential via its ID.
+    Credential(Bytes cred_id);
+    /// Reference to a specific smart contract instance.
+    ContractData(ContractAddress address, string entrypoint, Bytes parameter);
+    /// Reference to a specific Ed25519 public key.
+    PublicKey(Bytes key);
+    /// Reference to a specific identity provider.
+    Idp(u32 idp_identity);
+};
+
+dictionary DID {
+    /// The network part of the method.
+    Network network;
+    /// The remaining identifier.
+    IdentifierType id_type;
+};
+
 /// A proof corresponding to one `VerifiableCredentialStatement`. This contains almost
 /// all the information needed to verify it, except the issuer's public key in
 /// case of the `Web3Id` proof, and the public commitments in case of the
@@ -836,4 +857,12 @@ namespace crypto {
     /// commitment inputs and the cryptographic parameters of the chain.
     [Throws=ConcordiumWalletCryptoError]
     VerifiablePresentation create_verifiable_presentation(VerifiablePresentationRequest request, GlobalContext global, sequence<VerifiableCredentialCommitmentInputs> commitment_inputs);
+
+    /// Parse the `Method` from the given string
+    [Throws=ConcordiumWalletCryptoError]
+    DID parse_did_method(string value);
+
+    /// Format the given `Method` as a DID string
+    [Throws=ConcordiumWalletCryptoError]
+    string did_method_as_string(DID did);
 };

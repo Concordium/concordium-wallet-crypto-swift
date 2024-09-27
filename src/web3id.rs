@@ -5,14 +5,21 @@ use std::{
 
 use chrono::{DateTime, Utc};
 use concordium_base::{
+    common::to_bytes,
     contracts_common::Timestamp,
-    id::constants::{ArCurve, AttributeKind},
+    id::{
+        constants::{ArCurve, AttributeKind},
+        types::IpIdentity,
+    },
     web3id::{self, Presentation},
 };
-use uniffi::deps::anyhow::Context;
+use uniffi::deps::anyhow::{self, Context};
 
 use crate::{
-    types::ContractAddress, AtomicProof, AtomicStatement, AtomicStatementV1, AttributeInRangeStatement, AttributeInSetStatement, AttributeNotInSetStatement, AttributeTag, Bytes, ConcordiumWalletCryptoError, ConvertError, GlobalContext, Network, RevealAttributeStatement
+    serde_convert, types::ContractAddress, AtomicProof, AtomicStatement, AtomicStatementV1,
+    AttributeInRangeStatement, AttributeInSetStatement, AttributeNotInSetStatement, AttributeTag,
+    Bytes, ConcordiumWalletCryptoError, ConvertError, GlobalContext, Network,
+    RevealAttributeStatement,
 };
 
 /// A value of an attribute. This is the low-level representation. The
@@ -235,6 +242,131 @@ impl<Tag, Value> From<(AtomicStatement<Tag, Value>, AtomicProof<Value>)>
 pub struct SignedCommitments {
     pub signature: Bytes,
     pub commitments: HashMap<String, Bytes>,
+}
+
+/// The supported DID identifiers on Concordium.
+#[derive(Debug)]
+pub enum IdentifierType {
+    /// Reference to an account via an address.
+    Account { address_base58: String },
+    /// Reference to a specific credential via its ID.
+    Credential { cred_id: Bytes },
+    /// Reference to a specific smart contract instance.
+    ContractData {
+        address: ContractAddress,
+        entrypoint: String,
+        parameter: Bytes,
+    },
+    /// Reference to a specific Ed25519 public key.
+    PublicKey { key: Bytes },
+    /// Reference to a specific identity provider.
+    Idp { idp_identity: u32 },
+}
+
+impl TryFrom<IdentifierType> for web3id::did::IdentifierType {
+    type Error = serde_json::Error;
+
+    fn try_from(value: IdentifierType) -> Result<Self, Self::Error> {
+        let converted = match value {
+            IdentifierType::Account { address_base58 } => Self::Account {
+                address: serde_json::from_str(&address_base58)?,
+            },
+            IdentifierType::Credential { cred_id } => Self::Credential {
+                cred_id: serde_convert(cred_id)?,
+            },
+            IdentifierType::ContractData {
+                address,
+                entrypoint,
+                parameter,
+            } => Self::ContractData {
+                address: address.into(),
+                entrypoint: serde_convert(entrypoint)?,
+                parameter: serde_convert(&parameter)?,
+            },
+            IdentifierType::PublicKey { key } => Self::PublicKey {
+                key: serde_convert(&key)?,
+            },
+            IdentifierType::Idp { idp_identity } => Self::Idp {
+                idp_identity: IpIdentity(idp_identity),
+            },
+        };
+        Ok(converted)
+    }
+}
+
+impl From<web3id::did::IdentifierType> for IdentifierType {
+    fn from(value: web3id::did::IdentifierType) -> Self {
+        match value {
+            web3id::did::IdentifierType::Account { address } => Self::Account {
+                address_base58: address.to_string(),
+            },
+            web3id::did::IdentifierType::Credential { cred_id } => Self::Credential {
+                cred_id: to_bytes(&cred_id).into(),
+            },
+            web3id::did::IdentifierType::ContractData {
+                address,
+                entrypoint,
+                parameter,
+            } => Self::ContractData {
+                address: address.into(),
+                entrypoint: entrypoint.to_string(),
+                parameter: to_bytes(&parameter).into(),
+            },
+            web3id::did::IdentifierType::PublicKey { key } => Self::PublicKey {
+                key: to_bytes(&key).into(),
+            },
+            web3id::did::IdentifierType::Idp { idp_identity } => Self::Idp {
+                idp_identity: idp_identity.0,
+            },
+        }
+    }
+}
+
+/// A DID method.
+#[derive(Debug)]
+pub struct DID {
+    /// The network part of the method.
+    pub network: Network,
+    /// The remaining identifier.
+    pub id_type: IdentifierType,
+}
+
+impl From<web3id::did::Method> for DID {
+    fn from(value: web3id::did::Method) -> Self {
+        Self {
+            network: value.network.into(),
+            id_type: value.ty.into(),
+        }
+    }
+}
+
+impl TryFrom<DID> for web3id::did::Method {
+    type Error = anyhow::Error;
+
+    fn try_from(value: DID) -> Result<Self, Self::Error> {
+        let converted = Self {
+            network: value.network.into(),
+            ty: value.id_type.try_into()?,
+        };
+        Ok(converted)
+    }
+}
+
+/// Parse the `Method` from the given string
+pub fn parse_did_method(value: String) -> Result<DID, ConcordiumWalletCryptoError> {
+    let fn_desc = format!("parse_did_method(value={})", value);
+    let method = web3id::did::Method::try_from(value)
+        .context("Failed to parse DID")
+        .map_err(|e| e.to_call_failed(fn_desc.to_string()))?;
+    Ok(method.into())
+}
+
+/// Format the given `Method` as a DID string
+pub fn did_method_as_string(did: DID) -> Result<String, ConcordiumWalletCryptoError> {
+    let fn_desc = format!("parse_did_method(value={:?})", did);
+    let method =
+        web3id::did::Method::try_from(did).map_err(|e| e.to_call_failed(fn_desc.to_string()))?;
+    Ok(method.to_string())
 }
 
 /// A proof corresponding to one [`CredentialStatement`]. This contains almost

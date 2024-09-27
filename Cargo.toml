@@ -12,6 +12,7 @@ rand = "0.8.5"
 hex = { version = "0.4.3", features = ["serde"] }
 derive_more = "0.99.18"
 chrono = "0.4.24"
+ed25519-dalek = {version = "2.0", features = ["rand_core", "serde"]}
 
 [dependencies.concordium_base]
 path = "./concordium-base/rust-src/concordium_base"

@@ -6,7 +6,7 @@ use concordium_base::{
     id::constants::ArCurve,
 };
 use rand::thread_rng;
-use serde::{Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use uniffi::deps::anyhow::Context;
 
 /// Error type returned by the bridge functions.
@@ -37,6 +37,12 @@ impl ConvertError for serde_json::Error {}
 impl ConvertError for uniffi::deps::anyhow::Error {}
 impl ConvertError for AccountAddressParseError {}
 impl ConvertError for hex::FromHexError {}
+
+pub(crate) fn serde_convert<S: Serialize, D: DeserializeOwned>(
+    value: S,
+) -> Result<D, serde_json::Error> {
+    serde_json::to_value(value).and_then(serde_json::from_value)
+}
 
 /// Used to represent a byte sequence.
 /// This should generally be used instead of hex string representation as it takes up half the space when compared to storing strings
@@ -133,6 +139,7 @@ impl From<Amount> for MicroCCDAmount {
 }
 
 #[repr(u8)]
+#[derive(Debug)]
 pub enum Network {
     Testnet,
     Mainnet,
@@ -291,6 +298,7 @@ pub struct Versioned<V> {
 }
 
 /// Serves as a uniFFI compatible bridge to [`concordium_base::base::ContractAddress`]
+#[derive(Debug)]
 pub struct ContractAddress {
     pub index: u64,
     pub subindex: u64,
