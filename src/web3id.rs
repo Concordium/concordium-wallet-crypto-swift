@@ -281,10 +281,10 @@ impl TryFrom<IdentifierType> for web3id::did::IdentifierType {
             } => Self::ContractData {
                 address: address.into(),
                 entrypoint: serde_convert(entrypoint)?,
-                parameter: serde_convert(&parameter)?,
+                parameter: serde_convert(parameter)?,
             },
             IdentifierType::PublicKey { key } => Self::PublicKey {
-                key: serde_convert(&key)?,
+                key: serde_convert(key)?,
             },
             IdentifierType::Idp { idp_identity } => Self::Idp {
                 idp_identity: IpIdentity(idp_identity),

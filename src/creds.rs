@@ -25,81 +25,6 @@ use wallet_library::{
     },
 };
 
-#[derive(Serialize, Deserialize, PartialEq, Eq, Hash)]
-#[serde(rename_all = "camelCase")]
-pub enum AttributeTag {
-    /// First name (format: string up to 31 bytes).
-    FirstName,
-    /// Last name (format: string up to 31 bytes).
-    LastName,
-    /// Sex (format: ISO/IEC 5218).
-    Sex,
-    /// Date of birth (format: ISO8601 YYYYMMDD).
-    DateOfBirth,
-    /// Country of residence (format: ISO3166-1 alpha-2).
-    CountryOfResidence,
-    /// Country of nationality (format: ISO3166-1 alpha-2).
-    Nationality,
-    /// Identity document type
-    ///
-    /// Format:
-    /// - 0 : na
-    /// - 1 : passport
-    /// - 2 : national ID card
-    /// - 3 : driving license
-    /// - 4 : immigration card
-    /// - eID string (see below)
-    ///
-    /// eID strings as of Apr 2024:
-    /// - DK:MITID        : Danish MitId
-    /// - SE:BANKID       : Swedish BankID
-    /// - NO:BANKID       : Norwegian BankID
-    /// - NO:VIPPS        : Norwegian Vipps
-    /// - FI:TRUSTNETWORK : Finnish Trust Network
-    /// - NL:DIGID        : Netherlands DigiD
-    /// - NL:IDIN         : Netherlands iDIN
-    /// - BE:EID          : Belgian eID
-    /// - ITSME           : (Cross-national) ItsME
-    /// - SOFORT          : (Cross-national) Sofort
-    IdDocType,
-    /// Identity document number (format: string up to 31 bytes).
-    IdDocNo,
-    /// Identity document issuer (format: ISO3166-1 alpha-2 or ISO3166-2 if applicable).
-    IdDocIssuer,
-    /// Time from which the ID is valid (format: ISO8601 YYYYMMDD).
-    IdDocIssuedAt,
-    /// Time to which the ID is valid (format: ISO8601 YYYYMMDD).
-    IdDocExpiresAt,
-    /// National ID number (format: string up to 31 bytes).
-    NationalIdNo,
-    /// Tax ID number (format: string up to 31 bytes).
-    TaxIdNo,
-    /// LEI-code - companies only (format: ISO17442).
-    LegalEntityId,
-    /// Legal name - companies only
-    LegalName,
-    /// Legal country - companies only
-    LegalCountry,
-    /// Business number associated with the company - companies only
-    BusinessNumber,
-    /// Registration authority - companies only
-    RegistrationAuth,
-}
-
-impl From<AttributeTag> for concordium_base::id::types::AttributeTag {
-    fn from(value: AttributeTag) -> Self {
-        Self(value as u8)
-    }
-}
-
-impl TryFrom<concordium_base::id::types::AttributeTag> for AttributeTag {
-    type Error = serde_json::Error;
-
-    fn try_from(value: concordium_base::id::types::AttributeTag) -> Result<Self, Self::Error> {
-        serde_json::to_value(value).and_then(serde_json::from_value)
-    }
-}
-
 /// Implements UDL definition of the same name.
 pub fn identity_cred_sec(
     seed: Bytes,
@@ -388,7 +313,7 @@ pub struct AccountCredentialParameters {
     #[serde(rename = "idObject")]
     pub id_object: IdentityObject,
     #[serde(rename = "revealedAttributes")]
-    pub revealed_attributes: Vec<u8>,
+    pub revealed_attributes: Vec<AttributeTag>,
     #[serde(rename = "credNumber")]
     pub cred_number: u8,
     #[serde(rename = "idCredSec")]
@@ -398,7 +323,7 @@ pub struct AccountCredentialParameters {
     #[serde(rename = "blindingRandomness")]
     pub blinding_randomness: Bytes,
     #[serde(rename = "attributeRandomness")]
-    pub attribute_randomness: HashMap<String, Bytes>,
+    pub attribute_randomness: HashMap<AttributeTag, Bytes>,
     #[serde(rename = "credentialPublicKeys")]
     pub credential_public_keys: CredentialPublicKeys,
 }
@@ -426,7 +351,7 @@ impl TryFrom<IdentityObject>
     }
 }
 
-/// UniFFI compatible bridge to [`concordium_base::id::types::PreIdentityObjectV1<concordium_base::id::constants::IpPairing,concordium_base::id::constants::ArCurve>`],
+/// UniFFI compatible bridge to [`concordium_base::id::types::PreIdentityObjectV1<IpPairing,ArCurve>`],
 /// providing the implementation of the UDL declaration of the same name.
 /// The translation is performed using Serde.
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
@@ -469,7 +394,7 @@ pub struct ArData {
     pub proof_com_enc_eq: Bytes,
 }
 
-/// UniFFI compatible bridge to [`concordium_base::id::types::AttributeList<concordium_base::id::constants::IpPairing,concordium_base::id::constants::ArCurve> `],
+/// UniFFI compatible bridge to [`concordium_base::id::types::AttributeList<IpPairing,ArCurve> `],
 /// providing the implementation of the UDL declaration of the same name.
 /// The translation is performed using Serde.
 #[derive(Debug, Serialize)]
@@ -481,7 +406,7 @@ pub struct AttributeList {
     #[serde(rename = "maxAccounts")]
     pub max_accounts: u8,
     #[serde(rename = "chosenAttributes")]
-    pub chosen_attributes: HashMap<String, String>,
+    pub chosen_attributes: HashMap<AttributeTag, String>,
 }
 
 /* OUTPUTS */
@@ -497,13 +422,13 @@ pub struct AccountCredentialResult {
     pub randomness: Randomness,
 }
 
-/// UniFFI compatible bridge to [`concordium_base::id::types::CommitmentsRandomness<concordium_base::id::constants::ArCurve>`],
+/// UniFFI compatible bridge to [`concordium_base::id::types::CommitmentsRandomness<ArCurve>`],
 /// providing the implementation of the UDL declaration of the same name.
 /// The translation is performed using Serde.
 #[derive(Debug, Deserialize)]
 pub struct Randomness {
     #[serde(rename = "attributesRand")]
-    pub attributes_rand: HashMap<String, Bytes>,
+    pub attributes_rand: HashMap<AttributeTag, Bytes>,
     #[serde(rename = "credCounterRand")]
     pub cred_counter_rand: Bytes,
     #[serde(rename = "idCredSecRand")]
@@ -575,7 +500,7 @@ pub struct AccountCredential {
     pub revocation_threshold: u8,
 }
 
-/// UniFFI compatible bridge to [`concordium_base::id::types::IdOwnershipProofs<concordium_base::id::constants::IpPairing,concordium_base::id::constants::ArCurve>`],
+/// UniFFI compatible bridge to [`concordium_base::id::types::IdOwnershipProofs<IpPairing,ArCurve>`],
 /// providing the implementation of the UDL declaration of the same name.
 /// The translation is performed using Serde.
 #[derive(Debug, Deserialize, Serialize, PartialEq)]

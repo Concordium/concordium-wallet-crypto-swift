@@ -113,6 +113,7 @@ pub fn combine_encrypted_amounts(
     let right = right
         .try_into()
         .map_err(|e: serde_json::Error| e.to_call_failed(fn_name.to_string()))?;
+    #[allow(deprecated)]
     encrypted_transfers::aggregate::<ArCurve>(&left, &right)
         .try_into()
         .map_err(|e: serde_json::Error| e.to_call_failed(fn_name.to_string()))

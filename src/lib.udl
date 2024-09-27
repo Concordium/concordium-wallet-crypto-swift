@@ -152,12 +152,12 @@ dictionary AccountCredentialParameters {
     GlobalContext global_context;
     record<u32, AnonymityRevokerInfo> ars_infos;
     IdentityObject id_object;
-    sequence<u8> revealed_attributes;
+    sequence<AttributeTag> revealed_attributes;
     u8 cred_number;
     Bytes id_cred_sec;
     Bytes prf_key;
     Bytes blinding_randomness;
-    record<string, Bytes> attribute_randomness;
+    record<AttributeTag, Bytes> attribute_randomness;
     CredentialPublicKeys credential_public_keys;
 };
 
@@ -220,7 +220,7 @@ dictionary AttributeList {
     /// Maximum number of accounts that can be created from the owning identity object.
     u8 max_accounts;
     /// The attributes map.
-    record<string, string> chosen_attributes;
+    record<AttributeTag, string> chosen_attributes;
 };
 
 /// The result of a new credential being created using the function `account_credential`.
@@ -234,7 +234,7 @@ dictionary AccountCredentialResult {
 /// for example reveal the committed value or prove a property of the value.
 dictionary Randomness {
     /// Randomness used to commit to any user-chosen attributes, such as country of nationality.
-    record<string, Bytes> attributes_rand;
+    record<AttributeTag, Bytes> attributes_rand;
     /// Randomness of the commitment to the credential nonce.
     /// This nonce is the number that is used to ensure that only a limited number of credentials
     /// can be created from a given identity object.
@@ -298,7 +298,7 @@ dictionary VerifyKey {
 dictionary Policy {
     string created_at_year_month;
     string valid_to_year_month;
-    record<string, string> revealed_attributes;
+    record<AttributeTag, string> revealed_attributes;
 };
 
 /// All proofs required to prove ownership of an identity in a credential deployment.
