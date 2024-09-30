@@ -20,8 +20,8 @@ use crate::{
 /// attribute and prove that it is indeed the value inside the on-chain
 /// commitment. Since the verifier does not know the attribute value before
 /// seing the proof, the value is not present here.
-#[derive(Serialize, Deserialize)]
-pub struct RevealAttributeStatement<Tag> {
+#[derive(Serialize, Deserialize, Clone)]
+pub struct RevealAttributeStatement<Tag: Clone> {
     /// The attribute that the verifier wants the user to reveal.
     #[serde(rename = "attributeTag")]
     pub attribute_tag: Tag,
@@ -33,8 +33,8 @@ pub type RevealAttributeStatementV1 = RevealAttributeStatement<AttributeTag>;
 /// For the case where the verifier wants the user to prove that an attribute is
 /// in a range. The statement is that the attribute value lies in `[lower,
 /// upper)` in the scalar field.
-#[derive(Serialize, Deserialize)]
-pub struct AttributeInRangeStatement<Tag, Value> {
+#[derive(Serialize, Deserialize, Clone)]
+pub struct AttributeInRangeStatement<Tag: Clone, Value: Clone> {
     /// The attribute that the verifier wants the user to prove is in a range.
     #[serde(rename = "attributeTag")]
     pub attribute_tag: Tag,
@@ -53,8 +53,8 @@ pub type AttributeInRangeStatementV1 = AttributeInRangeStatement<AttributeTag, S
 /// in a set of attributes.
 ///
 /// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::AttributeInSetStatement<ArCurve, AttributeTag, AttributeKind>`]
-#[derive(Serialize, Deserialize)]
-pub struct AttributeInSetStatement<Tag, Value> {
+#[derive(Serialize, Deserialize, Clone)]
+pub struct AttributeInSetStatement<Tag: Clone, Value: Clone> {
     /// The attribute that the verifier wants the user prove lies in a set.
     #[serde(rename = "attributeTag")]
     pub attribute_tag: Tag,
@@ -70,8 +70,8 @@ pub type AttributeInSetStatementV1 = AttributeInSetStatement<AttributeTag, Strin
 /// not in a set of attributes.
 ///
 /// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::AttributeNotInSetStatement<ArCurve, AttributeTag, AttributeKind>`]
-#[derive(Serialize, Deserialize)]
-pub struct AttributeNotInSetStatement<Tag, Value> {
+#[derive(Serialize, Deserialize, Clone)]
+pub struct AttributeNotInSetStatement<Tag: Clone, Value: Clone> {
     /// The attribute that the verifier wants the user to prove does not lie in
     /// a set.
     #[serde(rename = "attributeTag")]
@@ -84,9 +84,9 @@ pub struct AttributeNotInSetStatement<Tag, Value> {
 /// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::AttributeNotInSetStatement<ArCurve, AttributeTag, AttributeKind>`]
 pub type AttributeNotInSetStatementV1 = AttributeNotInSetStatement<AttributeTag, String>;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 #[serde(tag = "type")]
-pub enum AtomicStatement<Tag, Value> {
+pub enum AtomicStatement<Tag: Clone, Value: Clone> {
     /// The atomic statement stating that an attribute should be revealed.
     RevealAttribute {
         #[serde(flatten)]
@@ -114,7 +114,7 @@ pub type AtomicStatementV1 = AtomicStatement<AttributeTag, String>;
 
 #[derive(Serialize)]
 #[serde(transparent)]
-pub struct Statement<Tag, Value> {
+pub struct Statement<Tag: Clone, Value: Clone> {
     pub statements: Vec<AtomicStatement<Tag, Value>>,
 }
 

@@ -644,7 +644,7 @@ interface VerifiableCredentialCommitmentInputs {
     /// Inputs are for an identity credential issued by an identity provider.
     Account(u32 issuer, record<AttributeTag, string> values, record<AttributeTag, Bytes> randomness);
     /// Inputs are for a credential issued by Web3ID issuer.
-    Web3Issuer(Bytes signature, Bytes signer, record<string, Web3IdAttribute> values, record<string, Bytes> randomness);
+    Web3Issuer(Bytes signature, bytes signer, record<string, Web3IdAttribute> values, record<string, Bytes> randomness);
 };
 
 /// A pair of a statement and a proof for an account credential statement.
@@ -674,7 +674,7 @@ interface IdentifierType {
     /// Reference to a specific smart contract instance.
     ContractData(ContractAddress address, string entrypoint, Bytes parameter);
     /// Reference to a specific Ed25519 public key.
-    PublicKey(Bytes key);
+    PublicKey(bytes key);
     /// Reference to a specific identity provider.
     Idp(u32 idp_identity);
 };

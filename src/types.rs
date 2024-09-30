@@ -139,7 +139,7 @@ impl From<Amount> for MicroCCDAmount {
 }
 
 #[repr(u8)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Network {
     Testnet,
     Mainnet,
@@ -216,7 +216,7 @@ pub struct ChainArData {
     pub enc_id_cred_pub_share: Bytes,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum AttributeTag {
     /// First name (format: string up to 31 bytes).
@@ -375,7 +375,7 @@ pub struct Versioned<V> {
 }
 
 /// Serves as a uniFFI compatible bridge to [`concordium_base::base::ContractAddress`]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ContractAddress {
     pub index: u64,
     pub subindex: u64,
