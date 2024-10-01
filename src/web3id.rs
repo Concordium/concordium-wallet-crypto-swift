@@ -373,7 +373,9 @@ pub fn did_method_as_string(did: DID) -> Result<String, ConcordiumWalletCryptoEr
     let fn_desc = format!("parse_did_method(value={:?})", did);
     let method =
         web3id::did::Method::try_from(did).map_err(|e| e.to_call_failed(fn_desc.to_string()))?;
-    Ok(method.to_string())
+    let did_string = method.to_string();
+    let did_string = did_string.strip_suffix('/').unwrap_or(&did_string);
+    Ok(did_string.to_string())
 }
 
 /// A proof corresponding to one [`CredentialStatement`]. This contains almost
