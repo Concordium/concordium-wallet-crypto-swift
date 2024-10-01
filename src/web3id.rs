@@ -315,7 +315,7 @@ impl From<web3id::did::IdentifierType> for IdentifierType {
             } => Self::ContractData {
                 address: address.into(),
                 entrypoint: entrypoint.to_string(),
-                parameter: to_bytes(&parameter).into(),
+                parameter: parameter.as_ref().to_owned().into(),
             },
             web3id::did::IdentifierType::PublicKey { key } => Self::PublicKey {
                 key: to_bytes(&key),
@@ -721,19 +721,45 @@ mod tests {
 
     #[test]
     fn convert_did() {
-        let did = DID {network: Network::Testnet, id_type: IdentifierType::Idp { idp_identity: 3 }};
+        let did = DID {
+            network: Network::Testnet,
+            id_type: IdentifierType::Idp { idp_identity: 3 },
+        };
         web3id::did::Method::try_from(did).expect("Can convert IDP DID");
 
-        let did = DID {network: Network::Testnet, id_type: IdentifierType::ContractData { address: ContractAddress {index: 1, subindex: 0}, entrypoint: "test".to_string(), parameter: Bytes(vec![1,2,3,4,5,6]) }};
+        let did = DID {
+            network: Network::Testnet,
+            id_type: IdentifierType::ContractData {
+                address: ContractAddress {
+                    index: 1,
+                    subindex: 0,
+                },
+                entrypoint: "test".to_string(),
+                parameter: Bytes(vec![1, 2, 3, 4, 5, 6]),
+            },
+        };
         web3id::did::Method::try_from(did).expect("Can convert IDP DID");
 
-        let did = DID {network: Network::Testnet, id_type: IdentifierType::PublicKey { key: hex::decode("3ea04bafe5227cb26e4e9ff388e6d83ece3f7de558a242e2a84015f4fa36f859").unwrap() }};
+        let did = DID {
+            network: Network::Testnet,
+            id_type: IdentifierType::PublicKey {
+                key: hex::decode(
+                    "3ea04bafe5227cb26e4e9ff388e6d83ece3f7de558a242e2a84015f4fa36f859",
+                )
+                .unwrap(),
+            },
+        };
         web3id::did::Method::try_from(did).expect("Can convert IDP DID");
 
         let did = DID {network: Network::Testnet, id_type: IdentifierType::Credential { cred_id: Bytes(hex::decode("94d3e85bbc8ff0091e562ad8ef6c30d57f29b19f17c98ce155df2a30100df4cac5e161fb81aebe3a04300e63f086d0d8").unwrap()) }};
         web3id::did::Method::try_from(did).expect("Can convert IDP DID");
 
-        let did = DID {network: Network::Testnet, id_type: IdentifierType::Account { address_base58: "35CJPZohio6Ztii2zy1AYzJKvuxbGG44wrBn7hLHiYLoF2nxnh".to_string() }};
+        let did = DID {
+            network: Network::Testnet,
+            id_type: IdentifierType::Account {
+                address_base58: "35CJPZohio6Ztii2zy1AYzJKvuxbGG44wrBn7hLHiYLoF2nxnh".to_string(),
+            },
+        };
         web3id::did::Method::try_from(did).expect("Can convert IDP DID");
     }
 }
