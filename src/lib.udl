@@ -224,7 +224,7 @@ dictionary AttributeList {
 };
 
 /// The result of a new credential being created using the function `account_credential`.
-dictionary AccountCredentialResult {
+dictionary AccountCredentialWithRandomness {
     AccountCredential credential;
     Randomness randomness;
 };
@@ -686,6 +686,36 @@ dictionary DID {
     IdentifierType id_type;
 };
 
+/// A full verifiable credential for Web3 ID credentials, including secrets.
+dictionary Web3IdCredential {
+    /// The credential holder's public key.
+    Bytes holder_id;
+    /// The network to which the credential applies.
+    Network network;
+    /// The address of the credential registry where the credential is tracked.
+    ContractAddress registry;
+    /// Credential type describing what kind of a credential it is.
+    sequence<string> credential_type;
+    /// Link to the credential schema.
+    string credential_schema;
+    /// The issuer's public key.
+    Bytes issuer_key;
+    /// Start of the validity of the credential.
+    timestamp valid_from;
+    /// After this date, the credential becomes expired. `None` corresponds to a
+    /// credential that cannot expire.
+    timestamp? valid_until;
+    /// The values of different attributes, indexed by attribute tags.
+    record<string, Web3IdAttribute> values;
+    /// The randomness to go along with commitments in `values`. This has to
+    /// have the same keys as the `values` field, but it is more
+    /// convenient if it is a separate map itself.
+    record<string, Bytes> randomness;
+    /// The signature on the holder's public key, the contract address of the
+    /// issuer, and the commitments from the issuer.
+    Bytes signature;
+};
+
 /// A proof corresponding to one `VerifiableCredentialStatement`. This contains almost
 /// all the information needed to verify it, except the issuer's public key in
 /// case of the `Web3Id` proof, and the public commitments in case of the
@@ -768,7 +798,7 @@ namespace crypto {
 
     /// Construct an account credential from the information contained in the provided parameters.
     [Throws=ConcordiumWalletCryptoError]
-    AccountCredentialResult account_credential(AccountCredentialParameters params);
+    AccountCredentialWithRandomness account_credential(AccountCredentialParameters params);
 
     /// Compute the hash of a new credential deployment to be signed by the account key derived for the credential.
     [Throws=ConcordiumWalletCryptoError]

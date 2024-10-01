@@ -415,7 +415,7 @@ pub struct AttributeList {
 /// providing the implementation of the UDL declaration of the same name.
 /// The translation is performed using Serde.
 #[derive(Debug, Deserialize)]
-pub struct AccountCredentialResult {
+pub struct AccountCredentialWithRandomness {
     #[serde(rename = "unsignedCdi")]
     pub credential: AccountCredential,
     #[serde(rename = "randomness")]
@@ -524,7 +524,7 @@ pub struct Proofs {
 /// Implements UDL definition of the same name.
 pub fn account_credential(
     params: AccountCredentialParameters,
-) -> Result<AccountCredentialResult, ConcordiumWalletCryptoError> {
+) -> Result<AccountCredentialWithRandomness, ConcordiumWalletCryptoError> {
     serde_json::to_string(&params)
         .context("cannot encode request object as JSON")
         .and_then(|json| {
@@ -535,7 +535,7 @@ pub fn account_credential(
             create_unsigned_credential_v1_aux(input).context("cannot create identity")
         })
         .and_then(|res| {
-            serde_json::from_str::<AccountCredentialResult>(&res)
+            serde_json::from_str::<AccountCredentialWithRandomness>(&res)
                 .context("cannot decode response object into result type")
         })
         .map_err(|e| ConcordiumWalletCryptoError::CallFailed {

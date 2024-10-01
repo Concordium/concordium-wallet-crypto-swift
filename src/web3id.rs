@@ -378,6 +378,37 @@ pub fn did_method_as_string(did: DID) -> Result<String, ConcordiumWalletCryptoEr
     Ok(did_string.to_string())
 }
 
+/// A full verifiable credential for Web3 ID credentials, including secrets.
+/// Serves as a uniFFI compatible bridge to [`web3id::Web3IdCredential<ArCurve, Web3IdAttribute> `]
+pub struct Web3IdCredential {
+    /// The credential holder's public key.
+    pub holder_id: Bytes,
+    /// The network to which the credential applies.
+    pub network: Network,
+    /// The address of the credential registry where the credential is tracked.
+    pub registry: ContractAddress,
+    /// Credential type describing what kind of a credential it is.
+    pub credential_type: Vec<String>,
+    /// Link to the credential schema.
+    pub credential_schema: String,
+    /// The issuer's public key.
+    pub issuer_key: Bytes,
+    /// Start of the validity of the credential.
+    pub valid_from: SystemTime,
+    /// After this date, the credential becomes expired. `None` corresponds to a
+    /// credential that cannot expire.
+    pub valid_until: Option<SystemTime>,
+    /// The values of different attributes, indexed by attribute tags.
+    pub values: HashMap<String, Web3IdAttribute>,
+    /// The randomness to go along with commitments in `values`. This has to
+    /// have the same keys as the `values` field, but it is more
+    /// convenient if it is a separate map itself.
+    pub randomness: HashMap<String, Bytes>,
+    /// The signature on the holder's public key, the contract address of the
+    /// issuer, and the commitments from the issuer.
+    pub signature: Bytes,
+}
+
 /// A proof corresponding to one [`CredentialStatement`]. This contains almost
 /// all the information needed to verify it, except the issuer's public key in
 /// case of the `Web3Id` proof, and the public commitments in case of the
@@ -439,9 +470,9 @@ impl TryFrom<web3id::CredentialProof<ArCurve, web3id::Web3IdAttribute>>
             } => Self::Account {
                 created: created.into(),
                 network: network.into(),
-                cred_id: serde_json::to_value(cred_id).and_then(serde_json::from_value)?,
+                cred_id: serde_convert(cred_id)?,
                 issuer: issuer.0,
-                proofs: serde_json::to_value(proofs).and_then(serde_json::from_value)?,
+                proofs: serde_convert(proofs)?,
             },
             web3id::CredentialProof::Web3Id {
                 created,
@@ -453,12 +484,12 @@ impl TryFrom<web3id::CredentialProof<ArCurve, web3id::Web3IdAttribute>>
                 proofs,
             } => Self::Web3Id {
                 created: created.into(),
-                holder_id: serde_json::to_value(holder).and_then(serde_json::from_value)?,
+                holder_id: serde_convert(holder)?,
                 network: network.into(),
                 contract: contract.into(),
                 cred_type: ty.into_iter().collect(),
-                commitments: serde_json::to_value(commitments).and_then(serde_json::from_value)?,
-                proofs: serde_json::to_value(proofs).and_then(serde_json::from_value)?,
+                commitments: serde_convert(commitments)?,
+                proofs: serde_convert(proofs)?,
             },
         };
         Ok(converted)
