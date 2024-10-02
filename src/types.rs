@@ -7,7 +7,6 @@ use concordium_base::{
 };
 use rand::thread_rng;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
-use uniffi::deps::anyhow::Context;
 
 /// Error type returned by the bridge functions.
 /// A corresponding Swift type will be generated (via the UDL definition).
@@ -195,15 +194,10 @@ pub struct GlobalContext {
 }
 
 impl TryFrom<GlobalContext> for concordium_base::id::types::GlobalContext<ArCurve> {
-    type Error = uniffi::deps::anyhow::Error;
+    type Error = serde_json::Error;
 
     fn try_from(value: GlobalContext) -> Result<Self, Self::Error> {
-        serde_json::to_string(&value)
-            .context("cannot encode request object as JSON")
-            .and_then(|json| {
-                serde_json::from_str::<concordium_base::id::types::GlobalContext<ArCurve>>(&json)
-                    .context("cannot decode request object into internal type")
-            })
+        serde_convert(value)
     }
 }
 
