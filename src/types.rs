@@ -47,7 +47,7 @@ pub(crate) fn serde_convert<S: Serialize, D: DeserializeOwned>(
 /// Used to represent a byte sequence.
 /// This should generally be used instead of hex string representation as it takes up half the space when compared to storing strings
 #[repr(transparent)]
-#[derive(Debug, Serialize, Deserialize, derive_more::From, Clone, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, derive_more::From, Clone, PartialEq, Eq)]
 pub struct Bytes(#[serde(with = "hex")] pub Vec<u8>);
 
 impl std::fmt::Display for Bytes {
@@ -139,7 +139,7 @@ impl From<Amount> for MicroCCDAmount {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Network {
     Testnet,
     Mainnet,
@@ -375,7 +375,7 @@ pub struct Versioned<V> {
 }
 
 /// Serves as a uniFFI compatible bridge to [`concordium_base::base::ContractAddress`]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ContractAddress {
     pub index: u64,
     pub subindex: u64,

@@ -250,7 +250,7 @@ pub struct SignedCommitments {
 /// The supported DID identifiers on Concordium.
 ///
 /// Serves as a uniFFI compatible bridge to [`web3id::did::IdentifierType`]
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum IdentifierType {
     /// Reference to an account via an address.
     Account { address_base58: String },
@@ -330,7 +330,7 @@ impl From<web3id::did::IdentifierType> for IdentifierType {
 /// A DID method.
 ///
 /// Serves as a uniFFI compatible bridge to [`web3id::did::Method`]
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct DID {
     /// The network part of the method.
     pub network: Network,
@@ -613,9 +613,7 @@ mod tests {
             ],
         };
 
-        web3id::Request::try_from(request.clone())
-            .inspect_err(|e| eprintln!("{e}"))
-            .expect("Can convert request to base type");
+        web3id::Request::try_from(request.clone()).expect("Can convert request to base type");
 
         let values: Vec<(AttributeTag, String)> = vec![
             (AttributeTag::DateOfBirth, "0".to_string()),
@@ -690,9 +688,7 @@ mod tests {
             }],
         };
 
-        web3id::Request::try_from(request.clone())
-            .inspect_err(|e| eprintln!("{e}"))
-            .expect("Can convert request to base type");
+        web3id::Request::try_from(request.clone()).expect("Can convert request to base type");
 
         let values: Vec<(String, Web3IdAttribute)> = vec![
             (
@@ -756,7 +752,8 @@ mod tests {
             network: Network::Testnet,
             id_type: IdentifierType::Idp { idp_identity: 3 },
         };
-        web3id::did::Method::try_from(did).expect("Can convert IDP DID");
+        let converted = web3id::did::Method::try_from(did.clone()).expect("Can convert IDP DID");
+        assert_eq!(did, converted.into());
 
         let did = DID {
             network: Network::Testnet,
@@ -769,7 +766,8 @@ mod tests {
                 parameter: Bytes(vec![1, 2, 3, 4, 5, 6]),
             },
         };
-        web3id::did::Method::try_from(did).expect("Can convert IDP DID");
+        let converted = web3id::did::Method::try_from(did.clone()).expect("Can convert IDP DID");
+        assert_eq!(did, converted.into());
 
         let did = DID {
             network: Network::Testnet,
@@ -780,10 +778,12 @@ mod tests {
                 .unwrap(),
             },
         };
-        web3id::did::Method::try_from(did).expect("Can convert IDP DID");
+        let converted = web3id::did::Method::try_from(did.clone()).expect("Can convert IDP DID");
+        assert_eq!(did, converted.into());
 
         let did = DID {network: Network::Testnet, id_type: IdentifierType::Credential { cred_id: Bytes(hex::decode("94d3e85bbc8ff0091e562ad8ef6c30d57f29b19f17c98ce155df2a30100df4cac5e161fb81aebe3a04300e63f086d0d8").unwrap()) }};
-        web3id::did::Method::try_from(did).expect("Can convert IDP DID");
+        let converted = web3id::did::Method::try_from(did.clone()).expect("Can convert IDP DID");
+        assert_eq!(did, converted.into());
 
         let did = DID {
             network: Network::Testnet,
@@ -791,6 +791,7 @@ mod tests {
                 address_base58: "35CJPZohio6Ztii2zy1AYzJKvuxbGG44wrBn7hLHiYLoF2nxnh".to_string(),
             },
         };
-        web3id::did::Method::try_from(did).expect("Can convert IDP DID");
+        let converted = web3id::did::Method::try_from(did.clone()).expect("Can convert IDP DID");
+        assert_eq!(did, converted.into());
     }
 }
