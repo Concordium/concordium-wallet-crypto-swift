@@ -452,8 +452,8 @@ dictionary EncryptionKeys {
 /// For the case where the verifier wants the user to show the value of an
 /// attribute and prove that it is indeed the value inside the on-chain
 /// commitment. Since the verifier does not know the attribute value before
-/// seing the proof, the value is not present here.
-dictionary RevealAttributeStatementV1 {
+/// seeing the proof, the value is not present here.
+dictionary RevealAttributeIdentityStatement {
     /// The attribute that the verifier wants the user to reveal.
     AttributeTag attribute_tag;
 };
@@ -461,7 +461,7 @@ dictionary RevealAttributeStatementV1 {
 /// For the case where the verifier wants the user to prove that an attribute is
 /// in a range. The statement is that the attribute value lies in `[lower,
 /// upper)` in the scalar field.
-dictionary AttributeInRangeStatementV1 {
+dictionary AttributeInRangeIdentityStatement {
     /// The attribute that the verifier wants the user to prove is in a range.
     AttributeTag attribute_tag;
     /// The lower bound on the range.
@@ -472,7 +472,7 @@ dictionary AttributeInRangeStatementV1 {
 
 /// For the case where the verifier wants the user to prove that an attribute is
 /// in a set of attributes.
-dictionary AttributeInSetStatementV1 {
+dictionary AttributeInSetIdentityStatement {
     /// The attribute that the verifier wants the user prove lies in a set.
     AttributeTag attribute_tag;
     /// The set that the attribute should lie in.
@@ -481,7 +481,7 @@ dictionary AttributeInSetStatementV1 {
 
 /// For the case where the verifier wants the user to prove that an attribute is
 /// not in a set of attributes.
-dictionary AttributeNotInSetStatementV1 {
+dictionary AttributeNotInSetIdentityStatement {
     /// The attribute that the verifier wants the user to prove does not lie in
     /// a set.
     AttributeTag attribute_tag;
@@ -492,26 +492,27 @@ dictionary AttributeNotInSetStatementV1 {
 /// Statements are composed of one or more atomic statements.
 /// This type defines the different types of atomic statements.
 [Enum]
-interface AtomicStatementV1 {
+interface AtomicIdentityStatement {
     /// The atomic statement stating that an attribute should be revealed.
-    RevealAttribute(RevealAttributeStatementV1 statement);
+    RevealAttribute(RevealAttributeIdentityStatement statement);
     /// The atomic statement stating that an attribute is in a range.
-    AttributeInRange(AttributeInRangeStatementV1 statement);
+    AttributeInRange(AttributeInRangeIdentityStatement statement);
     /// The atomic statement stating that an attribute is in a set.
-    AttributeInSet(AttributeInSetStatementV1 statement);
+    AttributeInSet(AttributeInSetIdentityStatement statement);
     /// The atomic statement stating that an attribute is not in a set.
-    AttributeNotInSet(AttributeNotInSetStatementV1 statement);
+    AttributeNotInSet(AttributeNotInSetIdentityStatement statement);
 };
 
 /// A statement is a list of atomic statements.
-dictionary StatementV1 {
-    sequence<AtomicStatementV1> statements;
+dictionary IdentityStatement {
+    sequence<AtomicIdentityStatement> statements;
 };
 
 /// The different types of proofs, corresponding to the statements above.
 [Enum]
-interface AtomicProofV1 {
-    /// The atomic statement stating that an attribute should be revealed.
+interface AtomicIdentityProof {
+    /// Revealing an attribute and a proof that it equals the attribute value
+    /// inside the attribute commitment.
     RevealAttribute(string attribute, Bytes proof);
     /// The atomic proof stating that an attribute is in a range.
     AttributeInRange(Bytes proof);
@@ -522,16 +523,16 @@ interface AtomicProofV1 {
 };
 
 /// A proof of a statement, composed of one or more atomic proofs.
-dictionary ProofV1 {
-    sequence<AtomicProofV1> proofs;
+dictionary IdentityProof {
+    sequence<AtomicIdentityProof> proofs;
 };
 
-/// A versioned variant of `ProofV1`
-dictionary VersionedProofV1 {
+/// A versioned variant of `IdentityProof`
+dictionary VersionedIdentityProof {
     /// The version associated with the value
     u32 version;
     /// The proof
-    ProofV1 value;
+    IdentityProof value;
 };
 
 /// A value of an attribute. This is the low-level representation. The
@@ -544,11 +545,12 @@ interface Web3IdAttribute {
     Numeric(u64 value);
     Timestamp(timestamp value);
 };
+
 /// For the case where the verifier wants the user to show the value of an
 /// attribute and prove that it is indeed the value inside the on-chain
 /// commitment. Since the verifier does not know the attribute value before
-/// seing the proof, the value is not present here.
-dictionary RevealAttributeStatementV2 {
+/// seeing the proof, the value is not present here.
+dictionary RevealAttributeWeb3IdStatement {
     /// The attribute that the verifier wants the user to reveal.
     string attribute_tag;
 };
@@ -556,7 +558,7 @@ dictionary RevealAttributeStatementV2 {
 /// For the case where the verifier wants the user to prove that an attribute is
 /// in a range. The statement is that the attribute value lies in `[lower,
 /// upper)` in the scalar field.
-dictionary AttributeInRangeStatementV2 {
+dictionary AttributeInRangeWeb3IdStatement {
     /// The attribute that the verifier wants the user to prove is in a range.
     string attribute_tag;
     /// The lower bound on the range.
@@ -567,7 +569,7 @@ dictionary AttributeInRangeStatementV2 {
 
 /// For the case where the verifier wants the user to prove that an attribute is
 /// in a set of attributes.
-dictionary AttributeInSetStatementV2 {
+dictionary AttributeInSetWeb3IdStatement {
     /// The attribute that the verifier wants the user prove lies in a set.
     string attribute_tag;
     /// The set that the attribute should lie in.
@@ -576,7 +578,7 @@ dictionary AttributeInSetStatementV2 {
 
 /// For the case where the verifier wants the user to prove that an attribute is
 /// not in a set of attributes.
-dictionary AttributeNotInSetStatementV2 {
+dictionary AttributeNotInSetWeb3IdStatement {
     /// The attribute that the verifier wants the user to prove does not lie in
     /// a set.
     string attribute_tag;
@@ -587,15 +589,15 @@ dictionary AttributeNotInSetStatementV2 {
 /// Statements are composed of one or more atomic statements.
 /// This type defines the different types of atomic statements.
 [Enum]
-interface AtomicStatementV2 {
+interface AtomicWeb3IdStatement {
     /// The atomic statement stating that an attribute should be revealed.
-    RevealAttribute(RevealAttributeStatementV2 statement);
+    RevealAttribute(RevealAttributeWeb3IdStatement statement);
     /// The atomic statement stating that an attribute is in a range.
-    AttributeInRange(AttributeInRangeStatementV2 statement);
+    AttributeInRange(AttributeInRangeWeb3IdStatement statement);
     /// The atomic statement stating that an attribute is in a set.
-    AttributeInSet(AttributeInSetStatementV2 statement);
+    AttributeInSet(AttributeInSetWeb3IdStatement statement);
     /// The atomic statement stating that an attribute is not in a set.
-    AttributeNotInSet(AttributeNotInSetStatementV2 statement);
+    AttributeNotInSet(AttributeNotInSetWeb3IdStatement statement);
 };
 
 /// Represents an address of a smart contract
@@ -610,10 +612,10 @@ dictionary ContractAddress {
 interface VerifiableCredentialStatement {
     /// Statement about a credential derived from an identity issued by an
     /// identity provider.
-    Account(Network network, Bytes cred_id, sequence<AtomicStatementV1> statement);
+    Account(Network network, Bytes cred_id, sequence<AtomicIdentityStatement> statement);
     /// Statement about a credential issued by a Web3 identity provider, a smart
     /// contract.
-    Web3Id(sequence<string> cred_type, Network network, ContractAddress contract, Bytes holder_id,  sequence<AtomicStatementV2> statement);
+    Web3Id(sequence<string> cred_type, Network network, ContractAddress contract, Bytes holder_id,  sequence<AtomicWeb3IdStatement> statement);
 };
 
 
@@ -626,8 +628,9 @@ dictionary VerifiablePresentationRequest {
 
 /// The different types of proofs, corresponding to the statements above.
 [Enum]
-interface AtomicProofV2 {
-    /// The atomic statement stating that an attribute should be revealed.
+interface AtomicWeb3IdProof {
+    /// Revealing an attribute and a proof that it equals the attribute value
+    /// inside the attribute commitment.
     RevealAttribute(Web3IdAttribute attribute, Bytes proof);
     /// The atomic proof stating that an attribute is in a range.
     AttributeInRange(Bytes proof);
@@ -649,14 +652,14 @@ interface VerifiableCredentialCommitmentInputs {
 
 /// A pair of a statement and a proof for an account credential statement.
 dictionary AccountStatementWithProof {
-    AtomicStatementV1 statement;
-    AtomicProofV1 proof;
+    AtomicIdentityStatement statement;
+    AtomicIdentityProof proof;
 };
 
 /// A pair of a statement and a proof for a Web3 ID credential statement.
 dictionary Web3IdStatementWithProof {
-    AtomicStatementV2 statement;
-    AtomicProofV2 proof;
+    AtomicWeb3IdStatement statement;
+    AtomicWeb3IdProof proof;
 };
 
 /// Commitments signed by the issuer.
@@ -871,7 +874,7 @@ namespace crypto {
     [Throws=ConcordiumWalletCryptoError]
     EncryptionKeys get_encryption_keys(GlobalContext global_context, Bytes prf_key, u8 credential_index);
 
-    /// Attempt to create the encryption keys associated with an account at the given credential index
+    /// Attempt to decryp the encrypted amount with the given encryption key
     [Throws=ConcordiumWalletCryptoError]
     MicroCCDAmount decrypt_amount(Bytes encrypted_amount, Bytes encryption_secret_key);
 
@@ -881,7 +884,7 @@ namespace crypto {
 
     /// Prove the supplied statement in the context of a given identity and credential
     [Throws=ConcordiumWalletCryptoError]
-    VersionedProofV1 prove_statement_v1(Bytes seed, Network net, GlobalContext global_context, u32 ip_index, u32 identity_index, u8 credential_index, IdentityObject identity_object, StatementV1 statement, Bytes challenge);
+    VersionedIdentityProof prove_identity_statement(Bytes seed, Network net, GlobalContext global_context, u32 ip_index, u32 identity_index, u8 credential_index, IdentityObject identity_object, IdentityStatement statement, Bytes challenge);
 
     /// Create a verifiable presentation from a `VerifiablePresentationRequest`, the associated
     /// commitment inputs and the cryptographic parameters of the chain.
