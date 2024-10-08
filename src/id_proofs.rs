@@ -1,10 +1,7 @@
-use concordium_base::{
-    common::VERSION_0,
-    id::{
-        constants::{ArCurve, AttributeKind, IpPairing},
-        id_proof_types::{ProofVersion, StatementWithContext},
-        types::IdentityObjectV1,
-    },
+use concordium_base::id::{
+    constants::{ArCurve, AttributeKind, IpPairing},
+    id_proof_types::{ProofVersion, StatementWithContext},
+    types::IdentityObjectV1,
 };
 use key_derivation::CredentialContext;
 use serde::{Deserialize, Serialize};
@@ -219,9 +216,10 @@ pub fn prove_identity_statement(
         credential: cred_id,
     };
 
+    let proof_version = ProofVersion::Version2;
     let proof = statement
         .prove(
-            ProofVersion::Version2,
+            proof_version,
             &global_context,
             challenge.as_ref(),
             &id_object.alist,
@@ -229,6 +227,12 @@ pub fn prove_identity_statement(
         )
         .context("Could not produce proof.")
         .map_err(|e| e.to_call_failed(fn_name.to_string()))?;
-    VersionedIdentityProof::try_from(concordium_base::common::Versioned::new(VERSION_0, proof))
-        .map_err(|e| e.to_call_failed(fn_name.to_string()))
+
+    // We tag the proof with version 1 for `Versioned`, as 0 is used for `Proof` produced with
+    // `ProofVersion::Version1`
+    VersionedIdentityProof::try_from(concordium_base::common::Versioned::new(
+        (proof_version as u32).into(),
+        proof,
+    ))
+    .map_err(|e| e.to_call_failed(fn_name.to_string()))
 }

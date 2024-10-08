@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `get_encryption_keys`, `decrypt_amount`, and `combine_encrypted_amounts` functions for handling encrypted amounts.
-- `prove_statement_v1` for producing proofs related to Concordium identities.
+- `prove_identity_statement` for producing proofs related to Concordium identities.
 - `Network` type to represent different concordium network variants.
 - `AttributeTag` to represent the different identity attribute variants.
 - A number of types including `VerifiablePresentation`, `Web3IdCredential`, `VerifiableCredentialStatement`,
