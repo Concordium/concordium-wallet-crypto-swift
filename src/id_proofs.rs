@@ -221,7 +221,7 @@ pub fn prove_identity_statement(
 
     let proof = statement
         .prove(
-            ProofVersion::Version1,
+            ProofVersion::Version2,
             &global_context,
             challenge.as_ref(),
             &id_object.alist,
