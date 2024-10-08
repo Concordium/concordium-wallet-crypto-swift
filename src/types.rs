@@ -392,3 +392,46 @@ impl From<concordium_base::base::ContractAddress> for ContractAddress {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use concordium_base::id::{self, types::ATTRIBUTE_NAMES};
+
+    use super::*;
+    static ALL_ATTRS: &[AttributeTag] = &[
+        AttributeTag::FirstName,
+        AttributeTag::LastName,
+        AttributeTag::Sex,
+        AttributeTag::DateOfBirth,
+        AttributeTag::CountryOfResidence,
+        AttributeTag::Nationality,
+        AttributeTag::IdDocType,
+        AttributeTag::IdDocNo,
+        AttributeTag::IdDocIssuer,
+        AttributeTag::IdDocIssuedAt,
+        AttributeTag::IdDocExpiresAt,
+        AttributeTag::NationalIdNo,
+        AttributeTag::TaxIdNo,
+        AttributeTag::LegalEntityId,
+        AttributeTag::LegalName,
+        AttributeTag::LegalCountry,
+        AttributeTag::BusinessNumber,
+        AttributeTag::RegistrationAuth,
+    ];
+
+    #[test]
+    fn represents_all_attributes() {
+        let ser_attrs: Result<Vec<String>, _> = serde_convert(ALL_ATTRS);
+        let ser_attrs = ser_attrs.expect("serde conversion does not fail");
+        assert!(
+            ATTRIBUTE_NAMES
+                .into_iter()
+                .all(|name| ser_attrs.contains(&name.to_string())),
+            "All attributes from concordium_base are represented"
+        );
+
+        let base_attrs: Vec<id::types::AttributeTag> = serde_convert(ATTRIBUTE_NAMES).unwrap();
+        let _: Vec<AttributeTag> = serde_convert(base_attrs)
+            .expect("Can represent and convert all attribute tags from base");
+    }
+}
