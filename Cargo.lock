@@ -550,7 +550,7 @@ dependencies = [
 
 [[package]]
 name = "concordium-wallet-crypto-uniffi"
-version = "4.1.0"
+version = "5.0.0"
 dependencies = [
  "chrono",
  "concordium_base",
