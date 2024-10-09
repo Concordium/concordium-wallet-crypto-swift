@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [5.0.0] - 2024-10-09
 
 ### Changed
 
@@ -26,13 +26,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `DID` along with the helper functions `parse_did_method` and correspondingly `did_method_as_string` for working with concordium decentralized identifiers, used in the
   types related to verifiable credentials
 
-## [4.1.0]
+## [4.1.0] - 2024-09-12
 
 ### Added
 
 - Added functions for encoding/decoding smart contract types using a provided contract type/module schema.
 
-## [4.0.0]
+## [4.0.0] - 2024-08-27
 
 ### Changed
 
