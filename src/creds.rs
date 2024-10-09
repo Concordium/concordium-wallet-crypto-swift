@@ -1,4 +1,8 @@
 use crate::types::*;
+use concordium_base::id::{
+    constants::{ArCurve, AttributeKind, IpPairing},
+    types::IpInfo,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uniffi::deps::anyhow::Context;
@@ -24,7 +28,7 @@ use wallet_library::{
 /// Implements UDL definition of the same name.
 pub fn identity_cred_sec(
     seed: Bytes,
-    net: String,
+    net: Network,
     identity_provider_id: u32,
     identity_index: u32,
 ) -> Result<Bytes, ConcordiumWalletCryptoError> {
@@ -42,7 +46,7 @@ pub fn identity_cred_sec(
 /// Implements UDL definition of the same name.
 pub fn identity_prf_key(
     seed: Bytes,
-    net: String,
+    net: Network,
     identity_provider_id: u32,
     identity_index: u32,
 ) -> Result<Bytes, ConcordiumWalletCryptoError> {
@@ -60,7 +64,7 @@ pub fn identity_prf_key(
 /// Implements UDL definition of the same name.
 pub fn identity_attributes_signature_blinding_randomness(
     seed: Bytes,
-    net: String,
+    net: Network,
     identity_provider_id: u32,
     identity_index: u32,
 ) -> Result<Bytes, ConcordiumWalletCryptoError> {
@@ -78,7 +82,7 @@ pub fn identity_attributes_signature_blinding_randomness(
 /// Implements UDL definition of the same name.
 pub fn account_credential_signing_key(
     seed: Bytes,
-    net: String,
+    net: Network,
     identity_provider_id: u32,
     identity_index: u32,
     credential_counter: u8,
@@ -98,7 +102,7 @@ pub fn account_credential_signing_key(
 /// Implements UDL definition of the same name.
 pub fn account_credential_public_key(
     seed: Bytes,
-    net: String,
+    net: Network,
     identity_provider_id: u32,
     identity_index: u32,
     credential_counter: u8,
@@ -118,7 +122,7 @@ pub fn account_credential_public_key(
 /// Implements UDL definition of the same name.
 pub fn account_credential_id(
     seed: Bytes,
-    net: String,
+    net: Network,
     identity_provider_id: u32,
     identity_index: u32,
     credential_counter: u8,
@@ -140,7 +144,7 @@ pub fn account_credential_id(
 /// Implements UDL definition of the same name.
 pub fn account_credential_attribute_commitment_randomness(
     seed: Bytes,
-    net: String,
+    net: Network,
     identity_provider_id: u32,
     identity_index: u32,
     credential_counter: u8,
@@ -162,7 +166,7 @@ pub fn account_credential_attribute_commitment_randomness(
 /// Implements UDL definition of the same name.
 pub fn verifiable_credential_signing_key(
     seed: Bytes,
-    net: String,
+    net: Network,
     issuer_index: u64,
     issuer_subindex: u64,
     verifiable_credential_index: u32,
@@ -182,7 +186,7 @@ pub fn verifiable_credential_signing_key(
 /// Implements UDL definition of the same name.
 pub fn verifiable_credential_public_key(
     seed: Bytes,
-    net: String,
+    net: Network,
     issuer_index: u64,
     issuer_subindex: u64,
     verifiable_credential_index: u32,
@@ -202,7 +206,7 @@ pub fn verifiable_credential_public_key(
 /// Implements UDL definition of the same name.
 pub fn verifiable_credential_backup_encryption_key(
     seed: Bytes,
-    net: String,
+    net: Network,
 ) -> Result<Bytes, ConcordiumWalletCryptoError> {
     let fn_desc = "verifiable_credential_backup_encryption_key(seed, net={net}";
     let hex = get_verifiable_credential_backup_encryption_key_aux(hex::encode(seed), net.as_str())
@@ -261,6 +265,14 @@ pub struct IdentityProviderInfo {
     pub cdi_verify_key: Bytes,
 }
 
+impl TryFrom<IdentityProviderInfo> for IpInfo<IpPairing> {
+    type Error = serde_json::Error;
+
+    fn try_from(value: IdentityProviderInfo) -> Result<Self, Self::Error> {
+        serde_json::to_string(&value).and_then(|s| serde_json::from_str(&s))
+    }
+}
+
 /// UniFFI compatible bridge to [`concordium_base::id::types::ArInfo<concordium_base::id::constants::ArCurve>`],
 /// providing the implementation of the UDL declaration of the same name.
 /// The translation is performed using Serde.
@@ -301,7 +313,7 @@ pub struct AccountCredentialParameters {
     #[serde(rename = "idObject")]
     pub id_object: IdentityObject,
     #[serde(rename = "revealedAttributes")]
-    pub revealed_attributes: Vec<u8>,
+    pub revealed_attributes: Vec<AttributeTag>,
     #[serde(rename = "credNumber")]
     pub cred_number: u8,
     #[serde(rename = "idCredSec")]
@@ -311,12 +323,12 @@ pub struct AccountCredentialParameters {
     #[serde(rename = "blindingRandomness")]
     pub blinding_randomness: Bytes,
     #[serde(rename = "attributeRandomness")]
-    pub attribute_randomness: HashMap<String, Bytes>,
+    pub attribute_randomness: HashMap<AttributeTag, Bytes>,
     #[serde(rename = "credentialPublicKeys")]
     pub credential_public_keys: CredentialPublicKeys,
 }
 
-/// UniFFI compatible bridge to [`concordium_base::id::types::IdentityObjectV1<concordium_base::id::constants::IpPairing,concordium_base::id::constants::ArCurve,concordium_base::id::constants::AttributeKind>`],
+/// UniFFI compatible bridge to [`concordium_base::id::types::IdentityObjectV1<IpPairing,ArCurve,AttributeKind>`],
 /// providing the implementation of the UDL declaration of the same name.
 /// The translation is performed using Serde.
 #[derive(Debug, Serialize)]
@@ -329,7 +341,17 @@ pub struct IdentityObject {
     pub signature: Bytes,
 }
 
-/// UniFFI compatible bridge to [`concordium_base::id::types::PreIdentityObjectV1<concordium_base::id::constants::IpPairing,concordium_base::id::constants::ArCurve>`],
+impl TryFrom<IdentityObject>
+    for concordium_base::id::types::IdentityObjectV1<IpPairing, ArCurve, AttributeKind>
+{
+    type Error = serde_json::Error;
+
+    fn try_from(value: IdentityObject) -> Result<Self, Self::Error> {
+        serde_json::to_string(&value).and_then(|s| serde_json::from_str(&s))
+    }
+}
+
+/// UniFFI compatible bridge to [`concordium_base::id::types::PreIdentityObjectV1<IpPairing,ArCurve>`],
 /// providing the implementation of the UDL declaration of the same name.
 /// The translation is performed using Serde.
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
@@ -372,7 +394,7 @@ pub struct ArData {
     pub proof_com_enc_eq: Bytes,
 }
 
-/// UniFFI compatible bridge to [`concordium_base::id::types::AttributeList<concordium_base::id::constants::IpPairing,concordium_base::id::constants::ArCurve> `],
+/// UniFFI compatible bridge to [`concordium_base::id::types::AttributeList<IpPairing,ArCurve> `],
 /// providing the implementation of the UDL declaration of the same name.
 /// The translation is performed using Serde.
 #[derive(Debug, Serialize)]
@@ -384,7 +406,7 @@ pub struct AttributeList {
     #[serde(rename = "maxAccounts")]
     pub max_accounts: u8,
     #[serde(rename = "chosenAttributes")]
-    pub chosen_attributes: HashMap<String, String>,
+    pub chosen_attributes: HashMap<AttributeTag, String>,
 }
 
 /* OUTPUTS */
@@ -393,20 +415,20 @@ pub struct AttributeList {
 /// providing the implementation of the UDL declaration of the same name.
 /// The translation is performed using Serde.
 #[derive(Debug, Deserialize)]
-pub struct AccountCredentialResult {
+pub struct AccountCredentialWithRandomness {
     #[serde(rename = "unsignedCdi")]
     pub credential: AccountCredential,
     #[serde(rename = "randomness")]
     pub randomness: Randomness,
 }
 
-/// UniFFI compatible bridge to [`concordium_base::id::types::CommitmentsRandomness<concordium_base::id::constants::ArCurve>`],
+/// UniFFI compatible bridge to [`concordium_base::id::types::CommitmentsRandomness<ArCurve>`],
 /// providing the implementation of the UDL declaration of the same name.
 /// The translation is performed using Serde.
 #[derive(Debug, Deserialize)]
 pub struct Randomness {
     #[serde(rename = "attributesRand")]
-    pub attributes_rand: HashMap<String, Bytes>,
+    pub attributes_rand: HashMap<AttributeTag, Bytes>,
     #[serde(rename = "credCounterRand")]
     pub cred_counter_rand: Bytes,
     #[serde(rename = "idCredSecRand")]
@@ -478,7 +500,7 @@ pub struct AccountCredential {
     pub revocation_threshold: u8,
 }
 
-/// UniFFI compatible bridge to [`concordium_base::id::types::IdOwnershipProofs<concordium_base::id::constants::IpPairing,concordium_base::id::constants::ArCurve>`],
+/// UniFFI compatible bridge to [`concordium_base::id::types::IdOwnershipProofs<IpPairing,ArCurve>`],
 /// providing the implementation of the UDL declaration of the same name.
 /// The translation is performed using Serde.
 #[derive(Debug, Deserialize, Serialize, PartialEq)]
@@ -502,7 +524,7 @@ pub struct Proofs {
 /// Implements UDL definition of the same name.
 pub fn account_credential(
     params: AccountCredentialParameters,
-) -> Result<AccountCredentialResult, ConcordiumWalletCryptoError> {
+) -> Result<AccountCredentialWithRandomness, ConcordiumWalletCryptoError> {
     serde_json::to_string(&params)
         .context("cannot encode request object as JSON")
         .and_then(|json| {
@@ -513,7 +535,7 @@ pub fn account_credential(
             create_unsigned_credential_v1_aux(input).context("cannot create identity")
         })
         .and_then(|res| {
-            serde_json::from_str::<AccountCredentialResult>(&res)
+            serde_json::from_str::<AccountCredentialWithRandomness>(&res)
                 .context("cannot decode response object into result type")
         })
         .map_err(|e| ConcordiumWalletCryptoError::CallFailed {

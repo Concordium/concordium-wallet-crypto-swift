@@ -5,6 +5,27 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **BREAKING** - `SecToPubTransferData.transfer_amount` has been changed to `MicroCCDAmount` (previously `String`) which is an alias in generated code for `u64`
+- **BREAKING** - Any place where the `String` identifier of a concordium network was used, the new `Network` type is now used.
+- **BREAKING** - Identity attribute tags are now represented by the `AttributeTag` type instead of `u8` and replaces any occurance of this.
+- **BREAKING** - `AccountCredentialResult` is now called `AccountCredentialWithRandomness` to better signal its use, i.e. store the randomness corresponding to a credential.
+
+### Added
+
+- `get_encryption_keys`, `decrypt_amount`, and `combine_encrypted_amounts` functions for handling encrypted amounts.
+- `prove_identity_statement` for producing proofs related to Concordium identities.
+- `Network` type to represent different concordium network variants.
+- `AttributeTag` to represent the different identity attribute variants.
+- A number of types including `VerifiablePresentation`, `Web3IdCredential`, `VerifiableCredentialStatement`,
+  and `VerifiableCredentialCommitmentInputs` (which are the most important to mention) for working with verifiable credentials and presentations
+- `create_verifiable_presentation` which facilitates producing verifiable presentations by supplying a combination of the types mentioned above.
+- `DID` along with the helper functions `parse_did_method` and correspondingly `did_method_as_string` for working with concordium decentralized identifiers, used in the
+  types related to verifiable credentials
+
 ## [4.1.0]
 
 ### Added

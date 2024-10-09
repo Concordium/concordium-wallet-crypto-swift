@@ -3,9 +3,6 @@ name = "concordium-wallet-crypto-uniffi"
 version = "4.1.0"
 edition = "2021"
 
-[lib]
-crate-type = ["staticlib", "lib"]
-
 [dependencies]
 thiserror = "1"
 uniffi = { version = "0.26", features = ["cli"] }
@@ -14,6 +11,8 @@ serde_json = "1.0"
 rand = "0.8.5"
 hex = { version = "0.4.3", features = ["serde"] }
 derive_more = "0.99.18"
+chrono = "0.4.24"
+ed25519-dalek = {version = "2.0", features = ["rand_core", "serde"]}
 
 [dependencies.concordium_base]
 path = "./concordium-base/rust-src/concordium_base"
@@ -21,8 +20,17 @@ path = "./concordium-base/rust-src/concordium_base"
 [dependencies.wallet_library]
 path = "./concordium-base/rust-src/wallet_library"
 
+[dependencies.key_derivation]
+path = "./concordium-base/rust-src/key_derivation"
+
 [build-dependencies]
 uniffi = { version = "0.26", features = ["build"] }
+
+[build-dependencies.concordium_base]
+path = "./concordium-base/rust-src/concordium_base"
+
+[lib]
+crate-type = ["staticlib", "lib"]
 
 [[bin]]
 name = "uniffi-bindgen"

@@ -11,8 +11,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 const SEED: &str = "efa5e27326f8fa0902e647b52449bf335b7b605adc387015ec903f41d95080eb71361cbc7fb78721dcd4f3926a337340aa1406df83332c44c1cdcfe100603860";
-const MAINNET: &str = "mainnet";
-const TESTNET: &str = "testnet";
 const COMMITMENT_KEY: &str = "b14cbfe44a02c6b1f78711176d5f437295367aa4f2a8c2551ee10d25a03adc69d61a332a058971919dad7312e1fc94c5a8d45e64b6f917c540eee16c970c3d4b7f3caf48a7746284878e2ace21c82ea44bf84609834625be1f309988ac523fac";
 
 // TODO: Add negative tests (currently there are none).
@@ -26,7 +24,7 @@ const COMMITMENT_KEY: &str = "b14cbfe44a02c6b1f78711176d5f437295367aa4f2a8c2551e
 #[test]
 fn mainnet_identity_cred_sec() {
     assert_eq!(
-        identity_cred_sec(SEED.try_into().unwrap(), MAINNET.to_string(), 2, 115).unwrap(),
+        identity_cred_sec(SEED.try_into().unwrap(), Network::Mainnet, 2, 115).unwrap(),
         "33b9d19b2496f59ed853eb93b9d374482d2e03dd0a12e7807929d6ee54781bb1"
             .try_into()
             .unwrap()
@@ -36,7 +34,7 @@ fn mainnet_identity_cred_sec() {
 #[test]
 fn mainnet_identity_prf_key() {
     assert_eq!(
-        identity_prf_key(SEED.try_into().unwrap(), MAINNET.to_string(), 3, 35).unwrap(),
+        identity_prf_key(SEED.try_into().unwrap(), Network::Mainnet, 3, 35).unwrap(),
         "4409e2e4acffeae641456b5f7406ecf3e1e8bd3472e2df67a9f1e8574f211bc5"
             .try_into()
             .unwrap()
@@ -48,7 +46,7 @@ fn mainnet_attributes_signature_blinding_randomness() {
     assert_eq!(
         identity_attributes_signature_blinding_randomness(
             SEED.try_into().unwrap(),
-            MAINNET.to_string(),
+            Network::Mainnet,
             4,
             5713,
         )
@@ -62,7 +60,7 @@ fn mainnet_attributes_signature_blinding_randomness() {
 #[test]
 fn mainnet_account_credential_signing_key() {
     assert_eq!(
-        account_credential_signing_key(SEED.try_into().unwrap(), MAINNET.to_string(), 0, 55, 7)
+        account_credential_signing_key(SEED.try_into().unwrap(), Network::Mainnet, 0, 55, 7)
             .unwrap(),
         "e4d1693c86eb9438feb9cbc3d561fbd9299e3a8b3a676eb2483b135f8dbf6eb1"
             .try_into()
@@ -73,7 +71,7 @@ fn mainnet_account_credential_signing_key() {
 #[test]
 fn mainnet_account_credential_public_key() {
     assert_eq!(
-        account_credential_public_key(SEED.try_into().unwrap(), MAINNET.to_string(), 1, 341, 9)
+        account_credential_public_key(SEED.try_into().unwrap(), Network::Mainnet, 1, 341, 9)
             .unwrap(),
         "d54aab7218fc683cbd4d822f7c2b4e7406c41ae08913012fab0fa992fa008e98"
             .try_into()
@@ -84,7 +82,7 @@ fn mainnet_account_credential_public_key() {
 #[test]
 fn mainnet_account_credential_id() {
     assert_eq!(
-        account_credential_id(SEED.try_into().unwrap(), MAINNET.to_string(), 10, 50, 5, COMMITMENT_KEY.try_into().unwrap()).unwrap(),
+        account_credential_id(SEED.try_into().unwrap(), Network::Mainnet, 10, 50, 5, COMMITMENT_KEY.try_into().unwrap()).unwrap(),
         "8a3a87f3f38a7a507d1e85dc02a92b8bcaa859f5cf56accb3c1bc7c40e1789b4933875a38dd4c0646ca3e940a02c42d8"
             .try_into()
             .unwrap()
@@ -96,7 +94,7 @@ fn mainnet_account_credential_attribute_commitment_randomness() {
     assert_eq!(
         account_credential_attribute_commitment_randomness(
             SEED.try_into().unwrap(),
-            MAINNET.to_string(),
+            Network::Mainnet,
             5,
             0,
             4,
@@ -112,7 +110,7 @@ fn mainnet_account_credential_attribute_commitment_randomness() {
 #[test]
 fn testnet_identity_cred_sec() {
     assert_eq!(
-        identity_cred_sec(SEED.try_into().unwrap(), TESTNET.to_string(), 2, 115).unwrap(),
+        identity_cred_sec(SEED.try_into().unwrap(), Network::Testnet, 2, 115).unwrap(),
         "33c9c538e362c5ac836afc08210f4b5d881ba65a0a45b7e353586dad0a0f56df"
             .try_into()
             .unwrap()
@@ -122,7 +120,7 @@ fn testnet_identity_cred_sec() {
 #[test]
 fn testnet_identity_prf_key() {
     assert_eq!(
-        identity_prf_key(SEED.try_into().unwrap(), TESTNET.to_string(), 3, 35).unwrap(),
+        identity_prf_key(SEED.try_into().unwrap(), Network::Testnet, 3, 35).unwrap(),
         "41d794d0b06a7a31fb79bb76c44e6b87c63e78f9afe8a772fc64d20f3d9e8e82"
             .try_into()
             .unwrap()
@@ -134,7 +132,7 @@ fn testnet_attributes_signature_blinding_randomness() {
     assert_eq!(
         identity_attributes_signature_blinding_randomness(
             SEED.try_into().unwrap(),
-            TESTNET.to_string(),
+            Network::Testnet,
             4,
             5713,
         )
@@ -148,7 +146,7 @@ fn testnet_attributes_signature_blinding_randomness() {
 #[test]
 fn testnet_account_credential_signing_key() {
     assert_eq!(
-        account_credential_signing_key(SEED.try_into().unwrap(), TESTNET.to_string(), 0, 55, 7)
+        account_credential_signing_key(SEED.try_into().unwrap(), Network::Testnet, 0, 55, 7)
             .unwrap(),
         "aff97882c6df085e91ae2695a32d39dccb8f4b8d68d2f0db9637c3a95f845e3c"
             .try_into()
@@ -159,7 +157,7 @@ fn testnet_account_credential_signing_key() {
 #[test]
 fn testnet_account_credential_public_key() {
     assert_eq!(
-        account_credential_public_key(SEED.try_into().unwrap(), TESTNET.to_string(), 1, 341, 9)
+        account_credential_public_key(SEED.try_into().unwrap(), Network::Testnet, 1, 341, 9)
             .unwrap(),
         "ef6fd561ca0291a57cdfee896245db9803a86da74c9a6c1bf0252b18f8033003"
             .try_into()
@@ -170,7 +168,7 @@ fn testnet_account_credential_public_key() {
 #[test]
 fn testnet_account_credential_id() {
     assert_eq!(
-        account_credential_id(SEED.try_into().unwrap(), TESTNET.to_string(), 10, 50, 5, COMMITMENT_KEY.try_into().unwrap()).unwrap(),
+        account_credential_id(SEED.try_into().unwrap(), Network::Testnet, 10, 50, 5, COMMITMENT_KEY.try_into().unwrap()).unwrap(),
         "9535e4f2f964c955c1dd0f312f2edcbf4c7d036fe3052372a9ad949ff061b9b7ed6b00f93bc0713e381a93a43715206c"
             .try_into()
             .unwrap()
@@ -182,7 +180,7 @@ fn testnet_account_credential_attribute_commitment_randomness() {
     assert_eq!(
         account_credential_attribute_commitment_randomness(
             SEED.try_into().unwrap(),
-            TESTNET.to_string(),
+            Network::Testnet,
             5,
             0,
             4,
@@ -200,7 +198,7 @@ fn testnet_account_credential_attribute_commitment_randomness() {
 #[test]
 fn mainnet_verifiable_credential_signing_key() {
     assert_eq!(
-        verifiable_credential_signing_key(SEED.try_into().unwrap(), MAINNET.to_string(), 1, 2, 1)
+        verifiable_credential_signing_key(SEED.try_into().unwrap(), Network::Mainnet, 1, 2, 1)
             .unwrap(),
         "670d904509ce09372deb784e702d4951d4e24437ad3879188d71ae6db51f3301"
             .try_into()
@@ -211,14 +209,8 @@ fn mainnet_verifiable_credential_signing_key() {
 #[test]
 fn mainnet_verifiable_credential_public_key() {
     assert_eq!(
-        verifiable_credential_public_key(
-            SEED.try_into().unwrap(),
-            MAINNET.to_string(),
-            3,
-            1232,
-            341
-        )
-        .unwrap(),
+        verifiable_credential_public_key(SEED.try_into().unwrap(), Network::Mainnet, 3, 1232, 341)
+            .unwrap(),
         "16afdb3cb3568b5ad8f9a0fa3c741b065642de8c53e58f7920bf449e63ff2bf9"
             .try_into()
             .unwrap()
@@ -228,7 +220,7 @@ fn mainnet_verifiable_credential_public_key() {
 #[test]
 fn testnet_verifiable_credential_signing_key() {
     assert_eq!(
-        verifiable_credential_signing_key(SEED.try_into().unwrap(), TESTNET.to_string(), 13, 0, 1)
+        verifiable_credential_signing_key(SEED.try_into().unwrap(), Network::Testnet, 13, 0, 1)
             .unwrap(),
         "c75a161b97a1e204d9f31202308958e541e14f0b14903bd220df883bd06702bb"
             .try_into()
@@ -239,7 +231,7 @@ fn testnet_verifiable_credential_signing_key() {
 #[test]
 fn testnet_verifiable_credential_public_key() {
     assert_eq!(
-        verifiable_credential_public_key(SEED.try_into().unwrap(), TESTNET.to_string(), 17, 0, 341)
+        verifiable_credential_public_key(SEED.try_into().unwrap(), Network::Testnet, 17, 0, 341)
             .unwrap(),
         "c52a30475bac88da9e65471cf9cf59f99dcce22ce31de580b3066597746b394a"
             .try_into()
@@ -469,19 +461,19 @@ fn account_credential_deployment_concordium_ip() {
                 created_at_year_month: "202402".to_string(),
                 max_accounts: 200,
                 chosen_attributes: HashMap::from([
-                    ("countryOfResidence".to_string(), "DK".to_string()),
-                    ("dob".to_string(), "19700101".to_string()),
-                    ("firstName".to_string(), "John".to_string()),
-                    ("idDocExpiresAt".to_string(), "20300101".to_string()),
-                    ("idDocIssuedAt".to_string(), "20200101".to_string()),
-                    ("idDocIssuer".to_string(), "DK".to_string()),
-                    ("idDocNo".to_string(), "12345".to_string()),
-                    ("idDocType".to_string(), "1".to_string()),
-                    ("lastName".to_string(), "Doe".to_string()),
-                    ("nationalIdNo".to_string(), "N-1234".to_string()),
-                    ("nationality".to_string(), "DK".to_string()),
-                    ("sex".to_string(), "0".to_string()),
-                    ("taxIdNo".to_string(), "T-1234".to_string()),
+                    (AttributeTag::CountryOfResidence, "DK".to_string()),
+                    (AttributeTag::DateOfBirth, "19700101".to_string()),
+                    (AttributeTag::FirstName, "John".to_string()),
+                    (AttributeTag::IdDocExpiresAt, "20300101".to_string()),
+                    (AttributeTag::IdDocIssuedAt, "20200101".to_string()),
+                    (AttributeTag::IdDocIssuer, "DK".to_string()),
+                    (AttributeTag::IdDocNo, "12345".to_string()),
+                    (AttributeTag::IdDocType, "1".to_string()),
+                    (AttributeTag::LastName, "Doe".to_string()),
+                    (AttributeTag::NationalIdNo, "N-1234".to_string()),
+                    (AttributeTag::Nationality, "DK".to_string()),
+                    (AttributeTag::Sex, "0".to_string()),
+                    (AttributeTag::TaxIdNo, "T-1234".to_string()),
                 ]),
             },
             signature: "a77f3750113be9d0f540629f5b9faf10e9eb39dd1e1a993461675e12f2bb259d810611ad997e01b60e2e2fec3b45be34911d96daeadb9a33906aa2310c0462143edb512b3e04c06fec997b80a838991514981882ba8894a799f22ca0a3adb72f".try_into().unwrap(),
@@ -492,20 +484,20 @@ fn account_credential_deployment_concordium_ip() {
         prf_key: "3940b72ff4d28ae22287cf95218ee76a0c398fdb211d2d2beaa79af8a042f409".try_into().unwrap(),
         blinding_randomness: "2f73d7b1211cfe12ff8d3cf4ac4533b021c3ba499f61177dfb38dc74b4ad3bf2".try_into().unwrap(),
         attribute_randomness: HashMap::from([
-            ("firstName".to_string(), "115acaf68bb539f1902316b530b918b9a7c5d2c7f3491eefa1ec356ed7a663a9".try_into().unwrap()),
-            ("lastName".to_string(), "46ee57d0bb83329501b733957cee346af2434a9ee6048552b92deb8ec52f5aed".try_into().unwrap()),
-            ("sex".to_string(), "5e9d6f98507d2a6df56f81b19dd5389699c9d55d01296896a87dd1c1ccbd0896".try_into().unwrap()),
-            ("dob".to_string(), "21066350b3346b6a0d4a3b89d441002314674bb5dc05104e5666cc39a7ddc822".try_into().unwrap()),
-            ("countryOfResidence".to_string(), "223869bddd34612d0442af751b532a7f044c14b681175aafcbfc3c7b52ca501a".try_into().unwrap()),
-            ("nationality".to_string(), "06ff9fe077f3bcd38342f2a1f838989f6562ae1f4c9c8b08f05d1e5c6e43c1ae".try_into().unwrap()),
-            ("idDocType".to_string(), "0b58df78520badb9e6a164eea03c5bc489d39292619d230b54e8957443516e10".try_into().unwrap()),
-            ("idDocNo".to_string(), "2b1d3eac0f74f6c85972c89b6be236bc74e04b21a5340602894838f57a59cb8b".try_into().unwrap()),
-            ("idDocIssuer".to_string(), "3a7569ae903c58a625c6456bb6dab0690c06e207ae6b77ba2ca708e15ebbaa83".try_into().unwrap()),
-            ("idDocIssuedAt".to_string(), "1583352bf8ba1a185d4edaa27d8cd3836ec9b60e0ab39fc7edd1d3463bf5e702".try_into().unwrap()),
-            ("idDocExpiresAt".to_string(), "03d7047cbb5d34335a86c205a79076147393699652f75259a1494d77e3a5d214".try_into().unwrap()),
-            ("nationalIdNo".to_string(), "3d6ec52e9756497d30cb72eec42ec9a7af77a8e4d3d8cc6663986ca25643f3df".try_into().unwrap()),
-            ("taxIdNo".to_string(), "5d589ac0136e96cb9f8e7e02edfb66fa18c7acbfdd8845dbad881d2ed8632d89".try_into().unwrap()),
-            ("lei".to_string(), "3b0e81e9fc8eb8fc0f7dd3aa3112dfe544f27ef395a04acbbfe77666a0fc03b3".try_into().unwrap()),
+            (AttributeTag::FirstName, "115acaf68bb539f1902316b530b918b9a7c5d2c7f3491eefa1ec356ed7a663a9".try_into().unwrap()),
+            (AttributeTag::LastName, "46ee57d0bb83329501b733957cee346af2434a9ee6048552b92deb8ec52f5aed".try_into().unwrap()),
+            (AttributeTag::Sex, "5e9d6f98507d2a6df56f81b19dd5389699c9d55d01296896a87dd1c1ccbd0896".try_into().unwrap()),
+            (AttributeTag::DateOfBirth, "21066350b3346b6a0d4a3b89d441002314674bb5dc05104e5666cc39a7ddc822".try_into().unwrap()),
+            (AttributeTag::CountryOfResidence, "223869bddd34612d0442af751b532a7f044c14b681175aafcbfc3c7b52ca501a".try_into().unwrap()),
+            (AttributeTag::Nationality, "06ff9fe077f3bcd38342f2a1f838989f6562ae1f4c9c8b08f05d1e5c6e43c1ae".try_into().unwrap()),
+            (AttributeTag::IdDocType, "0b58df78520badb9e6a164eea03c5bc489d39292619d230b54e8957443516e10".try_into().unwrap()),
+            (AttributeTag::IdDocNo, "2b1d3eac0f74f6c85972c89b6be236bc74e04b21a5340602894838f57a59cb8b".try_into().unwrap()),
+            (AttributeTag::IdDocIssuer, "3a7569ae903c58a625c6456bb6dab0690c06e207ae6b77ba2ca708e15ebbaa83".try_into().unwrap()),
+            (AttributeTag::IdDocIssuedAt, "1583352bf8ba1a185d4edaa27d8cd3836ec9b60e0ab39fc7edd1d3463bf5e702".try_into().unwrap()),
+            (AttributeTag::IdDocExpiresAt, "03d7047cbb5d34335a86c205a79076147393699652f75259a1494d77e3a5d214".try_into().unwrap()),
+            (AttributeTag::NationalIdNo, "3d6ec52e9756497d30cb72eec42ec9a7af77a8e4d3d8cc6663986ca25643f3df".try_into().unwrap()),
+            (AttributeTag::TaxIdNo, "5d589ac0136e96cb9f8e7e02edfb66fa18c7acbfdd8845dbad881d2ed8632d89".try_into().unwrap()),
+            (AttributeTag::LegalEntityId, "3b0e81e9fc8eb8fc0f7dd3aa3112dfe544f27ef395a04acbbfe77666a0fc03b3".try_into().unwrap()),
         ]),
         credential_public_keys: CredentialPublicKeys {
             keys: HashMap::from([

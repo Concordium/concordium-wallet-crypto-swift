@@ -1,10 +1,12 @@
 use std::collections::HashMap;
 
 use crate::UniffiCustomTypeConverter;
-use concordium_base::{contracts_common::AccountAddressParseError, id::constants::ArCurve};
+use concordium_base::{
+    contracts_common::{AccountAddressParseError, Amount},
+    id::constants::ArCurve,
+};
 use rand::thread_rng;
-use serde::{Deserialize, Serialize};
-use uniffi::deps::anyhow::Context;
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 /// Error type returned by the bridge functions.
 /// A corresponding Swift type will be generated (via the UDL definition).
@@ -35,11 +37,26 @@ impl ConvertError for uniffi::deps::anyhow::Error {}
 impl ConvertError for AccountAddressParseError {}
 impl ConvertError for hex::FromHexError {}
 
+pub(crate) fn serde_convert<S: Serialize, D: DeserializeOwned>(
+    value: S,
+) -> Result<D, serde_json::Error> {
+    serde_json::to_value(value).and_then(serde_json::from_value)
+}
+
 /// Used to represent a byte sequence.
 /// This should generally be used instead of hex string representation as it takes up half the space when compared to storing strings
 #[repr(transparent)]
-#[derive(Debug, Serialize, Deserialize, derive_more::From, Clone, PartialEq)]
-pub struct Bytes(#[serde(with = "hex")] Vec<u8>);
+#[derive(Debug, Serialize, Deserialize, derive_more::From, Clone, PartialEq, Eq)]
+pub struct Bytes(#[serde(with = "hex")] pub Vec<u8>);
+
+impl std::fmt::Display for Bytes {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        for byte in &self.0 {
+            write!(f, "{:02x}", byte)?;
+        }
+        Ok(())
+    }
+}
 
 impl TryFrom<&str> for Bytes {
     type Error = hex::FromHexError;
@@ -71,6 +88,98 @@ impl UniffiCustomTypeConverter for Bytes {
     }
 }
 
+/// u64 wrapper which serializes as `String`, thus forming a bridge to
+/// [`Amount`]
+#[repr(transparent)]
+#[derive(Debug, derive_more::From, Clone, PartialEq)]
+pub struct MicroCCDAmount(pub u64);
+
+impl serde::Serialize for MicroCCDAmount {
+    fn serialize<S: serde::Serializer>(&self, ser: S) -> Result<S::Ok, S::Error> {
+        ser.serialize_str(&self.0.to_string())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for MicroCCDAmount {
+    fn deserialize<D: serde::de::Deserializer<'de>>(des: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(des)?;
+        let micro_ccd = s
+            .parse::<u64>()
+            .map_err(|e| serde::de::Error::custom(format!("{}", e)))?;
+        Ok(MicroCCDAmount(micro_ccd))
+    }
+}
+
+impl UniffiCustomTypeConverter for MicroCCDAmount {
+    type Builtin = u64;
+
+    fn into_custom(val: Self::Builtin) -> uniffi::Result<Self>
+    where
+        Self: Sized,
+    {
+        Ok(MicroCCDAmount(val))
+    }
+
+    fn from_custom(obj: Self) -> Self::Builtin {
+        obj.0
+    }
+}
+
+impl From<MicroCCDAmount> for Amount {
+    fn from(value: MicroCCDAmount) -> Self {
+        Amount { micro_ccd: value.0 }
+    }
+}
+
+impl From<Amount> for MicroCCDAmount {
+    fn from(value: Amount) -> Self {
+        MicroCCDAmount(value.micro_ccd)
+    }
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Network {
+    Testnet,
+    Mainnet,
+}
+
+impl Network {
+    pub fn as_str(&self) -> &str {
+        match self {
+            Self::Testnet => "testnet",
+            Self::Mainnet => "mainnet",
+        }
+    }
+}
+
+impl From<Network> for concordium_base::web3id::did::Network {
+    fn from(value: Network) -> Self {
+        match value {
+            Network::Testnet => Self::Testnet,
+            Network::Mainnet => Self::Mainnet,
+        }
+    }
+}
+
+impl From<concordium_base::web3id::did::Network> for Network {
+    fn from(value: concordium_base::web3id::did::Network) -> Self {
+        match value {
+            concordium_base::web3id::did::Network::Testnet => Self::Testnet,
+            concordium_base::web3id::did::Network::Mainnet => Self::Mainnet,
+        }
+    }
+}
+
+impl From<Network> for key_derivation::Net {
+    fn from(value: Network) -> Self {
+        match value {
+            Network::Testnet => key_derivation::Net::Testnet,
+            Network::Mainnet => key_derivation::Net::Mainnet,
+        }
+    }
+}
+
 /// UniFFI compatible bridge to [`concordium_base::id::types::GlobalContext<concordium_base::id::constants::ArCurve>`],
 /// providing the implementation of the UDL declaration of the same name.
 /// The translation is performed using Serde.
@@ -85,15 +194,10 @@ pub struct GlobalContext {
 }
 
 impl TryFrom<GlobalContext> for concordium_base::id::types::GlobalContext<ArCurve> {
-    type Error = uniffi::deps::anyhow::Error;
+    type Error = serde_json::Error;
 
     fn try_from(value: GlobalContext) -> Result<Self, Self::Error> {
-        serde_json::to_string(&value)
-            .context("cannot encode request object as JSON")
-            .and_then(|json| {
-                serde_json::from_str::<concordium_base::id::types::GlobalContext<ArCurve>>(&json)
-                    .context("cannot decode request object into internal type")
-            })
+        serde_convert(value)
     }
 }
 
@@ -106,6 +210,83 @@ pub struct ChainArData {
     pub enc_id_cred_pub_share: Bytes,
 }
 
+#[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Hash, Clone)]
+#[serde(rename_all = "camelCase")]
+pub enum AttributeTag {
+    /// First name (format: string up to 31 bytes).
+    FirstName,
+    /// Last name (format: string up to 31 bytes).
+    LastName,
+    /// Sex (format: ISO/IEC 5218).
+    Sex,
+    /// Date of birth (format: ISO8601 YYYYMMDD).
+    #[serde(rename = "dob")]
+    DateOfBirth,
+    /// Country of residence (format: ISO3166-1 alpha-2).
+    CountryOfResidence,
+    /// Country of nationality (format: ISO3166-1 alpha-2).
+    Nationality,
+    /// Identity document type
+    ///
+    /// Format:
+    /// - 0 : na
+    /// - 1 : passport
+    /// - 2 : national ID card
+    /// - 3 : driving license
+    /// - 4 : immigration card
+    /// - eID string (see below)
+    ///
+    /// eID strings as of Apr 2024:
+    /// - DK:MITID        : Danish MitId
+    /// - SE:BANKID       : Swedish BankID
+    /// - NO:BANKID       : Norwegian BankID
+    /// - NO:VIPPS        : Norwegian Vipps
+    /// - FI:TRUSTNETWORK : Finnish Trust Network
+    /// - NL:DIGID        : Netherlands DigiD
+    /// - NL:IDIN         : Netherlands iDIN
+    /// - BE:EID          : Belgian eID
+    /// - ITSME           : (Cross-national) ItsME
+    /// - SOFORT          : (Cross-national) Sofort
+    IdDocType,
+    /// Identity document number (format: string up to 31 bytes).
+    IdDocNo,
+    /// Identity document issuer (format: ISO3166-1 alpha-2 or ISO3166-2 if applicable).
+    IdDocIssuer,
+    /// Time from which the ID is valid (format: ISO8601 YYYYMMDD).
+    IdDocIssuedAt,
+    /// Time to which the ID is valid (format: ISO8601 YYYYMMDD).
+    IdDocExpiresAt,
+    /// National ID number (format: string up to 31 bytes).
+    NationalIdNo,
+    /// Tax ID number (format: string up to 31 bytes).
+    TaxIdNo,
+    /// LEI-code - companies only (format: ISO17442).
+    #[serde(rename = "lei")]
+    LegalEntityId,
+    /// Legal name - companies only
+    LegalName,
+    /// Legal country - companies only
+    LegalCountry,
+    /// Business number associated with the company - companies only
+    BusinessNumber,
+    /// Registration authority - companies only
+    RegistrationAuth,
+}
+
+impl From<AttributeTag> for concordium_base::id::types::AttributeTag {
+    fn from(value: AttributeTag) -> Self {
+        Self(value as u8)
+    }
+}
+
+impl TryFrom<concordium_base::id::types::AttributeTag> for AttributeTag {
+    type Error = serde_json::Error;
+
+    fn try_from(value: concordium_base::id::types::AttributeTag) -> Result<Self, Self::Error> {
+        serde_json::to_value(value).and_then(serde_json::from_value)
+    }
+}
+
 /// UniFFI compatible bridge to [`concordium_base::id::types::Policy<concordium_base::id::constants::ArCurve,concordium_base::id::constants::AttributeKind> `],
 /// providing the implementation of the UDL declaration of the same name.
 /// The translation is performed using Serde.
@@ -114,7 +295,7 @@ pub struct Policy {
     #[serde(rename = "createdAt")]
     pub created_at_year_month: String,
     #[serde(rename = "revealedAttributes")]
-    pub revealed_attributes: HashMap<String, String>,
+    pub revealed_attributes: HashMap<AttributeTag, String>,
     #[serde(rename = "validTo")]
     pub valid_to_year_month: String,
 }
@@ -177,4 +358,80 @@ pub fn generate_baker_keys() -> BakerKeyPairs {
     let mut csprng = thread_rng();
     let keys = concordium_base::base::BakerKeyPairs::generate(&mut csprng);
     keys.into()
+}
+
+/// Serves as a uniFFI compatible bridge to [`concordium_base::common::Versioned`]
+#[derive(Deserialize)]
+pub struct Versioned<V> {
+    #[serde(rename = "v")]
+    pub version: u32,
+    pub value: V,
+}
+
+/// Serves as a uniFFI compatible bridge to [`concordium_base::base::ContractAddress`]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ContractAddress {
+    pub index: u64,
+    pub subindex: u64,
+}
+
+impl From<ContractAddress> for concordium_base::base::ContractAddress {
+    fn from(value: ContractAddress) -> Self {
+        Self {
+            index: value.index,
+            subindex: value.subindex,
+        }
+    }
+}
+
+impl From<concordium_base::base::ContractAddress> for ContractAddress {
+    fn from(value: concordium_base::base::ContractAddress) -> Self {
+        Self {
+            index: value.index,
+            subindex: value.subindex,
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use concordium_base::id::{self, types::ATTRIBUTE_NAMES};
+
+    use super::*;
+    static ALL_ATTRS: &[AttributeTag] = &[
+        AttributeTag::FirstName,
+        AttributeTag::LastName,
+        AttributeTag::Sex,
+        AttributeTag::DateOfBirth,
+        AttributeTag::CountryOfResidence,
+        AttributeTag::Nationality,
+        AttributeTag::IdDocType,
+        AttributeTag::IdDocNo,
+        AttributeTag::IdDocIssuer,
+        AttributeTag::IdDocIssuedAt,
+        AttributeTag::IdDocExpiresAt,
+        AttributeTag::NationalIdNo,
+        AttributeTag::TaxIdNo,
+        AttributeTag::LegalEntityId,
+        AttributeTag::LegalName,
+        AttributeTag::LegalCountry,
+        AttributeTag::BusinessNumber,
+        AttributeTag::RegistrationAuth,
+    ];
+
+    #[test]
+    fn represents_all_attributes() {
+        let ser_attrs: Result<Vec<String>, _> = serde_convert(ALL_ATTRS);
+        let ser_attrs = ser_attrs.expect("serde conversion does not fail");
+        assert!(
+            ATTRIBUTE_NAMES
+                .into_iter()
+                .all(|name| ser_attrs.contains(&name.to_string())),
+            "All attributes from concordium_base are represented"
+        );
+
+        let base_attrs: Vec<id::types::AttributeTag> = serde_convert(ATTRIBUTE_NAMES).unwrap();
+        let _: Vec<AttributeTag> = serde_convert(base_attrs)
+            .expect("Can represent and convert all attribute tags from base");
+    }
 }
