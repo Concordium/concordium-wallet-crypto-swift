@@ -389,6 +389,41 @@ fileprivate struct FfiConverterData: FfiConverterRustBuffer {
     }
 }
 
+fileprivate struct FfiConverterTimestamp: FfiConverterRustBuffer {
+    typealias SwiftType = Date
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Date {
+        let seconds: Int64 = try readInt(&buf)
+        let nanoseconds: UInt32 = try readInt(&buf)
+        if seconds >= 0 {
+            let delta = Double(seconds) + (Double(nanoseconds) / 1.0e9)
+            return Date.init(timeIntervalSince1970: delta)
+        } else {
+            let delta = Double(seconds) - (Double(nanoseconds) / 1.0e9)
+            return Date.init(timeIntervalSince1970: delta)
+        }
+    }
+
+    public static func write(_ value: Date, into buf: inout [UInt8]) {
+        var delta = value.timeIntervalSince1970
+        var sign: Int64 = 1
+        if delta < 0 {
+            // The nanoseconds portion of the epoch offset must always be
+            // positive, to simplify the calculation we will use the absolute
+            // value of the offset.
+            sign = -1
+            delta = -delta
+        }
+        if delta.rounded(.down) > Double(Int64.max) {
+            fatalError("Timestamp overflow, exceeds max bounds supported by Uniffi")
+        }
+        let seconds = Int64(delta)
+        let nanoseconds = UInt32((delta - Double(seconds)) * 1.0e9)
+        writeInt(&buf, sign * seconds)
+        writeInt(&buf, nanoseconds)
+    }
+}
+
 
 /**
  * An account credential containing proofs without signatures.
@@ -552,12 +587,12 @@ public struct AccountCredentialParameters {
     public var globalContext: GlobalContext
     public var arsInfos: [UInt32: AnonymityRevokerInfo]
     public var idObject: IdentityObject
-    public var revealedAttributes: [UInt8]
+    public var revealedAttributes: [AttributeTag]
     public var credNumber: UInt8
     public var idCredSec: Bytes
     public var prfKey: Bytes
     public var blindingRandomness: Bytes
-    public var attributeRandomness: [String: Bytes]
+    public var attributeRandomness: [AttributeTag: Bytes]
     public var credentialPublicKeys: CredentialPublicKeys
 
     // Default memberwise initializers are never public by default, so we
@@ -567,12 +602,12 @@ public struct AccountCredentialParameters {
         globalContext: GlobalContext, 
         arsInfos: [UInt32: AnonymityRevokerInfo], 
         idObject: IdentityObject, 
-        revealedAttributes: [UInt8], 
+        revealedAttributes: [AttributeTag], 
         credNumber: UInt8, 
         idCredSec: Bytes, 
         prfKey: Bytes, 
         blindingRandomness: Bytes, 
-        attributeRandomness: [String: Bytes], 
+        attributeRandomness: [AttributeTag: Bytes], 
         credentialPublicKeys: CredentialPublicKeys) {
         self.ipInfo = ipInfo
         self.globalContext = globalContext
@@ -651,12 +686,12 @@ public struct FfiConverterTypeAccountCredentialParameters: FfiConverterRustBuffe
                 globalContext: FfiConverterTypeGlobalContext.read(from: &buf), 
                 arsInfos: FfiConverterDictionaryUInt32TypeAnonymityRevokerInfo.read(from: &buf), 
                 idObject: FfiConverterTypeIdentityObject.read(from: &buf), 
-                revealedAttributes: FfiConverterSequenceUInt8.read(from: &buf), 
+                revealedAttributes: FfiConverterSequenceTypeAttributeTag.read(from: &buf), 
                 credNumber: FfiConverterUInt8.read(from: &buf), 
                 idCredSec: FfiConverterTypeBytes.read(from: &buf), 
                 prfKey: FfiConverterTypeBytes.read(from: &buf), 
                 blindingRandomness: FfiConverterTypeBytes.read(from: &buf), 
-                attributeRandomness: FfiConverterDictionaryStringTypeBytes.read(from: &buf), 
+                attributeRandomness: FfiConverterDictionaryTypeAttributeTagTypeBytes.read(from: &buf), 
                 credentialPublicKeys: FfiConverterTypeCredentialPublicKeys.read(from: &buf)
         )
     }
@@ -666,12 +701,12 @@ public struct FfiConverterTypeAccountCredentialParameters: FfiConverterRustBuffe
         FfiConverterTypeGlobalContext.write(value.globalContext, into: &buf)
         FfiConverterDictionaryUInt32TypeAnonymityRevokerInfo.write(value.arsInfos, into: &buf)
         FfiConverterTypeIdentityObject.write(value.idObject, into: &buf)
-        FfiConverterSequenceUInt8.write(value.revealedAttributes, into: &buf)
+        FfiConverterSequenceTypeAttributeTag.write(value.revealedAttributes, into: &buf)
         FfiConverterUInt8.write(value.credNumber, into: &buf)
         FfiConverterTypeBytes.write(value.idCredSec, into: &buf)
         FfiConverterTypeBytes.write(value.prfKey, into: &buf)
         FfiConverterTypeBytes.write(value.blindingRandomness, into: &buf)
-        FfiConverterDictionaryStringTypeBytes.write(value.attributeRandomness, into: &buf)
+        FfiConverterDictionaryTypeAttributeTagTypeBytes.write(value.attributeRandomness, into: &buf)
         FfiConverterTypeCredentialPublicKeys.write(value.credentialPublicKeys, into: &buf)
     }
 }
@@ -689,7 +724,7 @@ public func FfiConverterTypeAccountCredentialParameters_lower(_ value: AccountCr
 /**
  * The result of a new credential being created using the function `account_credential`.
  */
-public struct AccountCredentialResult {
+public struct AccountCredentialWithRandomness {
     public var credential: AccountCredential
     public var randomness: Randomness
 
@@ -704,8 +739,8 @@ public struct AccountCredentialResult {
 }
 
 
-extension AccountCredentialResult: Equatable, Hashable {
-    public static func ==(lhs: AccountCredentialResult, rhs: AccountCredentialResult) -> Bool {
+extension AccountCredentialWithRandomness: Equatable, Hashable {
+    public static func ==(lhs: AccountCredentialWithRandomness, rhs: AccountCredentialWithRandomness) -> Bool {
         if lhs.credential != rhs.credential {
             return false
         }
@@ -722,28 +757,89 @@ extension AccountCredentialResult: Equatable, Hashable {
 }
 
 
-public struct FfiConverterTypeAccountCredentialResult: FfiConverterRustBuffer {
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AccountCredentialResult {
+public struct FfiConverterTypeAccountCredentialWithRandomness: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AccountCredentialWithRandomness {
         return
-            try AccountCredentialResult(
+            try AccountCredentialWithRandomness(
                 credential: FfiConverterTypeAccountCredential.read(from: &buf), 
                 randomness: FfiConverterTypeRandomness.read(from: &buf)
         )
     }
 
-    public static func write(_ value: AccountCredentialResult, into buf: inout [UInt8]) {
+    public static func write(_ value: AccountCredentialWithRandomness, into buf: inout [UInt8]) {
         FfiConverterTypeAccountCredential.write(value.credential, into: &buf)
         FfiConverterTypeRandomness.write(value.randomness, into: &buf)
     }
 }
 
 
-public func FfiConverterTypeAccountCredentialResult_lift(_ buf: RustBuffer) throws -> AccountCredentialResult {
-    return try FfiConverterTypeAccountCredentialResult.lift(buf)
+public func FfiConverterTypeAccountCredentialWithRandomness_lift(_ buf: RustBuffer) throws -> AccountCredentialWithRandomness {
+    return try FfiConverterTypeAccountCredentialWithRandomness.lift(buf)
 }
 
-public func FfiConverterTypeAccountCredentialResult_lower(_ value: AccountCredentialResult) -> RustBuffer {
-    return FfiConverterTypeAccountCredentialResult.lower(value)
+public func FfiConverterTypeAccountCredentialWithRandomness_lower(_ value: AccountCredentialWithRandomness) -> RustBuffer {
+    return FfiConverterTypeAccountCredentialWithRandomness.lower(value)
+}
+
+
+/**
+ * A pair of a statement and a proof for an account credential statement.
+ */
+public struct AccountStatementWithProof {
+    public var statement: AtomicIdentityStatement
+    public var proof: AtomicIdentityProof
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        statement: AtomicIdentityStatement, 
+        proof: AtomicIdentityProof) {
+        self.statement = statement
+        self.proof = proof
+    }
+}
+
+
+extension AccountStatementWithProof: Equatable, Hashable {
+    public static func ==(lhs: AccountStatementWithProof, rhs: AccountStatementWithProof) -> Bool {
+        if lhs.statement != rhs.statement {
+            return false
+        }
+        if lhs.proof != rhs.proof {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(statement)
+        hasher.combine(proof)
+    }
+}
+
+
+public struct FfiConverterTypeAccountStatementWithProof: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AccountStatementWithProof {
+        return
+            try AccountStatementWithProof(
+                statement: FfiConverterTypeAtomicIdentityStatement.read(from: &buf), 
+                proof: FfiConverterTypeAtomicIdentityProof.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: AccountStatementWithProof, into buf: inout [UInt8]) {
+        FfiConverterTypeAtomicIdentityStatement.write(value.statement, into: &buf)
+        FfiConverterTypeAtomicIdentityProof.write(value.proof, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeAccountStatementWithProof_lift(_ buf: RustBuffer) throws -> AccountStatementWithProof {
+    return try FfiConverterTypeAccountStatementWithProof.lift(buf)
+}
+
+public func FfiConverterTypeAccountStatementWithProof_lower(_ value: AccountStatementWithProof) -> RustBuffer {
+    return FfiConverterTypeAccountStatementWithProof.lower(value)
 }
 
 
@@ -915,6 +1011,334 @@ public func FfiConverterTypeArData_lower(_ value: ArData) -> RustBuffer {
 
 
 /**
+ * For the case where the verifier wants the user to prove that an attribute is
+ * in a range. The statement is that the attribute value lies in `[lower,
+ * upper)` in the scalar field.
+ */
+public struct AttributeInRangeIdentityStatement {
+    /**
+     * The attribute that the verifier wants the user to prove is in a range.
+     */
+    public var attributeTag: AttributeTag
+    /**
+     * The lower bound on the range.
+     */
+    public var lower: String
+    /**
+     * The upper bound of the range.
+     */
+    public var upper: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The attribute that the verifier wants the user to prove is in a range.
+         */
+        attributeTag: AttributeTag, 
+        /**
+         * The lower bound on the range.
+         */
+        lower: String, 
+        /**
+         * The upper bound of the range.
+         */
+        upper: String) {
+        self.attributeTag = attributeTag
+        self.lower = lower
+        self.upper = upper
+    }
+}
+
+
+extension AttributeInRangeIdentityStatement: Equatable, Hashable {
+    public static func ==(lhs: AttributeInRangeIdentityStatement, rhs: AttributeInRangeIdentityStatement) -> Bool {
+        if lhs.attributeTag != rhs.attributeTag {
+            return false
+        }
+        if lhs.lower != rhs.lower {
+            return false
+        }
+        if lhs.upper != rhs.upper {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(attributeTag)
+        hasher.combine(lower)
+        hasher.combine(upper)
+    }
+}
+
+
+public struct FfiConverterTypeAttributeInRangeIdentityStatement: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AttributeInRangeIdentityStatement {
+        return
+            try AttributeInRangeIdentityStatement(
+                attributeTag: FfiConverterTypeAttributeTag.read(from: &buf), 
+                lower: FfiConverterString.read(from: &buf), 
+                upper: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: AttributeInRangeIdentityStatement, into buf: inout [UInt8]) {
+        FfiConverterTypeAttributeTag.write(value.attributeTag, into: &buf)
+        FfiConverterString.write(value.lower, into: &buf)
+        FfiConverterString.write(value.upper, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeAttributeInRangeIdentityStatement_lift(_ buf: RustBuffer) throws -> AttributeInRangeIdentityStatement {
+    return try FfiConverterTypeAttributeInRangeIdentityStatement.lift(buf)
+}
+
+public func FfiConverterTypeAttributeInRangeIdentityStatement_lower(_ value: AttributeInRangeIdentityStatement) -> RustBuffer {
+    return FfiConverterTypeAttributeInRangeIdentityStatement.lower(value)
+}
+
+
+/**
+ * For the case where the verifier wants the user to prove that an attribute is
+ * in a range. The statement is that the attribute value lies in `[lower,
+ * upper)` in the scalar field.
+ */
+public struct AttributeInRangeWeb3IdStatement {
+    /**
+     * The attribute that the verifier wants the user to prove is in a range.
+     */
+    public var attributeTag: String
+    /**
+     * The lower bound on the range.
+     */
+    public var lower: Web3IdAttribute
+    /**
+     * The upper bound of the range.
+     */
+    public var upper: Web3IdAttribute
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The attribute that the verifier wants the user to prove is in a range.
+         */
+        attributeTag: String, 
+        /**
+         * The lower bound on the range.
+         */
+        lower: Web3IdAttribute, 
+        /**
+         * The upper bound of the range.
+         */
+        upper: Web3IdAttribute) {
+        self.attributeTag = attributeTag
+        self.lower = lower
+        self.upper = upper
+    }
+}
+
+
+extension AttributeInRangeWeb3IdStatement: Equatable, Hashable {
+    public static func ==(lhs: AttributeInRangeWeb3IdStatement, rhs: AttributeInRangeWeb3IdStatement) -> Bool {
+        if lhs.attributeTag != rhs.attributeTag {
+            return false
+        }
+        if lhs.lower != rhs.lower {
+            return false
+        }
+        if lhs.upper != rhs.upper {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(attributeTag)
+        hasher.combine(lower)
+        hasher.combine(upper)
+    }
+}
+
+
+public struct FfiConverterTypeAttributeInRangeWeb3IdStatement: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AttributeInRangeWeb3IdStatement {
+        return
+            try AttributeInRangeWeb3IdStatement(
+                attributeTag: FfiConverterString.read(from: &buf), 
+                lower: FfiConverterTypeWeb3IdAttribute.read(from: &buf), 
+                upper: FfiConverterTypeWeb3IdAttribute.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: AttributeInRangeWeb3IdStatement, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.attributeTag, into: &buf)
+        FfiConverterTypeWeb3IdAttribute.write(value.lower, into: &buf)
+        FfiConverterTypeWeb3IdAttribute.write(value.upper, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeAttributeInRangeWeb3IdStatement_lift(_ buf: RustBuffer) throws -> AttributeInRangeWeb3IdStatement {
+    return try FfiConverterTypeAttributeInRangeWeb3IdStatement.lift(buf)
+}
+
+public func FfiConverterTypeAttributeInRangeWeb3IdStatement_lower(_ value: AttributeInRangeWeb3IdStatement) -> RustBuffer {
+    return FfiConverterTypeAttributeInRangeWeb3IdStatement.lower(value)
+}
+
+
+/**
+ * For the case where the verifier wants the user to prove that an attribute is
+ * in a set of attributes.
+ */
+public struct AttributeInSetIdentityStatement {
+    /**
+     * The attribute that the verifier wants the user prove lies in a set.
+     */
+    public var attributeTag: AttributeTag
+    /**
+     * The set that the attribute should lie in.
+     */
+    public var set: [String]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The attribute that the verifier wants the user prove lies in a set.
+         */
+        attributeTag: AttributeTag, 
+        /**
+         * The set that the attribute should lie in.
+         */
+        set: [String]) {
+        self.attributeTag = attributeTag
+        self.set = set
+    }
+}
+
+
+extension AttributeInSetIdentityStatement: Equatable, Hashable {
+    public static func ==(lhs: AttributeInSetIdentityStatement, rhs: AttributeInSetIdentityStatement) -> Bool {
+        if lhs.attributeTag != rhs.attributeTag {
+            return false
+        }
+        if lhs.set != rhs.set {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(attributeTag)
+        hasher.combine(set)
+    }
+}
+
+
+public struct FfiConverterTypeAttributeInSetIdentityStatement: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AttributeInSetIdentityStatement {
+        return
+            try AttributeInSetIdentityStatement(
+                attributeTag: FfiConverterTypeAttributeTag.read(from: &buf), 
+                set: FfiConverterSequenceString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: AttributeInSetIdentityStatement, into buf: inout [UInt8]) {
+        FfiConverterTypeAttributeTag.write(value.attributeTag, into: &buf)
+        FfiConverterSequenceString.write(value.set, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeAttributeInSetIdentityStatement_lift(_ buf: RustBuffer) throws -> AttributeInSetIdentityStatement {
+    return try FfiConverterTypeAttributeInSetIdentityStatement.lift(buf)
+}
+
+public func FfiConverterTypeAttributeInSetIdentityStatement_lower(_ value: AttributeInSetIdentityStatement) -> RustBuffer {
+    return FfiConverterTypeAttributeInSetIdentityStatement.lower(value)
+}
+
+
+/**
+ * For the case where the verifier wants the user to prove that an attribute is
+ * in a set of attributes.
+ */
+public struct AttributeInSetWeb3IdStatement {
+    /**
+     * The attribute that the verifier wants the user prove lies in a set.
+     */
+    public var attributeTag: String
+    /**
+     * The set that the attribute should lie in.
+     */
+    public var set: [Web3IdAttribute]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The attribute that the verifier wants the user prove lies in a set.
+         */
+        attributeTag: String, 
+        /**
+         * The set that the attribute should lie in.
+         */
+        set: [Web3IdAttribute]) {
+        self.attributeTag = attributeTag
+        self.set = set
+    }
+}
+
+
+extension AttributeInSetWeb3IdStatement: Equatable, Hashable {
+    public static func ==(lhs: AttributeInSetWeb3IdStatement, rhs: AttributeInSetWeb3IdStatement) -> Bool {
+        if lhs.attributeTag != rhs.attributeTag {
+            return false
+        }
+        if lhs.set != rhs.set {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(attributeTag)
+        hasher.combine(set)
+    }
+}
+
+
+public struct FfiConverterTypeAttributeInSetWeb3IdStatement: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AttributeInSetWeb3IdStatement {
+        return
+            try AttributeInSetWeb3IdStatement(
+                attributeTag: FfiConverterString.read(from: &buf), 
+                set: FfiConverterSequenceTypeWeb3IdAttribute.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: AttributeInSetWeb3IdStatement, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.attributeTag, into: &buf)
+        FfiConverterSequenceTypeWeb3IdAttribute.write(value.set, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeAttributeInSetWeb3IdStatement_lift(_ buf: RustBuffer) throws -> AttributeInSetWeb3IdStatement {
+    return try FfiConverterTypeAttributeInSetWeb3IdStatement.lift(buf)
+}
+
+public func FfiConverterTypeAttributeInSetWeb3IdStatement_lower(_ value: AttributeInSetWeb3IdStatement) -> RustBuffer {
+    return FfiConverterTypeAttributeInSetWeb3IdStatement.lower(value)
+}
+
+
+/**
  * An attribute list that is part of a normal credential.
  * It consists of some mandatory attributes and some user selected attributes.
  */
@@ -936,7 +1360,7 @@ public struct AttributeList {
     /**
      * The attributes map.
      */
-    public var chosenAttributes: [String: String]
+    public var chosenAttributes: [AttributeTag: String]
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
@@ -958,7 +1382,7 @@ public struct AttributeList {
         /**
          * The attributes map.
          */
-        chosenAttributes: [String: String]) {
+        chosenAttributes: [AttributeTag: String]) {
         self.validToYearMonth = validToYearMonth
         self.createdAtYearMonth = createdAtYearMonth
         self.maxAccounts = maxAccounts
@@ -1000,7 +1424,7 @@ public struct FfiConverterTypeAttributeList: FfiConverterRustBuffer {
                 validToYearMonth: FfiConverterString.read(from: &buf), 
                 createdAtYearMonth: FfiConverterString.read(from: &buf), 
                 maxAccounts: FfiConverterUInt8.read(from: &buf), 
-                chosenAttributes: FfiConverterDictionaryStringString.read(from: &buf)
+                chosenAttributes: FfiConverterDictionaryTypeAttributeTagString.read(from: &buf)
         )
     }
 
@@ -1008,7 +1432,7 @@ public struct FfiConverterTypeAttributeList: FfiConverterRustBuffer {
         FfiConverterString.write(value.validToYearMonth, into: &buf)
         FfiConverterString.write(value.createdAtYearMonth, into: &buf)
         FfiConverterUInt8.write(value.maxAccounts, into: &buf)
-        FfiConverterDictionaryStringString.write(value.chosenAttributes, into: &buf)
+        FfiConverterDictionaryTypeAttributeTagString.write(value.chosenAttributes, into: &buf)
     }
 }
 
@@ -1019,6 +1443,158 @@ public func FfiConverterTypeAttributeList_lift(_ buf: RustBuffer) throws -> Attr
 
 public func FfiConverterTypeAttributeList_lower(_ value: AttributeList) -> RustBuffer {
     return FfiConverterTypeAttributeList.lower(value)
+}
+
+
+/**
+ * For the case where the verifier wants the user to prove that an attribute is
+ * not in a set of attributes.
+ */
+public struct AttributeNotInSetIdentityStatement {
+    /**
+     * The attribute that the verifier wants the user to prove does not lie in
+     * a set.
+     */
+    public var attributeTag: AttributeTag
+    /**
+     * The set that the attribute should not lie in.
+     */
+    public var set: [String]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The attribute that the verifier wants the user to prove does not lie in
+         * a set.
+         */
+        attributeTag: AttributeTag, 
+        /**
+         * The set that the attribute should not lie in.
+         */
+        set: [String]) {
+        self.attributeTag = attributeTag
+        self.set = set
+    }
+}
+
+
+extension AttributeNotInSetIdentityStatement: Equatable, Hashable {
+    public static func ==(lhs: AttributeNotInSetIdentityStatement, rhs: AttributeNotInSetIdentityStatement) -> Bool {
+        if lhs.attributeTag != rhs.attributeTag {
+            return false
+        }
+        if lhs.set != rhs.set {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(attributeTag)
+        hasher.combine(set)
+    }
+}
+
+
+public struct FfiConverterTypeAttributeNotInSetIdentityStatement: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AttributeNotInSetIdentityStatement {
+        return
+            try AttributeNotInSetIdentityStatement(
+                attributeTag: FfiConverterTypeAttributeTag.read(from: &buf), 
+                set: FfiConverterSequenceString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: AttributeNotInSetIdentityStatement, into buf: inout [UInt8]) {
+        FfiConverterTypeAttributeTag.write(value.attributeTag, into: &buf)
+        FfiConverterSequenceString.write(value.set, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeAttributeNotInSetIdentityStatement_lift(_ buf: RustBuffer) throws -> AttributeNotInSetIdentityStatement {
+    return try FfiConverterTypeAttributeNotInSetIdentityStatement.lift(buf)
+}
+
+public func FfiConverterTypeAttributeNotInSetIdentityStatement_lower(_ value: AttributeNotInSetIdentityStatement) -> RustBuffer {
+    return FfiConverterTypeAttributeNotInSetIdentityStatement.lower(value)
+}
+
+
+/**
+ * For the case where the verifier wants the user to prove that an attribute is
+ * not in a set of attributes.
+ */
+public struct AttributeNotInSetWeb3IdStatement {
+    /**
+     * The attribute that the verifier wants the user to prove does not lie in
+     * a set.
+     */
+    public var attributeTag: String
+    /**
+     * The set that the attribute should not lie in.
+     */
+    public var set: [Web3IdAttribute]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The attribute that the verifier wants the user to prove does not lie in
+         * a set.
+         */
+        attributeTag: String, 
+        /**
+         * The set that the attribute should not lie in.
+         */
+        set: [Web3IdAttribute]) {
+        self.attributeTag = attributeTag
+        self.set = set
+    }
+}
+
+
+extension AttributeNotInSetWeb3IdStatement: Equatable, Hashable {
+    public static func ==(lhs: AttributeNotInSetWeb3IdStatement, rhs: AttributeNotInSetWeb3IdStatement) -> Bool {
+        if lhs.attributeTag != rhs.attributeTag {
+            return false
+        }
+        if lhs.set != rhs.set {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(attributeTag)
+        hasher.combine(set)
+    }
+}
+
+
+public struct FfiConverterTypeAttributeNotInSetWeb3IdStatement: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AttributeNotInSetWeb3IdStatement {
+        return
+            try AttributeNotInSetWeb3IdStatement(
+                attributeTag: FfiConverterString.read(from: &buf), 
+                set: FfiConverterSequenceTypeWeb3IdAttribute.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: AttributeNotInSetWeb3IdStatement, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.attributeTag, into: &buf)
+        FfiConverterSequenceTypeWeb3IdAttribute.write(value.set, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeAttributeNotInSetWeb3IdStatement_lift(_ buf: RustBuffer) throws -> AttributeNotInSetWeb3IdStatement {
+    return try FfiConverterTypeAttributeNotInSetWeb3IdStatement.lift(buf)
+}
+
+public func FfiConverterTypeAttributeNotInSetWeb3IdStatement_lower(_ value: AttributeNotInSetWeb3IdStatement) -> RustBuffer {
+    return FfiConverterTypeAttributeNotInSetWeb3IdStatement.lower(value)
 }
 
 
@@ -1325,6 +1901,67 @@ public func FfiConverterTypeChoiceArParameters_lower(_ value: ChoiceArParameters
 
 
 /**
+ * Represents an address of a smart contract
+ */
+public struct ContractAddress {
+    public var index: UInt64
+    public var subindex: UInt64
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        index: UInt64, 
+        subindex: UInt64) {
+        self.index = index
+        self.subindex = subindex
+    }
+}
+
+
+extension ContractAddress: Equatable, Hashable {
+    public static func ==(lhs: ContractAddress, rhs: ContractAddress) -> Bool {
+        if lhs.index != rhs.index {
+            return false
+        }
+        if lhs.subindex != rhs.subindex {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(index)
+        hasher.combine(subindex)
+    }
+}
+
+
+public struct FfiConverterTypeContractAddress: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> ContractAddress {
+        return
+            try ContractAddress(
+                index: FfiConverterUInt64.read(from: &buf), 
+                subindex: FfiConverterUInt64.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: ContractAddress, into buf: inout [UInt8]) {
+        FfiConverterUInt64.write(value.index, into: &buf)
+        FfiConverterUInt64.write(value.subindex, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeContractAddress_lift(_ buf: RustBuffer) throws -> ContractAddress {
+    return try FfiConverterTypeContractAddress.lift(buf)
+}
+
+public func FfiConverterTypeContractAddress_lower(_ value: ContractAddress) -> RustBuffer {
+    return FfiConverterTypeContractAddress.lower(value)
+}
+
+
+/**
  * A credential with attributes, public keys, and proofs that it is
  * well-formed.
  */
@@ -1545,6 +2182,76 @@ public func FfiConverterTypeCredentialPublicKeys_lower(_ value: CredentialPublic
 }
 
 
+public struct Did {
+    /**
+     * The network part of the method.
+     */
+    public var network: Network
+    /**
+     * The remaining identifier.
+     */
+    public var idType: IdentifierType
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The network part of the method.
+         */
+        network: Network, 
+        /**
+         * The remaining identifier.
+         */
+        idType: IdentifierType) {
+        self.network = network
+        self.idType = idType
+    }
+}
+
+
+extension Did: Equatable, Hashable {
+    public static func ==(lhs: Did, rhs: Did) -> Bool {
+        if lhs.network != rhs.network {
+            return false
+        }
+        if lhs.idType != rhs.idType {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(network)
+        hasher.combine(idType)
+    }
+}
+
+
+public struct FfiConverterTypeDID: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Did {
+        return
+            try Did(
+                network: FfiConverterTypeNetwork.read(from: &buf), 
+                idType: FfiConverterTypeIdentifierType.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: Did, into buf: inout [UInt8]) {
+        FfiConverterTypeNetwork.write(value.network, into: &buf)
+        FfiConverterTypeIdentifierType.write(value.idType, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeDID_lift(_ buf: RustBuffer) throws -> Did {
+    return try FfiConverterTypeDID.lift(buf)
+}
+
+public func FfiConverterTypeDID_lower(_ value: Did) -> RustBuffer {
+    return FfiConverterTypeDID.lower(value)
+}
+
+
 /**
  * Metadata of an identity provider or anonymity revoker
  * to be visible on the chain.
@@ -1613,6 +2320,79 @@ public func FfiConverterTypeDescription_lift(_ buf: RustBuffer) throws -> Descri
 
 public func FfiConverterTypeDescription_lower(_ value: Description) -> RustBuffer {
     return FfiConverterTypeDescription.lower(value)
+}
+
+
+/**
+ * Encryption keypair for an account, used to handle the encrypted amount associated with a specific account.
+ */
+public struct EncryptionKeys {
+    /**
+     * The secret key serialized as bytes.
+     */
+    public var secret: Bytes
+    /**
+     * The public key serialized as bytes.
+     */
+    public var `public`: Bytes
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The secret key serialized as bytes.
+         */
+        secret: Bytes, 
+        /**
+         * The public key serialized as bytes.
+         */
+        `public`: Bytes) {
+        self.secret = secret
+        self.`public` = `public`
+    }
+}
+
+
+extension EncryptionKeys: Equatable, Hashable {
+    public static func ==(lhs: EncryptionKeys, rhs: EncryptionKeys) -> Bool {
+        if lhs.secret != rhs.secret {
+            return false
+        }
+        if lhs.`public` != rhs.`public` {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(secret)
+        hasher.combine(`public`)
+    }
+}
+
+
+public struct FfiConverterTypeEncryptionKeys: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> EncryptionKeys {
+        return
+            try EncryptionKeys(
+                secret: FfiConverterTypeBytes.read(from: &buf), 
+                public: FfiConverterTypeBytes.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: EncryptionKeys, into buf: inout [UInt8]) {
+        FfiConverterTypeBytes.write(value.secret, into: &buf)
+        FfiConverterTypeBytes.write(value.`public`, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeEncryptionKeys_lift(_ buf: RustBuffer) throws -> EncryptionKeys {
+    return try FfiConverterTypeEncryptionKeys.lift(buf)
+}
+
+public func FfiConverterTypeEncryptionKeys_lower(_ value: EncryptionKeys) -> RustBuffer {
+    return FfiConverterTypeEncryptionKeys.lower(value)
 }
 
 
@@ -1890,6 +2670,58 @@ public func FfiConverterTypeIdentityObject_lower(_ value: IdentityObject) -> Rus
 
 
 /**
+ * A proof of a statement, composed of one or more atomic proofs.
+ */
+public struct IdentityProof {
+    public var proofs: [AtomicIdentityProof]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        proofs: [AtomicIdentityProof]) {
+        self.proofs = proofs
+    }
+}
+
+
+extension IdentityProof: Equatable, Hashable {
+    public static func ==(lhs: IdentityProof, rhs: IdentityProof) -> Bool {
+        if lhs.proofs != rhs.proofs {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(proofs)
+    }
+}
+
+
+public struct FfiConverterTypeIdentityProof: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> IdentityProof {
+        return
+            try IdentityProof(
+                proofs: FfiConverterSequenceTypeAtomicIdentityProof.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: IdentityProof, into buf: inout [UInt8]) {
+        FfiConverterSequenceTypeAtomicIdentityProof.write(value.proofs, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeIdentityProof_lift(_ buf: RustBuffer) throws -> IdentityProof {
+    return try FfiConverterTypeIdentityProof.lift(buf)
+}
+
+public func FfiConverterTypeIdentityProof_lower(_ value: IdentityProof) -> RustBuffer {
+    return FfiConverterTypeIdentityProof.lower(value)
+}
+
+
+/**
  * Public information about an identity provider.
  */
 public struct IdentityProviderInfo {
@@ -2072,6 +2904,58 @@ public func FfiConverterTypeIdentityRecoveryRequestParameters_lower(_ value: Ide
 
 
 /**
+ * A statement is a list of atomic statements.
+ */
+public struct IdentityStatement {
+    public var statements: [AtomicIdentityStatement]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        statements: [AtomicIdentityStatement]) {
+        self.statements = statements
+    }
+}
+
+
+extension IdentityStatement: Equatable, Hashable {
+    public static func ==(lhs: IdentityStatement, rhs: IdentityStatement) -> Bool {
+        if lhs.statements != rhs.statements {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(statements)
+    }
+}
+
+
+public struct FfiConverterTypeIdentityStatement: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> IdentityStatement {
+        return
+            try IdentityStatement(
+                statements: FfiConverterSequenceTypeAtomicIdentityStatement.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: IdentityStatement, into buf: inout [UInt8]) {
+        FfiConverterSequenceTypeAtomicIdentityStatement.write(value.statements, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeIdentityStatement_lift(_ buf: RustBuffer) throws -> IdentityStatement {
+    return try FfiConverterTypeIdentityStatement.lift(buf)
+}
+
+public func FfiConverterTypeIdentityStatement_lower(_ value: IdentityStatement) -> RustBuffer {
+    return FfiConverterTypeIdentityStatement.lower(value)
+}
+
+
+/**
  * An encrypted amount input to transfer from
  */
 public struct InputEncryptedAmount {
@@ -2160,6 +3044,68 @@ public func FfiConverterTypeInputEncryptedAmount_lower(_ value: InputEncryptedAm
 
 
 /**
+ * A proof that establishes that the owner of the credential has indeed created
+ * the presentation. At present this is a list of signatures.
+ */
+public struct LinkingProof {
+    public var created: Date
+    public var proofValue: [Bytes]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        created: Date, 
+        proofValue: [Bytes]) {
+        self.created = created
+        self.proofValue = proofValue
+    }
+}
+
+
+extension LinkingProof: Equatable, Hashable {
+    public static func ==(lhs: LinkingProof, rhs: LinkingProof) -> Bool {
+        if lhs.created != rhs.created {
+            return false
+        }
+        if lhs.proofValue != rhs.proofValue {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(created)
+        hasher.combine(proofValue)
+    }
+}
+
+
+public struct FfiConverterTypeLinkingProof: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> LinkingProof {
+        return
+            try LinkingProof(
+                created: FfiConverterTimestamp.read(from: &buf), 
+                proofValue: FfiConverterSequenceTypeBytes.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: LinkingProof, into buf: inout [UInt8]) {
+        FfiConverterTimestamp.write(value.created, into: &buf)
+        FfiConverterSequenceTypeBytes.write(value.proofValue, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeLinkingProof_lift(_ buf: RustBuffer) throws -> LinkingProof {
+    return try FfiConverterTypeLinkingProof.lift(buf)
+}
+
+public func FfiConverterTypeLinkingProof_lower(_ value: LinkingProof) -> RustBuffer {
+    return FfiConverterTypeLinkingProof.lower(value)
+}
+
+
+/**
  * Represents a contract module schema of a specific version.
  */
 public struct ModuleSchema {
@@ -2241,14 +3187,14 @@ public func FfiConverterTypeModuleSchema_lower(_ value: ModuleSchema) -> RustBuf
 public struct Policy {
     public var createdAtYearMonth: String
     public var validToYearMonth: String
-    public var revealedAttributes: [String: String]
+    public var revealedAttributes: [AttributeTag: String]
 
     // Default memberwise initializers are never public by default, so we
     // declare one manually.
     public init(
         createdAtYearMonth: String, 
         validToYearMonth: String, 
-        revealedAttributes: [String: String]) {
+        revealedAttributes: [AttributeTag: String]) {
         self.createdAtYearMonth = createdAtYearMonth
         self.validToYearMonth = validToYearMonth
         self.revealedAttributes = revealedAttributes
@@ -2284,14 +3230,14 @@ public struct FfiConverterTypePolicy: FfiConverterRustBuffer {
             try Policy(
                 createdAtYearMonth: FfiConverterString.read(from: &buf), 
                 validToYearMonth: FfiConverterString.read(from: &buf), 
-                revealedAttributes: FfiConverterDictionaryStringString.read(from: &buf)
+                revealedAttributes: FfiConverterDictionaryTypeAttributeTagString.read(from: &buf)
         )
     }
 
     public static func write(_ value: Policy, into buf: inout [UInt8]) {
         FfiConverterString.write(value.createdAtYearMonth, into: &buf)
         FfiConverterString.write(value.validToYearMonth, into: &buf)
-        FfiConverterDictionaryStringString.write(value.revealedAttributes, into: &buf)
+        FfiConverterDictionaryTypeAttributeTagString.write(value.revealedAttributes, into: &buf)
     }
 }
 
@@ -2614,7 +3560,7 @@ public struct Randomness {
     /**
      * Randomness used to commit to any user-chosen attributes, such as country of nationality.
      */
-    public var attributesRand: [String: Bytes]
+    public var attributesRand: [AttributeTag: Bytes]
     /**
      * Randomness of the commitment to the credential nonce.
      * This nonce is the number that is used to ensure that only a limited number of credentials
@@ -2640,7 +3586,7 @@ public struct Randomness {
         /**
          * Randomness used to commit to any user-chosen attributes, such as country of nationality.
          */
-        attributesRand: [String: Bytes], 
+        attributesRand: [AttributeTag: Bytes], 
         /**
          * Randomness of the commitment to the credential nonce.
          * This nonce is the number that is used to ensure that only a limited number of credentials
@@ -2702,7 +3648,7 @@ public struct FfiConverterTypeRandomness: FfiConverterRustBuffer {
     public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Randomness {
         return
             try Randomness(
-                attributesRand: FfiConverterDictionaryStringTypeBytes.read(from: &buf), 
+                attributesRand: FfiConverterDictionaryTypeAttributeTagTypeBytes.read(from: &buf), 
                 credCounterRand: FfiConverterTypeBytes.read(from: &buf), 
                 idCredSecRand: FfiConverterTypeBytes.read(from: &buf), 
                 maxAccountsRand: FfiConverterTypeBytes.read(from: &buf), 
@@ -2711,7 +3657,7 @@ public struct FfiConverterTypeRandomness: FfiConverterRustBuffer {
     }
 
     public static func write(_ value: Randomness, into buf: inout [UInt8]) {
-        FfiConverterDictionaryStringTypeBytes.write(value.attributesRand, into: &buf)
+        FfiConverterDictionaryTypeAttributeTagTypeBytes.write(value.attributesRand, into: &buf)
         FfiConverterTypeBytes.write(value.credCounterRand, into: &buf)
         FfiConverterTypeBytes.write(value.idCredSecRand, into: &buf)
         FfiConverterTypeBytes.write(value.maxAccountsRand, into: &buf)
@@ -2730,6 +3676,128 @@ public func FfiConverterTypeRandomness_lower(_ value: Randomness) -> RustBuffer 
 
 
 /**
+ * For the case where the verifier wants the user to show the value of an
+ * attribute and prove that it is indeed the value inside the on-chain
+ * commitment. Since the verifier does not know the attribute value before
+ * seeing the proof, the value is not present here.
+ */
+public struct RevealAttributeIdentityStatement {
+    /**
+     * The attribute that the verifier wants the user to reveal.
+     */
+    public var attributeTag: AttributeTag
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The attribute that the verifier wants the user to reveal.
+         */
+        attributeTag: AttributeTag) {
+        self.attributeTag = attributeTag
+    }
+}
+
+
+extension RevealAttributeIdentityStatement: Equatable, Hashable {
+    public static func ==(lhs: RevealAttributeIdentityStatement, rhs: RevealAttributeIdentityStatement) -> Bool {
+        if lhs.attributeTag != rhs.attributeTag {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(attributeTag)
+    }
+}
+
+
+public struct FfiConverterTypeRevealAttributeIdentityStatement: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RevealAttributeIdentityStatement {
+        return
+            try RevealAttributeIdentityStatement(
+                attributeTag: FfiConverterTypeAttributeTag.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RevealAttributeIdentityStatement, into buf: inout [UInt8]) {
+        FfiConverterTypeAttributeTag.write(value.attributeTag, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeRevealAttributeIdentityStatement_lift(_ buf: RustBuffer) throws -> RevealAttributeIdentityStatement {
+    return try FfiConverterTypeRevealAttributeIdentityStatement.lift(buf)
+}
+
+public func FfiConverterTypeRevealAttributeIdentityStatement_lower(_ value: RevealAttributeIdentityStatement) -> RustBuffer {
+    return FfiConverterTypeRevealAttributeIdentityStatement.lower(value)
+}
+
+
+/**
+ * For the case where the verifier wants the user to show the value of an
+ * attribute and prove that it is indeed the value inside the on-chain
+ * commitment. Since the verifier does not know the attribute value before
+ * seeing the proof, the value is not present here.
+ */
+public struct RevealAttributeWeb3IdStatement {
+    /**
+     * The attribute that the verifier wants the user to reveal.
+     */
+    public var attributeTag: String
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The attribute that the verifier wants the user to reveal.
+         */
+        attributeTag: String) {
+        self.attributeTag = attributeTag
+    }
+}
+
+
+extension RevealAttributeWeb3IdStatement: Equatable, Hashable {
+    public static func ==(lhs: RevealAttributeWeb3IdStatement, rhs: RevealAttributeWeb3IdStatement) -> Bool {
+        if lhs.attributeTag != rhs.attributeTag {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(attributeTag)
+    }
+}
+
+
+public struct FfiConverterTypeRevealAttributeWeb3IdStatement: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> RevealAttributeWeb3IdStatement {
+        return
+            try RevealAttributeWeb3IdStatement(
+                attributeTag: FfiConverterString.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: RevealAttributeWeb3IdStatement, into buf: inout [UInt8]) {
+        FfiConverterString.write(value.attributeTag, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeRevealAttributeWeb3IdStatement_lift(_ buf: RustBuffer) throws -> RevealAttributeWeb3IdStatement {
+    return try FfiConverterTypeRevealAttributeWeb3IdStatement.lift(buf)
+}
+
+public func FfiConverterTypeRevealAttributeWeb3IdStatement_lower(_ value: RevealAttributeWeb3IdStatement) -> RustBuffer {
+    return FfiConverterTypeRevealAttributeWeb3IdStatement.lower(value)
+}
+
+
+/**
  * The payload data for a TransferToPublic transaction
  */
 public struct SecToPubTransferData {
@@ -2740,9 +3808,8 @@ public struct SecToPubTransferData {
     public var remainingAmount: Bytes
     /**
      * The amount to transfer in microCCD.
-     * For historic reasons, amounts are serialized as strings.
      */
-    public var transferAmount: String
+    public var transferAmount: MicroCCDAmount
     /**
      * The transfer index of the transfer
      */
@@ -2763,9 +3830,8 @@ public struct SecToPubTransferData {
         remainingAmount: Bytes, 
         /**
          * The amount to transfer in microCCD.
-         * For historic reasons, amounts are serialized as strings.
          */
-        transferAmount: String, 
+        transferAmount: MicroCCDAmount, 
         /**
          * The transfer index of the transfer
          */
@@ -2814,7 +3880,7 @@ public struct FfiConverterTypeSecToPubTransferData: FfiConverterRustBuffer {
         return
             try SecToPubTransferData(
                 remainingAmount: FfiConverterTypeBytes.read(from: &buf), 
-                transferAmount: FfiConverterString.read(from: &buf), 
+                transferAmount: FfiConverterTypeMicroCCDAmount.read(from: &buf), 
                 index: FfiConverterUInt64.read(from: &buf), 
                 proof: FfiConverterTypeBytes.read(from: &buf)
         )
@@ -2822,7 +3888,7 @@ public struct FfiConverterTypeSecToPubTransferData: FfiConverterRustBuffer {
 
     public static func write(_ value: SecToPubTransferData, into buf: inout [UInt8]) {
         FfiConverterTypeBytes.write(value.remainingAmount, into: &buf)
-        FfiConverterString.write(value.transferAmount, into: &buf)
+        FfiConverterTypeMicroCCDAmount.write(value.transferAmount, into: &buf)
         FfiConverterUInt64.write(value.index, into: &buf)
         FfiConverterTypeBytes.write(value.proof, into: &buf)
     }
@@ -2954,6 +4020,67 @@ public func FfiConverterTypeSignedAccountCredential_lift(_ buf: RustBuffer) thro
 
 public func FfiConverterTypeSignedAccountCredential_lower(_ value: SignedAccountCredential) -> RustBuffer {
     return FfiConverterTypeSignedAccountCredential.lower(value)
+}
+
+
+/**
+ * Commitments signed by the issuer.
+ */
+public struct SignedCommitments {
+    public var signature: Bytes
+    public var commitments: [String: Bytes]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        signature: Bytes, 
+        commitments: [String: Bytes]) {
+        self.signature = signature
+        self.commitments = commitments
+    }
+}
+
+
+extension SignedCommitments: Equatable, Hashable {
+    public static func ==(lhs: SignedCommitments, rhs: SignedCommitments) -> Bool {
+        if lhs.signature != rhs.signature {
+            return false
+        }
+        if lhs.commitments != rhs.commitments {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(signature)
+        hasher.combine(commitments)
+    }
+}
+
+
+public struct FfiConverterTypeSignedCommitments: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SignedCommitments {
+        return
+            try SignedCommitments(
+                signature: FfiConverterTypeBytes.read(from: &buf), 
+                commitments: FfiConverterDictionaryStringTypeBytes.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: SignedCommitments, into buf: inout [UInt8]) {
+        FfiConverterTypeBytes.write(value.signature, into: &buf)
+        FfiConverterDictionaryStringTypeBytes.write(value.commitments, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeSignedCommitments_lift(_ buf: RustBuffer) throws -> SignedCommitments {
+    return try FfiConverterTypeSignedCommitments.lift(buf)
+}
+
+public func FfiConverterTypeSignedCommitments_lower(_ value: SignedCommitments) -> RustBuffer {
+    return FfiConverterTypeSignedCommitments.lower(value)
 }
 
 
@@ -3159,6 +4286,148 @@ public func FfiConverterTypeUpdateCredentialsPayloadDeserializeResult_lower(_ va
 
 
 /**
+ * A presentation is the response to a `VerifiableCredentialRequest`. It contains proofs for
+ * statements, ownership proof for all Web3 credentials, and a context. The
+ * only missing part to verify the proof are the public commitments.
+ */
+public struct VerifiablePresentation {
+    public var presentationContext: Bytes
+    public var verifiableCredential: [VerifiableCredentialProof]
+    /**
+     * Signatures from keys of Web3 credentials (not from ID credentials).
+     * The order is the same as that in the `credential_proofs` field.
+     */
+    public var linkingProof: LinkingProof
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        presentationContext: Bytes, 
+        verifiableCredential: [VerifiableCredentialProof], 
+        /**
+         * Signatures from keys of Web3 credentials (not from ID credentials).
+         * The order is the same as that in the `credential_proofs` field.
+         */
+        linkingProof: LinkingProof) {
+        self.presentationContext = presentationContext
+        self.verifiableCredential = verifiableCredential
+        self.linkingProof = linkingProof
+    }
+}
+
+
+extension VerifiablePresentation: Equatable, Hashable {
+    public static func ==(lhs: VerifiablePresentation, rhs: VerifiablePresentation) -> Bool {
+        if lhs.presentationContext != rhs.presentationContext {
+            return false
+        }
+        if lhs.verifiableCredential != rhs.verifiableCredential {
+            return false
+        }
+        if lhs.linkingProof != rhs.linkingProof {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(presentationContext)
+        hasher.combine(verifiableCredential)
+        hasher.combine(linkingProof)
+    }
+}
+
+
+public struct FfiConverterTypeVerifiablePresentation: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VerifiablePresentation {
+        return
+            try VerifiablePresentation(
+                presentationContext: FfiConverterTypeBytes.read(from: &buf), 
+                verifiableCredential: FfiConverterSequenceTypeVerifiableCredentialProof.read(from: &buf), 
+                linkingProof: FfiConverterTypeLinkingProof.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: VerifiablePresentation, into buf: inout [UInt8]) {
+        FfiConverterTypeBytes.write(value.presentationContext, into: &buf)
+        FfiConverterSequenceTypeVerifiableCredentialProof.write(value.verifiableCredential, into: &buf)
+        FfiConverterTypeLinkingProof.write(value.linkingProof, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeVerifiablePresentation_lift(_ buf: RustBuffer) throws -> VerifiablePresentation {
+    return try FfiConverterTypeVerifiablePresentation.lift(buf)
+}
+
+public func FfiConverterTypeVerifiablePresentation_lower(_ value: VerifiablePresentation) -> RustBuffer {
+    return FfiConverterTypeVerifiablePresentation.lower(value)
+}
+
+
+/**
+ * A request for a proof. This is the statement and challenge. The secret data
+ * comes separately.
+ */
+public struct VerifiablePresentationRequest {
+    public var challenge: Bytes
+    public var statements: [VerifiableCredentialStatement]
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        challenge: Bytes, 
+        statements: [VerifiableCredentialStatement]) {
+        self.challenge = challenge
+        self.statements = statements
+    }
+}
+
+
+extension VerifiablePresentationRequest: Equatable, Hashable {
+    public static func ==(lhs: VerifiablePresentationRequest, rhs: VerifiablePresentationRequest) -> Bool {
+        if lhs.challenge != rhs.challenge {
+            return false
+        }
+        if lhs.statements != rhs.statements {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(challenge)
+        hasher.combine(statements)
+    }
+}
+
+
+public struct FfiConverterTypeVerifiablePresentationRequest: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VerifiablePresentationRequest {
+        return
+            try VerifiablePresentationRequest(
+                challenge: FfiConverterTypeBytes.read(from: &buf), 
+                statements: FfiConverterSequenceTypeVerifiableCredentialStatement.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: VerifiablePresentationRequest, into buf: inout [UInt8]) {
+        FfiConverterTypeBytes.write(value.challenge, into: &buf)
+        FfiConverterSequenceTypeVerifiableCredentialStatement.write(value.statements, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeVerifiablePresentationRequest_lift(_ buf: RustBuffer) throws -> VerifiablePresentationRequest {
+    return try FfiConverterTypeVerifiablePresentationRequest.lift(buf)
+}
+
+public func FfiConverterTypeVerifiablePresentationRequest_lower(_ value: VerifiablePresentationRequest) -> RustBuffer {
+    return FfiConverterTypeVerifiablePresentationRequest.lower(value)
+}
+
+
+/**
  * Public AKA verification key for a given scheme.
  * Currently the only supported value of `scheme_id` is "Ed25519".
  */
@@ -3221,6 +4490,1018 @@ public func FfiConverterTypeVerifyKey_lower(_ value: VerifyKey) -> RustBuffer {
 
 
 /**
+ * A versioned variant of `IdentityProof`
+ */
+public struct VersionedIdentityProof {
+    /**
+     * The version associated with the value
+     */
+    public var version: UInt32
+    /**
+     * The proof
+     */
+    public var value: IdentityProof
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The version associated with the value
+         */
+        version: UInt32, 
+        /**
+         * The proof
+         */
+        value: IdentityProof) {
+        self.version = version
+        self.value = value
+    }
+}
+
+
+extension VersionedIdentityProof: Equatable, Hashable {
+    public static func ==(lhs: VersionedIdentityProof, rhs: VersionedIdentityProof) -> Bool {
+        if lhs.version != rhs.version {
+            return false
+        }
+        if lhs.value != rhs.value {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(version)
+        hasher.combine(value)
+    }
+}
+
+
+public struct FfiConverterTypeVersionedIdentityProof: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VersionedIdentityProof {
+        return
+            try VersionedIdentityProof(
+                version: FfiConverterUInt32.read(from: &buf), 
+                value: FfiConverterTypeIdentityProof.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: VersionedIdentityProof, into buf: inout [UInt8]) {
+        FfiConverterUInt32.write(value.version, into: &buf)
+        FfiConverterTypeIdentityProof.write(value.value, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeVersionedIdentityProof_lift(_ buf: RustBuffer) throws -> VersionedIdentityProof {
+    return try FfiConverterTypeVersionedIdentityProof.lift(buf)
+}
+
+public func FfiConverterTypeVersionedIdentityProof_lower(_ value: VersionedIdentityProof) -> RustBuffer {
+    return FfiConverterTypeVersionedIdentityProof.lower(value)
+}
+
+
+/**
+ * A full verifiable credential for Web3 ID credentials, including secrets.
+ */
+public struct Web3IdCredential {
+    /**
+     * The credential holder's public key.
+     */
+    public var holderId: Bytes
+    /**
+     * The network to which the credential applies.
+     */
+    public var network: Network
+    /**
+     * The address of the credential registry where the credential is tracked.
+     */
+    public var registry: ContractAddress
+    /**
+     * Credential type describing what kind of a credential it is.
+     */
+    public var credentialType: [String]
+    /**
+     * Link to the credential schema.
+     */
+    public var credentialSchema: String
+    /**
+     * The issuer's public key.
+     */
+    public var issuerKey: Bytes
+    /**
+     * Start of the validity of the credential.
+     */
+    public var validFrom: Date
+    /**
+     * After this date, the credential becomes expired. `None` corresponds to a
+     * credential that cannot expire.
+     */
+    public var validUntil: Date?
+    /**
+     * The values of different attributes, indexed by attribute tags.
+     */
+    public var values: [String: Web3IdAttribute]
+    /**
+     * The randomness to go along with commitments in `values`. This has to
+     * have the same keys as the `values` field, but it is more
+     * convenient if it is a separate map itself.
+     */
+    public var randomness: [String: Bytes]
+    /**
+     * The signature on the holder's public key, the contract address of the
+     * issuer, and the commitments from the issuer.
+     */
+    public var signature: Bytes
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        /**
+         * The credential holder's public key.
+         */
+        holderId: Bytes, 
+        /**
+         * The network to which the credential applies.
+         */
+        network: Network, 
+        /**
+         * The address of the credential registry where the credential is tracked.
+         */
+        registry: ContractAddress, 
+        /**
+         * Credential type describing what kind of a credential it is.
+         */
+        credentialType: [String], 
+        /**
+         * Link to the credential schema.
+         */
+        credentialSchema: String, 
+        /**
+         * The issuer's public key.
+         */
+        issuerKey: Bytes, 
+        /**
+         * Start of the validity of the credential.
+         */
+        validFrom: Date, 
+        /**
+         * After this date, the credential becomes expired. `None` corresponds to a
+         * credential that cannot expire.
+         */
+        validUntil: Date?, 
+        /**
+         * The values of different attributes, indexed by attribute tags.
+         */
+        values: [String: Web3IdAttribute], 
+        /**
+         * The randomness to go along with commitments in `values`. This has to
+         * have the same keys as the `values` field, but it is more
+         * convenient if it is a separate map itself.
+         */
+        randomness: [String: Bytes], 
+        /**
+         * The signature on the holder's public key, the contract address of the
+         * issuer, and the commitments from the issuer.
+         */
+        signature: Bytes) {
+        self.holderId = holderId
+        self.network = network
+        self.registry = registry
+        self.credentialType = credentialType
+        self.credentialSchema = credentialSchema
+        self.issuerKey = issuerKey
+        self.validFrom = validFrom
+        self.validUntil = validUntil
+        self.values = values
+        self.randomness = randomness
+        self.signature = signature
+    }
+}
+
+
+extension Web3IdCredential: Equatable, Hashable {
+    public static func ==(lhs: Web3IdCredential, rhs: Web3IdCredential) -> Bool {
+        if lhs.holderId != rhs.holderId {
+            return false
+        }
+        if lhs.network != rhs.network {
+            return false
+        }
+        if lhs.registry != rhs.registry {
+            return false
+        }
+        if lhs.credentialType != rhs.credentialType {
+            return false
+        }
+        if lhs.credentialSchema != rhs.credentialSchema {
+            return false
+        }
+        if lhs.issuerKey != rhs.issuerKey {
+            return false
+        }
+        if lhs.validFrom != rhs.validFrom {
+            return false
+        }
+        if lhs.validUntil != rhs.validUntil {
+            return false
+        }
+        if lhs.values != rhs.values {
+            return false
+        }
+        if lhs.randomness != rhs.randomness {
+            return false
+        }
+        if lhs.signature != rhs.signature {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(holderId)
+        hasher.combine(network)
+        hasher.combine(registry)
+        hasher.combine(credentialType)
+        hasher.combine(credentialSchema)
+        hasher.combine(issuerKey)
+        hasher.combine(validFrom)
+        hasher.combine(validUntil)
+        hasher.combine(values)
+        hasher.combine(randomness)
+        hasher.combine(signature)
+    }
+}
+
+
+public struct FfiConverterTypeWeb3IdCredential: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Web3IdCredential {
+        return
+            try Web3IdCredential(
+                holderId: FfiConverterTypeBytes.read(from: &buf), 
+                network: FfiConverterTypeNetwork.read(from: &buf), 
+                registry: FfiConverterTypeContractAddress.read(from: &buf), 
+                credentialType: FfiConverterSequenceString.read(from: &buf), 
+                credentialSchema: FfiConverterString.read(from: &buf), 
+                issuerKey: FfiConverterTypeBytes.read(from: &buf), 
+                validFrom: FfiConverterTimestamp.read(from: &buf), 
+                validUntil: FfiConverterOptionTimestamp.read(from: &buf), 
+                values: FfiConverterDictionaryStringTypeWeb3IdAttribute.read(from: &buf), 
+                randomness: FfiConverterDictionaryStringTypeBytes.read(from: &buf), 
+                signature: FfiConverterTypeBytes.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: Web3IdCredential, into buf: inout [UInt8]) {
+        FfiConverterTypeBytes.write(value.holderId, into: &buf)
+        FfiConverterTypeNetwork.write(value.network, into: &buf)
+        FfiConverterTypeContractAddress.write(value.registry, into: &buf)
+        FfiConverterSequenceString.write(value.credentialType, into: &buf)
+        FfiConverterString.write(value.credentialSchema, into: &buf)
+        FfiConverterTypeBytes.write(value.issuerKey, into: &buf)
+        FfiConverterTimestamp.write(value.validFrom, into: &buf)
+        FfiConverterOptionTimestamp.write(value.validUntil, into: &buf)
+        FfiConverterDictionaryStringTypeWeb3IdAttribute.write(value.values, into: &buf)
+        FfiConverterDictionaryStringTypeBytes.write(value.randomness, into: &buf)
+        FfiConverterTypeBytes.write(value.signature, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeWeb3IdCredential_lift(_ buf: RustBuffer) throws -> Web3IdCredential {
+    return try FfiConverterTypeWeb3IdCredential.lift(buf)
+}
+
+public func FfiConverterTypeWeb3IdCredential_lower(_ value: Web3IdCredential) -> RustBuffer {
+    return FfiConverterTypeWeb3IdCredential.lower(value)
+}
+
+
+/**
+ * A pair of a statement and a proof for a Web3 ID credential statement.
+ */
+public struct Web3IdStatementWithProof {
+    public var statement: AtomicWeb3IdStatement
+    public var proof: AtomicWeb3IdProof
+
+    // Default memberwise initializers are never public by default, so we
+    // declare one manually.
+    public init(
+        statement: AtomicWeb3IdStatement, 
+        proof: AtomicWeb3IdProof) {
+        self.statement = statement
+        self.proof = proof
+    }
+}
+
+
+extension Web3IdStatementWithProof: Equatable, Hashable {
+    public static func ==(lhs: Web3IdStatementWithProof, rhs: Web3IdStatementWithProof) -> Bool {
+        if lhs.statement != rhs.statement {
+            return false
+        }
+        if lhs.proof != rhs.proof {
+            return false
+        }
+        return true
+    }
+
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(statement)
+        hasher.combine(proof)
+    }
+}
+
+
+public struct FfiConverterTypeWeb3IdStatementWithProof: FfiConverterRustBuffer {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Web3IdStatementWithProof {
+        return
+            try Web3IdStatementWithProof(
+                statement: FfiConverterTypeAtomicWeb3IdStatement.read(from: &buf), 
+                proof: FfiConverterTypeAtomicWeb3IdProof.read(from: &buf)
+        )
+    }
+
+    public static func write(_ value: Web3IdStatementWithProof, into buf: inout [UInt8]) {
+        FfiConverterTypeAtomicWeb3IdStatement.write(value.statement, into: &buf)
+        FfiConverterTypeAtomicWeb3IdProof.write(value.proof, into: &buf)
+    }
+}
+
+
+public func FfiConverterTypeWeb3IdStatementWithProof_lift(_ buf: RustBuffer) throws -> Web3IdStatementWithProof {
+    return try FfiConverterTypeWeb3IdStatementWithProof.lift(buf)
+}
+
+public func FfiConverterTypeWeb3IdStatementWithProof_lower(_ value: Web3IdStatementWithProof) -> RustBuffer {
+    return FfiConverterTypeWeb3IdStatementWithProof.lower(value)
+}
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * The different types of proofs, corresponding to the statements above.
+ */
+public enum AtomicIdentityProof {
+    
+    /**
+     * Revealing an attribute and a proof that it equals the attribute value
+     * inside the attribute commitment.
+     */
+    case revealAttribute(
+        attribute: String, 
+        proof: Bytes
+    )
+    /**
+     * The atomic proof stating that an attribute is in a range.
+     */
+    case attributeInRange(
+        proof: Bytes
+    )
+    /**
+     * The atomic proof stating that an attribute is in a set.
+     */
+    case attributeInSet(
+        proof: Bytes
+    )
+    /**
+     * The atomic proof stating that an attribute is not in a set.
+     */
+    case attributeNotInSet(
+        proof: Bytes
+    )
+}
+
+public struct FfiConverterTypeAtomicIdentityProof: FfiConverterRustBuffer {
+    typealias SwiftType = AtomicIdentityProof
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AtomicIdentityProof {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .revealAttribute(
+            attribute: try FfiConverterString.read(from: &buf), 
+            proof: try FfiConverterTypeBytes.read(from: &buf)
+        )
+        
+        case 2: return .attributeInRange(
+            proof: try FfiConverterTypeBytes.read(from: &buf)
+        )
+        
+        case 3: return .attributeInSet(
+            proof: try FfiConverterTypeBytes.read(from: &buf)
+        )
+        
+        case 4: return .attributeNotInSet(
+            proof: try FfiConverterTypeBytes.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: AtomicIdentityProof, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .revealAttribute(attribute,proof):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(attribute, into: &buf)
+            FfiConverterTypeBytes.write(proof, into: &buf)
+            
+        
+        case let .attributeInRange(proof):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypeBytes.write(proof, into: &buf)
+            
+        
+        case let .attributeInSet(proof):
+            writeInt(&buf, Int32(3))
+            FfiConverterTypeBytes.write(proof, into: &buf)
+            
+        
+        case let .attributeNotInSet(proof):
+            writeInt(&buf, Int32(4))
+            FfiConverterTypeBytes.write(proof, into: &buf)
+            
+        }
+    }
+}
+
+
+public func FfiConverterTypeAtomicIdentityProof_lift(_ buf: RustBuffer) throws -> AtomicIdentityProof {
+    return try FfiConverterTypeAtomicIdentityProof.lift(buf)
+}
+
+public func FfiConverterTypeAtomicIdentityProof_lower(_ value: AtomicIdentityProof) -> RustBuffer {
+    return FfiConverterTypeAtomicIdentityProof.lower(value)
+}
+
+
+extension AtomicIdentityProof: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Statements are composed of one or more atomic statements.
+ * This type defines the different types of atomic statements.
+ */
+public enum AtomicIdentityStatement {
+    
+    /**
+     * The atomic statement stating that an attribute should be revealed.
+     */
+    case revealAttribute(
+        statement: RevealAttributeIdentityStatement
+    )
+    /**
+     * The atomic statement stating that an attribute is in a range.
+     */
+    case attributeInRange(
+        statement: AttributeInRangeIdentityStatement
+    )
+    /**
+     * The atomic statement stating that an attribute is in a set.
+     */
+    case attributeInSet(
+        statement: AttributeInSetIdentityStatement
+    )
+    /**
+     * The atomic statement stating that an attribute is not in a set.
+     */
+    case attributeNotInSet(
+        statement: AttributeNotInSetIdentityStatement
+    )
+}
+
+public struct FfiConverterTypeAtomicIdentityStatement: FfiConverterRustBuffer {
+    typealias SwiftType = AtomicIdentityStatement
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AtomicIdentityStatement {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .revealAttribute(
+            statement: try FfiConverterTypeRevealAttributeIdentityStatement.read(from: &buf)
+        )
+        
+        case 2: return .attributeInRange(
+            statement: try FfiConverterTypeAttributeInRangeIdentityStatement.read(from: &buf)
+        )
+        
+        case 3: return .attributeInSet(
+            statement: try FfiConverterTypeAttributeInSetIdentityStatement.read(from: &buf)
+        )
+        
+        case 4: return .attributeNotInSet(
+            statement: try FfiConverterTypeAttributeNotInSetIdentityStatement.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: AtomicIdentityStatement, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .revealAttribute(statement):
+            writeInt(&buf, Int32(1))
+            FfiConverterTypeRevealAttributeIdentityStatement.write(statement, into: &buf)
+            
+        
+        case let .attributeInRange(statement):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypeAttributeInRangeIdentityStatement.write(statement, into: &buf)
+            
+        
+        case let .attributeInSet(statement):
+            writeInt(&buf, Int32(3))
+            FfiConverterTypeAttributeInSetIdentityStatement.write(statement, into: &buf)
+            
+        
+        case let .attributeNotInSet(statement):
+            writeInt(&buf, Int32(4))
+            FfiConverterTypeAttributeNotInSetIdentityStatement.write(statement, into: &buf)
+            
+        }
+    }
+}
+
+
+public func FfiConverterTypeAtomicIdentityStatement_lift(_ buf: RustBuffer) throws -> AtomicIdentityStatement {
+    return try FfiConverterTypeAtomicIdentityStatement.lift(buf)
+}
+
+public func FfiConverterTypeAtomicIdentityStatement_lower(_ value: AtomicIdentityStatement) -> RustBuffer {
+    return FfiConverterTypeAtomicIdentityStatement.lower(value)
+}
+
+
+extension AtomicIdentityStatement: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * The different types of proofs, corresponding to the statements above.
+ */
+public enum AtomicWeb3IdProof {
+    
+    /**
+     * Revealing an attribute and a proof that it equals the attribute value
+     * inside the attribute commitment.
+     */
+    case revealAttribute(
+        attribute: Web3IdAttribute, 
+        proof: Bytes
+    )
+    /**
+     * The atomic proof stating that an attribute is in a range.
+     */
+    case attributeInRange(
+        proof: Bytes
+    )
+    /**
+     * The atomic proof stating that an attribute is in a set.
+     */
+    case attributeInSet(
+        proof: Bytes
+    )
+    /**
+     * The atomic proof stating that an attribute is not in a set.
+     */
+    case attributeNotInSet(
+        proof: Bytes
+    )
+}
+
+public struct FfiConverterTypeAtomicWeb3IdProof: FfiConverterRustBuffer {
+    typealias SwiftType = AtomicWeb3IdProof
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AtomicWeb3IdProof {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .revealAttribute(
+            attribute: try FfiConverterTypeWeb3IdAttribute.read(from: &buf), 
+            proof: try FfiConverterTypeBytes.read(from: &buf)
+        )
+        
+        case 2: return .attributeInRange(
+            proof: try FfiConverterTypeBytes.read(from: &buf)
+        )
+        
+        case 3: return .attributeInSet(
+            proof: try FfiConverterTypeBytes.read(from: &buf)
+        )
+        
+        case 4: return .attributeNotInSet(
+            proof: try FfiConverterTypeBytes.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: AtomicWeb3IdProof, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .revealAttribute(attribute,proof):
+            writeInt(&buf, Int32(1))
+            FfiConverterTypeWeb3IdAttribute.write(attribute, into: &buf)
+            FfiConverterTypeBytes.write(proof, into: &buf)
+            
+        
+        case let .attributeInRange(proof):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypeBytes.write(proof, into: &buf)
+            
+        
+        case let .attributeInSet(proof):
+            writeInt(&buf, Int32(3))
+            FfiConverterTypeBytes.write(proof, into: &buf)
+            
+        
+        case let .attributeNotInSet(proof):
+            writeInt(&buf, Int32(4))
+            FfiConverterTypeBytes.write(proof, into: &buf)
+            
+        }
+    }
+}
+
+
+public func FfiConverterTypeAtomicWeb3IdProof_lift(_ buf: RustBuffer) throws -> AtomicWeb3IdProof {
+    return try FfiConverterTypeAtomicWeb3IdProof.lift(buf)
+}
+
+public func FfiConverterTypeAtomicWeb3IdProof_lower(_ value: AtomicWeb3IdProof) -> RustBuffer {
+    return FfiConverterTypeAtomicWeb3IdProof.lower(value)
+}
+
+
+extension AtomicWeb3IdProof: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Statements are composed of one or more atomic statements.
+ * This type defines the different types of atomic statements.
+ */
+public enum AtomicWeb3IdStatement {
+    
+    /**
+     * The atomic statement stating that an attribute should be revealed.
+     */
+    case revealAttribute(
+        statement: RevealAttributeWeb3IdStatement
+    )
+    /**
+     * The atomic statement stating that an attribute is in a range.
+     */
+    case attributeInRange(
+        statement: AttributeInRangeWeb3IdStatement
+    )
+    /**
+     * The atomic statement stating that an attribute is in a set.
+     */
+    case attributeInSet(
+        statement: AttributeInSetWeb3IdStatement
+    )
+    /**
+     * The atomic statement stating that an attribute is not in a set.
+     */
+    case attributeNotInSet(
+        statement: AttributeNotInSetWeb3IdStatement
+    )
+}
+
+public struct FfiConverterTypeAtomicWeb3IdStatement: FfiConverterRustBuffer {
+    typealias SwiftType = AtomicWeb3IdStatement
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AtomicWeb3IdStatement {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .revealAttribute(
+            statement: try FfiConverterTypeRevealAttributeWeb3IdStatement.read(from: &buf)
+        )
+        
+        case 2: return .attributeInRange(
+            statement: try FfiConverterTypeAttributeInRangeWeb3IdStatement.read(from: &buf)
+        )
+        
+        case 3: return .attributeInSet(
+            statement: try FfiConverterTypeAttributeInSetWeb3IdStatement.read(from: &buf)
+        )
+        
+        case 4: return .attributeNotInSet(
+            statement: try FfiConverterTypeAttributeNotInSetWeb3IdStatement.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: AtomicWeb3IdStatement, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .revealAttribute(statement):
+            writeInt(&buf, Int32(1))
+            FfiConverterTypeRevealAttributeWeb3IdStatement.write(statement, into: &buf)
+            
+        
+        case let .attributeInRange(statement):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypeAttributeInRangeWeb3IdStatement.write(statement, into: &buf)
+            
+        
+        case let .attributeInSet(statement):
+            writeInt(&buf, Int32(3))
+            FfiConverterTypeAttributeInSetWeb3IdStatement.write(statement, into: &buf)
+            
+        
+        case let .attributeNotInSet(statement):
+            writeInt(&buf, Int32(4))
+            FfiConverterTypeAttributeNotInSetWeb3IdStatement.write(statement, into: &buf)
+            
+        }
+    }
+}
+
+
+public func FfiConverterTypeAtomicWeb3IdStatement_lift(_ buf: RustBuffer) throws -> AtomicWeb3IdStatement {
+    return try FfiConverterTypeAtomicWeb3IdStatement.lift(buf)
+}
+
+public func FfiConverterTypeAtomicWeb3IdStatement_lower(_ value: AtomicWeb3IdStatement) -> RustBuffer {
+    return FfiConverterTypeAtomicWeb3IdStatement.lower(value)
+}
+
+
+extension AtomicWeb3IdStatement: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * The supported set of attributes which are stored on identities and optionally revealed by accounts.
+ * In some contexts (such as the gRPC API), attribute tags are represented by a byte (the raw type of this enum).
+ * Where human readability is a concern, the string representation implemented by ``description`` is used.
+ * Note that since ``AttributeList`` (which is a component of ``IdentityObject``) is defined in another library, it cannot use this type.
+ * Instead, its field `chosenAttributes` is a map from the string representation of the tag to the value.
+ * Use the appropriate initializer of this type to convert it.
+ * All attribute values are strings of 31 bytes or less. The expected format of the values is documented
+ * [here](https://docs.google.com/spreadsheets/d/1CxpFvtAoUcylHQyeBtRBaRt1zsibtpmQOVsk7bsHPGA/edit).
+ */
+public enum AttributeTag {
+    
+    /**
+     * First name (format: string up to 31 bytes).
+     */
+    case firstName
+    /**
+     * Last name (format: string up to 31 bytes).
+     */
+    case lastName
+    /**
+     * Sex (format: ISO/IEC 5218).
+     */
+    case sex
+    /**
+     * Date of birth (format: ISO8601 YYYYMMDD).
+     */
+    case dateOfBirth
+    /**
+     * Country of residence (format: ISO3166-1 alpha-2).
+     */
+    case countryOfResidence
+    /**
+     * Country of nationality (format: ISO3166-1 alpha-2).
+     */
+    case nationality
+    /**
+     * Identity document type
+     *
+     * Format:
+     * - 0 : na
+     * - 1 : passport
+     * - 2 : national ID card
+     * - 3 : driving license
+     * - 4 : immigration card
+     * - eID string (see below)
+     *
+     * eID strings as of Apr 2024:
+     * - DK:MITID        : Danish MitId
+     * - SE:BANKID       : Swedish BankID
+     * - NO:BANKID       : Norwegian BankID
+     * - NO:VIPPS        : Norwegian Vipps
+     * - FI:TRUSTNETWORK : Finnish Trust Network
+     * - NL:DIGID        : Netherlands DigiD
+     * - NL:IDIN         : Netherlands iDIN
+     * - BE:EID          : Belgian eID
+     * - ITSME           : (Cross-national) ItsME
+     * - SOFORT          : (Cross-national) Sofort
+     */
+    case idDocType
+    /**
+     * Identity document number (format: string up to 31 bytes).
+     */
+    case idDocNo
+    /**
+     * Identity document issuer (format: ISO3166-1 alpha-2 or ISO3166-2 if applicable).
+     */
+    case idDocIssuer
+    /**
+     * Time from which the ID is valid (format: ISO8601 YYYYMMDD).
+     */
+    case idDocIssuedAt
+    /**
+     * Time to which the ID is valid (format: ISO8601 YYYYMMDD).
+     */
+    case idDocExpiresAt
+    /**
+     * National ID number (format: string up to 31 bytes).
+     */
+    case nationalIdNo
+    /**
+     * Tax ID number (format: string up to 31 bytes).
+     */
+    case taxIdNo
+    /**
+     * LEI-code - companies only (format: ISO17442).
+     */
+    case legalEntityId
+    /**
+     * Legal name - companies only
+     */
+    case legalName
+    /**
+     * Legal country - companies only
+     */
+    case legalCountry
+    /**
+     * Business number associated with the company - companies only
+     */
+    case businessNumber
+    /**
+     * Registration authority - companies only
+     */
+    case registrationAuth
+}
+
+public struct FfiConverterTypeAttributeTag: FfiConverterRustBuffer {
+    typealias SwiftType = AttributeTag
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> AttributeTag {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .firstName
+        
+        case 2: return .lastName
+        
+        case 3: return .sex
+        
+        case 4: return .dateOfBirth
+        
+        case 5: return .countryOfResidence
+        
+        case 6: return .nationality
+        
+        case 7: return .idDocType
+        
+        case 8: return .idDocNo
+        
+        case 9: return .idDocIssuer
+        
+        case 10: return .idDocIssuedAt
+        
+        case 11: return .idDocExpiresAt
+        
+        case 12: return .nationalIdNo
+        
+        case 13: return .taxIdNo
+        
+        case 14: return .legalEntityId
+        
+        case 15: return .legalName
+        
+        case 16: return .legalCountry
+        
+        case 17: return .businessNumber
+        
+        case 18: return .registrationAuth
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: AttributeTag, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .firstName:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .lastName:
+            writeInt(&buf, Int32(2))
+        
+        
+        case .sex:
+            writeInt(&buf, Int32(3))
+        
+        
+        case .dateOfBirth:
+            writeInt(&buf, Int32(4))
+        
+        
+        case .countryOfResidence:
+            writeInt(&buf, Int32(5))
+        
+        
+        case .nationality:
+            writeInt(&buf, Int32(6))
+        
+        
+        case .idDocType:
+            writeInt(&buf, Int32(7))
+        
+        
+        case .idDocNo:
+            writeInt(&buf, Int32(8))
+        
+        
+        case .idDocIssuer:
+            writeInt(&buf, Int32(9))
+        
+        
+        case .idDocIssuedAt:
+            writeInt(&buf, Int32(10))
+        
+        
+        case .idDocExpiresAt:
+            writeInt(&buf, Int32(11))
+        
+        
+        case .nationalIdNo:
+            writeInt(&buf, Int32(12))
+        
+        
+        case .taxIdNo:
+            writeInt(&buf, Int32(13))
+        
+        
+        case .legalEntityId:
+            writeInt(&buf, Int32(14))
+        
+        
+        case .legalName:
+            writeInt(&buf, Int32(15))
+        
+        
+        case .legalCountry:
+            writeInt(&buf, Int32(16))
+        
+        
+        case .businessNumber:
+            writeInt(&buf, Int32(17))
+        
+        
+        case .registrationAuth:
+            writeInt(&buf, Int32(18))
+        
+        }
+    }
+}
+
+
+public func FfiConverterTypeAttributeTag_lift(_ buf: RustBuffer) throws -> AttributeTag {
+    return try FfiConverterTypeAttributeTag.lift(buf)
+}
+
+public func FfiConverterTypeAttributeTag_lower(_ value: AttributeTag) -> RustBuffer {
+    return FfiConverterTypeAttributeTag.lower(value)
+}
+
+
+extension AttributeTag: Equatable, Hashable {}
+
+
+
+
+/**
  * Generic error while invoking FFI
  */
 public enum ConcordiumWalletCryptoError {
@@ -3273,6 +5554,125 @@ public struct FfiConverterTypeConcordiumWalletCryptoError: FfiConverterRustBuffe
 extension ConcordiumWalletCryptoError: Equatable, Hashable {}
 
 extension ConcordiumWalletCryptoError: Error { }
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+public enum IdentifierType {
+    
+    /**
+     * Reference to an account via an address.
+     */
+    case account(
+        addressBase58: String
+    )
+    /**
+     * Reference to a specific credential via its ID.
+     */
+    case credential(
+        credId: Bytes
+    )
+    /**
+     * Reference to a specific smart contract instance.
+     */
+    case contractData(
+        address: ContractAddress, 
+        entrypoint: String, 
+        parameter: Bytes
+    )
+    /**
+     * Reference to a specific Ed25519 public key.
+     */
+    case publicKey(
+        key: Data
+    )
+    /**
+     * Reference to a specific identity provider.
+     */
+    case idp(
+        idpIdentity: UInt32
+    )
+}
+
+public struct FfiConverterTypeIdentifierType: FfiConverterRustBuffer {
+    typealias SwiftType = IdentifierType
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> IdentifierType {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .account(
+            addressBase58: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 2: return .credential(
+            credId: try FfiConverterTypeBytes.read(from: &buf)
+        )
+        
+        case 3: return .contractData(
+            address: try FfiConverterTypeContractAddress.read(from: &buf), 
+            entrypoint: try FfiConverterString.read(from: &buf), 
+            parameter: try FfiConverterTypeBytes.read(from: &buf)
+        )
+        
+        case 4: return .publicKey(
+            key: try FfiConverterData.read(from: &buf)
+        )
+        
+        case 5: return .idp(
+            idpIdentity: try FfiConverterUInt32.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: IdentifierType, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .account(addressBase58):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(addressBase58, into: &buf)
+            
+        
+        case let .credential(credId):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypeBytes.write(credId, into: &buf)
+            
+        
+        case let .contractData(address,entrypoint,parameter):
+            writeInt(&buf, Int32(3))
+            FfiConverterTypeContractAddress.write(address, into: &buf)
+            FfiConverterString.write(entrypoint, into: &buf)
+            FfiConverterTypeBytes.write(parameter, into: &buf)
+            
+        
+        case let .publicKey(key):
+            writeInt(&buf, Int32(4))
+            FfiConverterData.write(key, into: &buf)
+            
+        
+        case let .idp(idpIdentity):
+            writeInt(&buf, Int32(5))
+            FfiConverterUInt32.write(idpIdentity, into: &buf)
+            
+        }
+    }
+}
+
+
+public func FfiConverterTypeIdentifierType_lift(_ buf: RustBuffer) throws -> IdentifierType {
+    return try FfiConverterTypeIdentifierType.lift(buf)
+}
+
+public func FfiConverterTypeIdentifierType_lower(_ value: IdentifierType) -> RustBuffer {
+    return FfiConverterTypeIdentifierType.lower(value)
+}
+
+
+extension IdentifierType: Equatable, Hashable {}
+
+
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
@@ -3340,6 +5740,58 @@ public func FfiConverterTypeModuleSchemaVersion_lower(_ value: ModuleSchemaVersi
 
 
 extension ModuleSchemaVersion: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+public enum Network {
+    
+    case testnet
+    case mainnet
+}
+
+public struct FfiConverterTypeNetwork: FfiConverterRustBuffer {
+    typealias SwiftType = Network
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Network {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .testnet
+        
+        case 2: return .mainnet
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: Network, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case .testnet:
+            writeInt(&buf, Int32(1))
+        
+        
+        case .mainnet:
+            writeInt(&buf, Int32(2))
+        
+        }
+    }
+}
+
+
+public func FfiConverterTypeNetwork_lift(_ buf: RustBuffer) throws -> Network {
+    return try FfiConverterTypeNetwork.lift(buf)
+}
+
+public func FfiConverterTypeNetwork_lower(_ value: Network) -> RustBuffer {
+    return FfiConverterTypeNetwork.lower(value)
+}
+
+
+extension Network: Equatable, Hashable {}
 
 
 
@@ -3412,6 +5864,384 @@ extension SchemaError: Equatable, Hashable {}
 
 extension SchemaError: Error { }
 
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * The additional inputs, additional to the `VerifiablePresentationRequest` that are needed to
+ * produce a `VerifablePresentation`.
+ */
+public enum VerifiableCredentialCommitmentInputs {
+    
+    /**
+     * Inputs are for an identity credential issued by an identity provider.
+     */
+    case account(
+        issuer: UInt32, 
+        values: [AttributeTag: String], 
+        randomness: [AttributeTag: Bytes]
+    )
+    /**
+     * Inputs are for a credential issued by Web3ID issuer.
+     */
+    case web3Issuer(
+        signature: Bytes, 
+        signer: Data, 
+        values: [String: Web3IdAttribute], 
+        randomness: [String: Bytes]
+    )
+}
+
+public struct FfiConverterTypeVerifiableCredentialCommitmentInputs: FfiConverterRustBuffer {
+    typealias SwiftType = VerifiableCredentialCommitmentInputs
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VerifiableCredentialCommitmentInputs {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .account(
+            issuer: try FfiConverterUInt32.read(from: &buf), 
+            values: try FfiConverterDictionaryTypeAttributeTagString.read(from: &buf), 
+            randomness: try FfiConverterDictionaryTypeAttributeTagTypeBytes.read(from: &buf)
+        )
+        
+        case 2: return .web3Issuer(
+            signature: try FfiConverterTypeBytes.read(from: &buf), 
+            signer: try FfiConverterData.read(from: &buf), 
+            values: try FfiConverterDictionaryStringTypeWeb3IdAttribute.read(from: &buf), 
+            randomness: try FfiConverterDictionaryStringTypeBytes.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: VerifiableCredentialCommitmentInputs, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .account(issuer,values,randomness):
+            writeInt(&buf, Int32(1))
+            FfiConverterUInt32.write(issuer, into: &buf)
+            FfiConverterDictionaryTypeAttributeTagString.write(values, into: &buf)
+            FfiConverterDictionaryTypeAttributeTagTypeBytes.write(randomness, into: &buf)
+            
+        
+        case let .web3Issuer(signature,signer,values,randomness):
+            writeInt(&buf, Int32(2))
+            FfiConverterTypeBytes.write(signature, into: &buf)
+            FfiConverterData.write(signer, into: &buf)
+            FfiConverterDictionaryStringTypeWeb3IdAttribute.write(values, into: &buf)
+            FfiConverterDictionaryStringTypeBytes.write(randomness, into: &buf)
+            
+        }
+    }
+}
+
+
+public func FfiConverterTypeVerifiableCredentialCommitmentInputs_lift(_ buf: RustBuffer) throws -> VerifiableCredentialCommitmentInputs {
+    return try FfiConverterTypeVerifiableCredentialCommitmentInputs.lift(buf)
+}
+
+public func FfiConverterTypeVerifiableCredentialCommitmentInputs_lower(_ value: VerifiableCredentialCommitmentInputs) -> RustBuffer {
+    return FfiConverterTypeVerifiableCredentialCommitmentInputs.lower(value)
+}
+
+
+extension VerifiableCredentialCommitmentInputs: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * A proof corresponding to one `VerifiableCredentialStatement`. This contains almost
+ * all the information needed to verify it, except the issuer's public key in
+ * case of the `Web3Id` proof, and the public commitments in case of the
+ * `Account` proof.
+ */
+public enum VerifiableCredentialProof {
+    
+    case account(
+        created: Date, 
+        network: Network, 
+        credId: Bytes, 
+        issuer: UInt32, 
+        proofs: [AccountStatementWithProof]
+    )
+    case web3Id(
+        created: Date, 
+        holderId: Bytes, 
+        network: Network, 
+        contract: ContractAddress, 
+        credType: [String], 
+        commitments: SignedCommitments, 
+        proofs: [Web3IdStatementWithProof]
+    )
+}
+
+public struct FfiConverterTypeVerifiableCredentialProof: FfiConverterRustBuffer {
+    typealias SwiftType = VerifiableCredentialProof
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VerifiableCredentialProof {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .account(
+            created: try FfiConverterTimestamp.read(from: &buf), 
+            network: try FfiConverterTypeNetwork.read(from: &buf), 
+            credId: try FfiConverterTypeBytes.read(from: &buf), 
+            issuer: try FfiConverterUInt32.read(from: &buf), 
+            proofs: try FfiConverterSequenceTypeAccountStatementWithProof.read(from: &buf)
+        )
+        
+        case 2: return .web3Id(
+            created: try FfiConverterTimestamp.read(from: &buf), 
+            holderId: try FfiConverterTypeBytes.read(from: &buf), 
+            network: try FfiConverterTypeNetwork.read(from: &buf), 
+            contract: try FfiConverterTypeContractAddress.read(from: &buf), 
+            credType: try FfiConverterSequenceString.read(from: &buf), 
+            commitments: try FfiConverterTypeSignedCommitments.read(from: &buf), 
+            proofs: try FfiConverterSequenceTypeWeb3IdStatementWithProof.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: VerifiableCredentialProof, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .account(created,network,credId,issuer,proofs):
+            writeInt(&buf, Int32(1))
+            FfiConverterTimestamp.write(created, into: &buf)
+            FfiConverterTypeNetwork.write(network, into: &buf)
+            FfiConverterTypeBytes.write(credId, into: &buf)
+            FfiConverterUInt32.write(issuer, into: &buf)
+            FfiConverterSequenceTypeAccountStatementWithProof.write(proofs, into: &buf)
+            
+        
+        case let .web3Id(created,holderId,network,contract,credType,commitments,proofs):
+            writeInt(&buf, Int32(2))
+            FfiConverterTimestamp.write(created, into: &buf)
+            FfiConverterTypeBytes.write(holderId, into: &buf)
+            FfiConverterTypeNetwork.write(network, into: &buf)
+            FfiConverterTypeContractAddress.write(contract, into: &buf)
+            FfiConverterSequenceString.write(credType, into: &buf)
+            FfiConverterTypeSignedCommitments.write(commitments, into: &buf)
+            FfiConverterSequenceTypeWeb3IdStatementWithProof.write(proofs, into: &buf)
+            
+        }
+    }
+}
+
+
+public func FfiConverterTypeVerifiableCredentialProof_lift(_ buf: RustBuffer) throws -> VerifiableCredentialProof {
+    return try FfiConverterTypeVerifiableCredentialProof.lift(buf)
+}
+
+public func FfiConverterTypeVerifiableCredentialProof_lower(_ value: VerifiableCredentialProof) -> RustBuffer {
+    return FfiConverterTypeVerifiableCredentialProof.lower(value)
+}
+
+
+extension VerifiableCredentialProof: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * A statement about a single credential, either an identity credential or a
+ * Web3 credential.
+ */
+public enum VerifiableCredentialStatement {
+    
+    /**
+     * Statement about a credential derived from an identity issued by an
+     * identity provider.
+     */
+    case account(
+        network: Network, 
+        credId: Bytes, 
+        statement: [AtomicIdentityStatement]
+    )
+    /**
+     * Statement about a credential issued by a Web3 identity provider, a smart
+     * contract.
+     */
+    case web3Id(
+        credType: [String], 
+        network: Network, 
+        contract: ContractAddress, 
+        holderId: Bytes, 
+        statement: [AtomicWeb3IdStatement]
+    )
+}
+
+public struct FfiConverterTypeVerifiableCredentialStatement: FfiConverterRustBuffer {
+    typealias SwiftType = VerifiableCredentialStatement
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> VerifiableCredentialStatement {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .account(
+            network: try FfiConverterTypeNetwork.read(from: &buf), 
+            credId: try FfiConverterTypeBytes.read(from: &buf), 
+            statement: try FfiConverterSequenceTypeAtomicIdentityStatement.read(from: &buf)
+        )
+        
+        case 2: return .web3Id(
+            credType: try FfiConverterSequenceString.read(from: &buf), 
+            network: try FfiConverterTypeNetwork.read(from: &buf), 
+            contract: try FfiConverterTypeContractAddress.read(from: &buf), 
+            holderId: try FfiConverterTypeBytes.read(from: &buf), 
+            statement: try FfiConverterSequenceTypeAtomicWeb3IdStatement.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: VerifiableCredentialStatement, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .account(network,credId,statement):
+            writeInt(&buf, Int32(1))
+            FfiConverterTypeNetwork.write(network, into: &buf)
+            FfiConverterTypeBytes.write(credId, into: &buf)
+            FfiConverterSequenceTypeAtomicIdentityStatement.write(statement, into: &buf)
+            
+        
+        case let .web3Id(credType,network,contract,holderId,statement):
+            writeInt(&buf, Int32(2))
+            FfiConverterSequenceString.write(credType, into: &buf)
+            FfiConverterTypeNetwork.write(network, into: &buf)
+            FfiConverterTypeContractAddress.write(contract, into: &buf)
+            FfiConverterTypeBytes.write(holderId, into: &buf)
+            FfiConverterSequenceTypeAtomicWeb3IdStatement.write(statement, into: &buf)
+            
+        }
+    }
+}
+
+
+public func FfiConverterTypeVerifiableCredentialStatement_lift(_ buf: RustBuffer) throws -> VerifiableCredentialStatement {
+    return try FfiConverterTypeVerifiableCredentialStatement.lift(buf)
+}
+
+public func FfiConverterTypeVerifiableCredentialStatement_lower(_ value: VerifiableCredentialStatement) -> RustBuffer {
+    return FfiConverterTypeVerifiableCredentialStatement.lower(value)
+}
+
+
+extension VerifiableCredentialStatement: Equatable, Hashable {}
+
+
+
+// Note that we don't yet support `indirect` for enums.
+// See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * A value of an attribute. This is the low-level representation. The
+ * different variants are present to enable different representations in JSON,
+ * and different embeddings as field elements when constructing and verifying
+ * proofs.
+ */
+public enum Web3IdAttribute {
+    
+    case string(
+        value: String
+    )
+    case numeric(
+        value: UInt64
+    )
+    case timestamp(
+        value: Date
+    )
+}
+
+public struct FfiConverterTypeWeb3IdAttribute: FfiConverterRustBuffer {
+    typealias SwiftType = Web3IdAttribute
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> Web3IdAttribute {
+        let variant: Int32 = try readInt(&buf)
+        switch variant {
+        
+        case 1: return .string(
+            value: try FfiConverterString.read(from: &buf)
+        )
+        
+        case 2: return .numeric(
+            value: try FfiConverterUInt64.read(from: &buf)
+        )
+        
+        case 3: return .timestamp(
+            value: try FfiConverterTimestamp.read(from: &buf)
+        )
+        
+        default: throw UniffiInternalError.unexpectedEnumCase
+        }
+    }
+
+    public static func write(_ value: Web3IdAttribute, into buf: inout [UInt8]) {
+        switch value {
+        
+        
+        case let .string(value):
+            writeInt(&buf, Int32(1))
+            FfiConverterString.write(value, into: &buf)
+            
+        
+        case let .numeric(value):
+            writeInt(&buf, Int32(2))
+            FfiConverterUInt64.write(value, into: &buf)
+            
+        
+        case let .timestamp(value):
+            writeInt(&buf, Int32(3))
+            FfiConverterTimestamp.write(value, into: &buf)
+            
+        }
+    }
+}
+
+
+public func FfiConverterTypeWeb3IdAttribute_lift(_ buf: RustBuffer) throws -> Web3IdAttribute {
+    return try FfiConverterTypeWeb3IdAttribute.lift(buf)
+}
+
+public func FfiConverterTypeWeb3IdAttribute_lower(_ value: Web3IdAttribute) -> RustBuffer {
+    return FfiConverterTypeWeb3IdAttribute.lower(value)
+}
+
+
+extension Web3IdAttribute: Equatable, Hashable {}
+
+
+
+fileprivate struct FfiConverterOptionTimestamp: FfiConverterRustBuffer {
+    typealias SwiftType = Date?
+
+    public static func write(_ value: SwiftType, into buf: inout [UInt8]) {
+        guard let value = value else {
+            writeInt(&buf, Int8(0))
+            return
+        }
+        writeInt(&buf, Int8(1))
+        FfiConverterTimestamp.write(value, into: &buf)
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> SwiftType {
+        switch try readInt(&buf) as Int8 {
+        case 0: return nil
+        case 1: return try FfiConverterTimestamp.read(from: &buf)
+        default: throw UniffiInternalError.unexpectedOptionalTag
+        }
+    }
+}
+
 fileprivate struct FfiConverterOptionTypeModuleSchemaVersion: FfiConverterRustBuffer {
     typealias SwiftType = ModuleSchemaVersion?
 
@@ -3433,28 +6263,6 @@ fileprivate struct FfiConverterOptionTypeModuleSchemaVersion: FfiConverterRustBu
     }
 }
 
-fileprivate struct FfiConverterSequenceUInt8: FfiConverterRustBuffer {
-    typealias SwiftType = [UInt8]
-
-    public static func write(_ value: [UInt8], into buf: inout [UInt8]) {
-        let len = Int32(value.count)
-        writeInt(&buf, len)
-        for item in value {
-            FfiConverterUInt8.write(item, into: &buf)
-        }
-    }
-
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [UInt8] {
-        let len: Int32 = try readInt(&buf)
-        var seq = [UInt8]()
-        seq.reserveCapacity(Int(len))
-        for _ in 0 ..< len {
-            seq.append(try FfiConverterUInt8.read(from: &buf))
-        }
-        return seq
-    }
-}
-
 fileprivate struct FfiConverterSequenceUInt32: FfiConverterRustBuffer {
     typealias SwiftType = [UInt32]
 
@@ -3472,6 +6280,248 @@ fileprivate struct FfiConverterSequenceUInt32: FfiConverterRustBuffer {
         seq.reserveCapacity(Int(len))
         for _ in 0 ..< len {
             seq.append(try FfiConverterUInt32.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+fileprivate struct FfiConverterSequenceString: FfiConverterRustBuffer {
+    typealias SwiftType = [String]
+
+    public static func write(_ value: [String], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterString.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [String] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [String]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterString.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+fileprivate struct FfiConverterSequenceTypeAccountStatementWithProof: FfiConverterRustBuffer {
+    typealias SwiftType = [AccountStatementWithProof]
+
+    public static func write(_ value: [AccountStatementWithProof], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeAccountStatementWithProof.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [AccountStatementWithProof] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [AccountStatementWithProof]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeAccountStatementWithProof.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+fileprivate struct FfiConverterSequenceTypeWeb3IdStatementWithProof: FfiConverterRustBuffer {
+    typealias SwiftType = [Web3IdStatementWithProof]
+
+    public static func write(_ value: [Web3IdStatementWithProof], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeWeb3IdStatementWithProof.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Web3IdStatementWithProof] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Web3IdStatementWithProof]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeWeb3IdStatementWithProof.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+fileprivate struct FfiConverterSequenceTypeAtomicIdentityProof: FfiConverterRustBuffer {
+    typealias SwiftType = [AtomicIdentityProof]
+
+    public static func write(_ value: [AtomicIdentityProof], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeAtomicIdentityProof.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [AtomicIdentityProof] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [AtomicIdentityProof]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeAtomicIdentityProof.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+fileprivate struct FfiConverterSequenceTypeAtomicIdentityStatement: FfiConverterRustBuffer {
+    typealias SwiftType = [AtomicIdentityStatement]
+
+    public static func write(_ value: [AtomicIdentityStatement], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeAtomicIdentityStatement.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [AtomicIdentityStatement] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [AtomicIdentityStatement]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeAtomicIdentityStatement.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+fileprivate struct FfiConverterSequenceTypeAtomicWeb3IdStatement: FfiConverterRustBuffer {
+    typealias SwiftType = [AtomicWeb3IdStatement]
+
+    public static func write(_ value: [AtomicWeb3IdStatement], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeAtomicWeb3IdStatement.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [AtomicWeb3IdStatement] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [AtomicWeb3IdStatement]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeAtomicWeb3IdStatement.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+fileprivate struct FfiConverterSequenceTypeAttributeTag: FfiConverterRustBuffer {
+    typealias SwiftType = [AttributeTag]
+
+    public static func write(_ value: [AttributeTag], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeAttributeTag.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [AttributeTag] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [AttributeTag]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeAttributeTag.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+fileprivate struct FfiConverterSequenceTypeVerifiableCredentialCommitmentInputs: FfiConverterRustBuffer {
+    typealias SwiftType = [VerifiableCredentialCommitmentInputs]
+
+    public static func write(_ value: [VerifiableCredentialCommitmentInputs], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeVerifiableCredentialCommitmentInputs.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [VerifiableCredentialCommitmentInputs] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [VerifiableCredentialCommitmentInputs]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeVerifiableCredentialCommitmentInputs.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+fileprivate struct FfiConverterSequenceTypeVerifiableCredentialProof: FfiConverterRustBuffer {
+    typealias SwiftType = [VerifiableCredentialProof]
+
+    public static func write(_ value: [VerifiableCredentialProof], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeVerifiableCredentialProof.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [VerifiableCredentialProof] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [VerifiableCredentialProof]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeVerifiableCredentialProof.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+fileprivate struct FfiConverterSequenceTypeVerifiableCredentialStatement: FfiConverterRustBuffer {
+    typealias SwiftType = [VerifiableCredentialStatement]
+
+    public static func write(_ value: [VerifiableCredentialStatement], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeVerifiableCredentialStatement.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [VerifiableCredentialStatement] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [VerifiableCredentialStatement]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeVerifiableCredentialStatement.read(from: &buf))
+        }
+        return seq
+    }
+}
+
+fileprivate struct FfiConverterSequenceTypeWeb3IdAttribute: FfiConverterRustBuffer {
+    typealias SwiftType = [Web3IdAttribute]
+
+    public static func write(_ value: [Web3IdAttribute], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for item in value {
+            FfiConverterTypeWeb3IdAttribute.write(item, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [Web3IdAttribute] {
+        let len: Int32 = try readInt(&buf)
+        var seq = [Web3IdAttribute]()
+        seq.reserveCapacity(Int(len))
+        for _ in 0 ..< len {
+            seq.append(try FfiConverterTypeWeb3IdAttribute.read(from: &buf))
         }
         return seq
     }
@@ -3637,23 +6687,23 @@ fileprivate struct FfiConverterDictionaryUInt32TypeChainArData: FfiConverterRust
     }
 }
 
-fileprivate struct FfiConverterDictionaryStringString: FfiConverterRustBuffer {
-    public static func write(_ value: [String: String], into buf: inout [UInt8]) {
+fileprivate struct FfiConverterDictionaryStringTypeWeb3IdAttribute: FfiConverterRustBuffer {
+    public static func write(_ value: [String: Web3IdAttribute], into buf: inout [UInt8]) {
         let len = Int32(value.count)
         writeInt(&buf, len)
         for (key, value) in value {
             FfiConverterString.write(key, into: &buf)
-            FfiConverterString.write(value, into: &buf)
+            FfiConverterTypeWeb3IdAttribute.write(value, into: &buf)
         }
     }
 
-    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [String: String] {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [String: Web3IdAttribute] {
         let len: Int32 = try readInt(&buf)
-        var dict = [String: String]()
+        var dict = [String: Web3IdAttribute]()
         dict.reserveCapacity(Int(len))
         for _ in 0..<len {
             let key = try FfiConverterString.read(from: &buf)
-            let value = try FfiConverterString.read(from: &buf)
+            let value = try FfiConverterTypeWeb3IdAttribute.read(from: &buf)
             dict[key] = value
         }
         return dict
@@ -3676,6 +6726,52 @@ fileprivate struct FfiConverterDictionaryStringTypeBytes: FfiConverterRustBuffer
         dict.reserveCapacity(Int(len))
         for _ in 0..<len {
             let key = try FfiConverterString.read(from: &buf)
+            let value = try FfiConverterTypeBytes.read(from: &buf)
+            dict[key] = value
+        }
+        return dict
+    }
+}
+
+fileprivate struct FfiConverterDictionaryTypeAttributeTagString: FfiConverterRustBuffer {
+    public static func write(_ value: [AttributeTag: String], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for (key, value) in value {
+            FfiConverterTypeAttributeTag.write(key, into: &buf)
+            FfiConverterString.write(value, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [AttributeTag: String] {
+        let len: Int32 = try readInt(&buf)
+        var dict = [AttributeTag: String]()
+        dict.reserveCapacity(Int(len))
+        for _ in 0..<len {
+            let key = try FfiConverterTypeAttributeTag.read(from: &buf)
+            let value = try FfiConverterString.read(from: &buf)
+            dict[key] = value
+        }
+        return dict
+    }
+}
+
+fileprivate struct FfiConverterDictionaryTypeAttributeTagTypeBytes: FfiConverterRustBuffer {
+    public static func write(_ value: [AttributeTag: Bytes], into buf: inout [UInt8]) {
+        let len = Int32(value.count)
+        writeInt(&buf, len)
+        for (key, value) in value {
+            FfiConverterTypeAttributeTag.write(key, into: &buf)
+            FfiConverterTypeBytes.write(value, into: &buf)
+        }
+    }
+
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> [AttributeTag: Bytes] {
+        let len: Int32 = try readInt(&buf)
+        var dict = [AttributeTag: Bytes]()
+        dict.reserveCapacity(Int(len))
+        for _ in 0..<len {
+            let key = try FfiConverterTypeAttributeTag.read(from: &buf)
             let value = try FfiConverterTypeBytes.read(from: &buf)
             dict[key] = value
         }
@@ -3716,11 +6812,45 @@ public func FfiConverterTypeBytes_lower(_ value: Bytes) -> RustBuffer {
     return FfiConverterTypeBytes.lower(value)
 }
 
+
+
+/**
+ * Typealias from the type name used in the UDL file to the builtin type.  This
+ * is needed because the UDL type name is used in function/method signatures.
+ */
+public typealias MicroCCDAmount = UInt64
+public struct FfiConverterTypeMicroCCDAmount: FfiConverter {
+    public static func read(from buf: inout (data: Data, offset: Data.Index)) throws -> MicroCCDAmount {
+        return try FfiConverterUInt64.read(from: &buf)
+    }
+
+    public static func write(_ value: MicroCCDAmount, into buf: inout [UInt8]) {
+        return FfiConverterUInt64.write(value, into: &buf)
+    }
+
+    public static func lift(_ value: UInt64) throws -> MicroCCDAmount {
+        return try FfiConverterUInt64.lift(value)
+    }
+
+    public static func lower(_ value: MicroCCDAmount) -> UInt64 {
+        return FfiConverterUInt64.lower(value)
+    }
+}
+
+
+public func FfiConverterTypeMicroCCDAmount_lift(_ value: UInt64) throws -> MicroCCDAmount {
+    return try FfiConverterTypeMicroCCDAmount.lift(value)
+}
+
+public func FfiConverterTypeMicroCCDAmount_lower(_ value: MicroCCDAmount) -> UInt64 {
+    return FfiConverterTypeMicroCCDAmount.lower(value)
+}
+
 /**
  * Construct an account credential from the information contained in the provided parameters.
  */
-public func accountCredential(params: AccountCredentialParameters) throws  -> AccountCredentialResult {
-    return try  FfiConverterTypeAccountCredentialResult.lift(
+public func accountCredential(params: AccountCredentialParameters) throws  -> AccountCredentialWithRandomness {
+    return try  FfiConverterTypeAccountCredentialWithRandomness.lift(
         try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
     uniffi_concordium_wallet_crypto_uniffi_fn_func_account_credential(
         FfiConverterTypeAccountCredentialParameters.lower(params),$0)
@@ -3729,14 +6859,13 @@ public func accountCredential(params: AccountCredentialParameters) throws  -> Ac
 }
 /**
  * Compute the attribute commitment randomness for the provided seed, identity indexes, credential counter, and attribute number.
- * Supported values for `network`: "Testnet", "Mainnet".
  */
-public func accountCredentialAttributeCommitmentRandomness(seed: Bytes, network: String, identityProviderId: UInt32, identityIndex: UInt32, credentialCounter: UInt8, attribute: UInt8) throws  -> Bytes {
+public func accountCredentialAttributeCommitmentRandomness(seed: Bytes, network: Network, identityProviderId: UInt32, identityIndex: UInt32, credentialCounter: UInt8, attribute: UInt8) throws  -> Bytes {
     return try  FfiConverterTypeBytes.lift(
         try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
     uniffi_concordium_wallet_crypto_uniffi_fn_func_account_credential_attribute_commitment_randomness(
         FfiConverterTypeBytes.lower(seed),
-        FfiConverterString.lower(network),
+        FfiConverterTypeNetwork.lower(network),
         FfiConverterUInt32.lower(identityProviderId),
         FfiConverterUInt32.lower(identityIndex),
         FfiConverterUInt8.lower(credentialCounter),
@@ -3769,14 +6898,13 @@ public func accountCredentialDeploymentSignedPayload(credential: SignedAccountCr
 }
 /**
  * Compute the credential ID for the provided seed, identity indexes, credential counter, and the chain's commitment key.
- * Supported values for `network`: "Testnet", "Mainnet".
  */
-public func accountCredentialId(seed: Bytes, network: String, identityProviderId: UInt32, identityIndex: UInt32, credentialCounter: UInt8, commitmentKey: Bytes) throws  -> Bytes {
+public func accountCredentialId(seed: Bytes, network: Network, identityProviderId: UInt32, identityIndex: UInt32, credentialCounter: UInt8, commitmentKey: Bytes) throws  -> Bytes {
     return try  FfiConverterTypeBytes.lift(
         try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
     uniffi_concordium_wallet_crypto_uniffi_fn_func_account_credential_id(
         FfiConverterTypeBytes.lower(seed),
-        FfiConverterString.lower(network),
+        FfiConverterTypeNetwork.lower(network),
         FfiConverterUInt32.lower(identityProviderId),
         FfiConverterUInt32.lower(identityIndex),
         FfiConverterUInt8.lower(credentialCounter),
@@ -3786,14 +6914,13 @@ public func accountCredentialId(seed: Bytes, network: String, identityProviderId
 }
 /**
  * Compute the account credential public key for the provided seed, identity indexes, and credential counter.
- * Supported values for `network`: "Testnet", "Mainnet".
  */
-public func accountCredentialPublicKey(seed: Bytes, network: String, identityProviderId: UInt32, identityIndex: UInt32, credentialCounter: UInt8) throws  -> Bytes {
+public func accountCredentialPublicKey(seed: Bytes, network: Network, identityProviderId: UInt32, identityIndex: UInt32, credentialCounter: UInt8) throws  -> Bytes {
     return try  FfiConverterTypeBytes.lift(
         try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
     uniffi_concordium_wallet_crypto_uniffi_fn_func_account_credential_public_key(
         FfiConverterTypeBytes.lower(seed),
-        FfiConverterString.lower(network),
+        FfiConverterTypeNetwork.lower(network),
         FfiConverterUInt32.lower(identityProviderId),
         FfiConverterUInt32.lower(identityIndex),
         FfiConverterUInt8.lower(credentialCounter),$0)
@@ -3802,17 +6929,54 @@ public func accountCredentialPublicKey(seed: Bytes, network: String, identityPro
 }
 /**
  * Compute the account credential signing key for the provided seed, identity indexes, and credential counter.
- * Supported values for `network`: "Testnet", "Mainnet".
  */
-public func accountCredentialSigningKey(seed: Bytes, network: String, identityProviderId: UInt32, identityIndex: UInt32, credentialCounter: UInt8) throws  -> Bytes {
+public func accountCredentialSigningKey(seed: Bytes, network: Network, identityProviderId: UInt32, identityIndex: UInt32, credentialCounter: UInt8) throws  -> Bytes {
     return try  FfiConverterTypeBytes.lift(
         try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
     uniffi_concordium_wallet_crypto_uniffi_fn_func_account_credential_signing_key(
         FfiConverterTypeBytes.lower(seed),
-        FfiConverterString.lower(network),
+        FfiConverterTypeNetwork.lower(network),
         FfiConverterUInt32.lower(identityProviderId),
         FfiConverterUInt32.lower(identityIndex),
         FfiConverterUInt8.lower(credentialCounter),$0)
+}
+    )
+}
+/**
+ * Attempt to combine two encrypted amounts
+ */
+public func combineEncryptedAmounts(left: Bytes, right: Bytes) throws  -> Bytes {
+    return try  FfiConverterTypeBytes.lift(
+        try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_combine_encrypted_amounts(
+        FfiConverterTypeBytes.lower(left),
+        FfiConverterTypeBytes.lower(right),$0)
+}
+    )
+}
+/**
+ * Create a verifiable presentation from a `VerifiablePresentationRequest`, the associated
+ * commitment inputs and the cryptographic parameters of the chain.
+ */
+public func createVerifiablePresentation(request: VerifiablePresentationRequest, global: GlobalContext, commitmentInputs: [VerifiableCredentialCommitmentInputs]) throws  -> VerifiablePresentation {
+    return try  FfiConverterTypeVerifiablePresentation.lift(
+        try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_create_verifiable_presentation(
+        FfiConverterTypeVerifiablePresentationRequest.lower(request),
+        FfiConverterTypeGlobalContext.lower(global),
+        FfiConverterSequenceTypeVerifiableCredentialCommitmentInputs.lower(commitmentInputs),$0)
+}
+    )
+}
+/**
+ * Attempt to decryp the encrypted amount with the given encryption key
+ */
+public func decryptAmount(encryptedAmount: Bytes, encryptionSecretKey: Bytes) throws  -> MicroCCDAmount {
+    return try  FfiConverterTypeMicroCCDAmount.lift(
+        try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_decrypt_amount(
+        FfiConverterTypeBytes.lower(encryptedAmount),
+        FfiConverterTypeBytes.lower(encryptionSecretKey),$0)
 }
     )
 }
@@ -3851,6 +7015,17 @@ public func deserializeUpdateCredentialsPayload(bytes: Data) throws  -> UpdateCr
     )
 }
 /**
+ * Format the given `Method` as a DID string
+ */
+public func didMethodAsString(did: Did) throws  -> String {
+    return try  FfiConverterString.lift(
+        try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_did_method_as_string(
+        FfiConverterTypeDID.lower(did),$0)
+}
+    )
+}
+/**
  * Returns the schema template for the given `TypeSchema`
  */
 public func displayTypeSchemaTemplate(schema: TypeSchema) throws  -> String {
@@ -3868,6 +7043,19 @@ public func generateBakerKeys()  -> BakerKeyPairs {
     return try!  FfiConverterTypeBakerKeyPairs.lift(
         try! rustCall() {
     uniffi_concordium_wallet_crypto_uniffi_fn_func_generate_baker_keys($0)
+}
+    )
+}
+/**
+ * Attempt to create the encryption keys associated with an account at the given credential index
+ */
+public func getEncryptionKeys(globalContext: GlobalContext, prfKey: Bytes, credentialIndex: UInt8) throws  -> EncryptionKeys {
+    return try  FfiConverterTypeEncryptionKeys.lift(
+        try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_get_encryption_keys(
+        FfiConverterTypeGlobalContext.lower(globalContext),
+        FfiConverterTypeBytes.lower(prfKey),
+        FfiConverterUInt8.lower(credentialIndex),$0)
 }
     )
 }
@@ -3948,14 +7136,13 @@ public func getReceiveReturnValueSchema(schema: ModuleSchema, contractName: Stri
 }
 /**
  * Compute the signature blinding randomness for the provided seed and identity indexes.
- * Supported values for `network`: "Testnet", "Mainnet".
  */
-public func identityAttributesSignatureBlindingRandomness(seed: Bytes, network: String, identityProviderId: UInt32, identityIndex: UInt32) throws  -> Bytes {
+public func identityAttributesSignatureBlindingRandomness(seed: Bytes, network: Network, identityProviderId: UInt32, identityIndex: UInt32) throws  -> Bytes {
     return try  FfiConverterTypeBytes.lift(
         try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
     uniffi_concordium_wallet_crypto_uniffi_fn_func_identity_attributes_signature_blinding_randomness(
         FfiConverterTypeBytes.lower(seed),
-        FfiConverterString.lower(network),
+        FfiConverterTypeNetwork.lower(network),
         FfiConverterUInt32.lower(identityProviderId),
         FfiConverterUInt32.lower(identityIndex),$0)
 }
@@ -3963,14 +7150,13 @@ public func identityAttributesSignatureBlindingRandomness(seed: Bytes, network: 
 }
 /**
  * Compute the IdCredSec for the provided seed and identity indexes.
- * Supported values for `network`: "Testnet", "Mainnet".
  */
-public func identityCredSec(seed: Bytes, network: String, identityProviderId: UInt32, identityIndex: UInt32) throws  -> Bytes {
+public func identityCredSec(seed: Bytes, network: Network, identityProviderId: UInt32, identityIndex: UInt32) throws  -> Bytes {
     return try  FfiConverterTypeBytes.lift(
         try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
     uniffi_concordium_wallet_crypto_uniffi_fn_func_identity_cred_sec(
         FfiConverterTypeBytes.lower(seed),
-        FfiConverterString.lower(network),
+        FfiConverterTypeNetwork.lower(network),
         FfiConverterUInt32.lower(identityProviderId),
         FfiConverterUInt32.lower(identityIndex),$0)
 }
@@ -3991,14 +7177,13 @@ public func identityIssuanceRequestJson(params: IdentityIssuanceRequestParameter
 }
 /**
  * Compute the PRF-key for the provided seed and identity indexes.
- * Supported values for `network`: "Testnet", "Mainnet".
  */
-public func identityPrfKey(seed: Bytes, network: String, identityProviderId: UInt32, identityIndex: UInt32) throws  -> Bytes {
+public func identityPrfKey(seed: Bytes, network: Network, identityProviderId: UInt32, identityIndex: UInt32) throws  -> Bytes {
     return try  FfiConverterTypeBytes.lift(
         try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
     uniffi_concordium_wallet_crypto_uniffi_fn_func_identity_prf_key(
         FfiConverterTypeBytes.lower(seed),
-        FfiConverterString.lower(network),
+        FfiConverterTypeNetwork.lower(network),
         FfiConverterUInt32.lower(identityProviderId),
         FfiConverterUInt32.lower(identityIndex),$0)
 }
@@ -4029,16 +7214,46 @@ public func makeConfigureBakerKeysPayload(accountBase58: String, bakerKeys: Bake
     )
 }
 /**
+ * Parse the `Method` from the given string
+ */
+public func parseDidMethod(value: String) throws  -> Did {
+    return try  FfiConverterTypeDID.lift(
+        try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_parse_did_method(
+        FfiConverterString.lower(value),$0)
+}
+    )
+}
+/**
+ * Prove the supplied statement in the context of a given identity and credential
+ */
+public func proveIdentityStatement(seed: Bytes, net: Network, globalContext: GlobalContext, ipIndex: UInt32, identityIndex: UInt32, credentialIndex: UInt8, identityObject: IdentityObject, statement: IdentityStatement, challenge: Bytes) throws  -> VersionedIdentityProof {
+    return try  FfiConverterTypeVersionedIdentityProof.lift(
+        try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
+    uniffi_concordium_wallet_crypto_uniffi_fn_func_prove_identity_statement(
+        FfiConverterTypeBytes.lower(seed),
+        FfiConverterTypeNetwork.lower(net),
+        FfiConverterTypeGlobalContext.lower(globalContext),
+        FfiConverterUInt32.lower(ipIndex),
+        FfiConverterUInt32.lower(identityIndex),
+        FfiConverterUInt8.lower(credentialIndex),
+        FfiConverterTypeIdentityObject.lower(identityObject),
+        FfiConverterTypeIdentityStatement.lower(statement),
+        FfiConverterTypeBytes.lower(challenge),$0)
+}
+    )
+}
+/**
  * Construct the payload for a TransferToPublic transaction. The `to_transfer` amount is specififed in microCCD.
  */
-public func secToPubTransferData(ctx: GlobalContext, senderSecretKey: Bytes, inputAmount: InputEncryptedAmount, toTransfer: UInt64) throws  -> SecToPubTransferData {
+public func secToPubTransferData(ctx: GlobalContext, senderSecretKey: Bytes, inputAmount: InputEncryptedAmount, toTransfer: MicroCCDAmount) throws  -> SecToPubTransferData {
     return try  FfiConverterTypeSecToPubTransferData.lift(
         try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
     uniffi_concordium_wallet_crypto_uniffi_fn_func_sec_to_pub_transfer_data(
         FfiConverterTypeGlobalContext.lower(ctx),
         FfiConverterTypeBytes.lower(senderSecretKey),
         FfiConverterTypeInputEncryptedAmount.lower(inputAmount),
-        FfiConverterUInt64.lower(toTransfer),$0)
+        FfiConverterTypeMicroCCDAmount.lower(toTransfer),$0)
 }
     )
 }
@@ -4067,27 +7282,25 @@ public func serializeTypeValue(json: String, schema: TypeSchema) throws  -> Data
 }
 /**
  * Compute the encoded verifiable credential backup encryption key for the provided seed.
- * Supported values for `network`: "Testnet", "Mainnet".
  */
-public func verifiableCredentialBackupEncryptionKey(seed: Bytes, network: String) throws  -> Bytes {
+public func verifiableCredentialBackupEncryptionKey(seed: Bytes, network: Network) throws  -> Bytes {
     return try  FfiConverterTypeBytes.lift(
         try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
     uniffi_concordium_wallet_crypto_uniffi_fn_func_verifiable_credential_backup_encryption_key(
         FfiConverterTypeBytes.lower(seed),
-        FfiConverterString.lower(network),$0)
+        FfiConverterTypeNetwork.lower(network),$0)
 }
     )
 }
 /**
  * Compute the public key for the provided seed, issuer indexes, and verifiable credential index.
- * Supported values for `network`: "Testnet", "Mainnet".
  */
-public func verifiableCredentialPublicKey(seed: Bytes, network: String, issuerIndex: UInt64, issuerSubindex: UInt64, verifiableCredentialIndex: UInt32) throws  -> Bytes {
+public func verifiableCredentialPublicKey(seed: Bytes, network: Network, issuerIndex: UInt64, issuerSubindex: UInt64, verifiableCredentialIndex: UInt32) throws  -> Bytes {
     return try  FfiConverterTypeBytes.lift(
         try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
     uniffi_concordium_wallet_crypto_uniffi_fn_func_verifiable_credential_public_key(
         FfiConverterTypeBytes.lower(seed),
-        FfiConverterString.lower(network),
+        FfiConverterTypeNetwork.lower(network),
         FfiConverterUInt64.lower(issuerIndex),
         FfiConverterUInt64.lower(issuerSubindex),
         FfiConverterUInt32.lower(verifiableCredentialIndex),$0)
@@ -4096,14 +7309,13 @@ public func verifiableCredentialPublicKey(seed: Bytes, network: String, issuerIn
 }
 /**
  * Compute the signing key for the provided seed, issuer indexes, and verifiable credential index.
- * Supported values for `network`: "Testnet", "Mainnet".
  */
-public func verifiableCredentialSigningKey(seed: Bytes, network: String, issuerIndex: UInt64, issuerSubindex: UInt64, verifiableCredentialIndex: UInt32) throws  -> Bytes {
+public func verifiableCredentialSigningKey(seed: Bytes, network: Network, issuerIndex: UInt64, issuerSubindex: UInt64, verifiableCredentialIndex: UInt32) throws  -> Bytes {
     return try  FfiConverterTypeBytes.lift(
         try rustCallWithError(FfiConverterTypeConcordiumWalletCryptoError.lift) {
     uniffi_concordium_wallet_crypto_uniffi_fn_func_verifiable_credential_signing_key(
         FfiConverterTypeBytes.lower(seed),
-        FfiConverterString.lower(network),
+        FfiConverterTypeNetwork.lower(network),
         FfiConverterUInt64.lower(issuerIndex),
         FfiConverterUInt64.lower(issuerSubindex),
         FfiConverterUInt32.lower(verifiableCredentialIndex),$0)
@@ -4126,10 +7338,10 @@ private var initializationResult: InitializationResult {
     if bindings_contract_version != scaffolding_contract_version {
         return InitializationResult.contractVersionMismatch
     }
-    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential() != 28347) {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential() != 60596) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_attribute_commitment_randomness() != 5266) {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_attribute_commitment_randomness() != 65162) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_deployment_hash() != 17693) {
@@ -4138,13 +7350,22 @@ private var initializationResult: InitializationResult {
     if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_deployment_signed_payload() != 42141) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_id() != 35467) {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_id() != 45072) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_public_key() != 21709) {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_public_key() != 63456) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_signing_key() != 116) {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_account_credential_signing_key() != 17934) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_combine_encrypted_amounts() != 56311) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_create_verifiable_presentation() != 16440) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_decrypt_amount() != 53254) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_deserialize_sec_to_pub_transfer_data() != 15687) {
@@ -4156,10 +7377,16 @@ private var initializationResult: InitializationResult {
     if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_deserialize_update_credentials_payload() != 65247) {
         return InitializationResult.apiChecksumMismatch
     }
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_did_method_as_string() != 44533) {
+        return InitializationResult.apiChecksumMismatch
+    }
     if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_display_type_schema_template() != 53699) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_generate_baker_keys() != 22656) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_get_encryption_keys() != 21403) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_get_event_schema() != 34116) {
@@ -4180,16 +7407,16 @@ private var initializationResult: InitializationResult {
     if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_get_receive_return_value_schema() != 56848) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_identity_attributes_signature_blinding_randomness() != 51381) {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_identity_attributes_signature_blinding_randomness() != 9155) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_identity_cred_sec() != 9447) {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_identity_cred_sec() != 35003) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_identity_issuance_request_json() != 28061) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_identity_prf_key() != 34345) {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_identity_prf_key() != 7623) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_identity_recovery_request_json() != 33579) {
@@ -4198,7 +7425,13 @@ private var initializationResult: InitializationResult {
     if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_make_configure_baker_keys_payload() != 25683) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_sec_to_pub_transfer_data() != 30839) {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_parse_did_method() != 35114) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_prove_identity_statement() != 64093) {
+        return InitializationResult.apiChecksumMismatch
+    }
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_sec_to_pub_transfer_data() != 40421) {
         return InitializationResult.apiChecksumMismatch
     }
     if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_serialize_credential_deployment_info() != 61448) {
@@ -4207,13 +7440,13 @@ private var initializationResult: InitializationResult {
     if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_serialize_type_value() != 39554) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_verifiable_credential_backup_encryption_key() != 58160) {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_verifiable_credential_backup_encryption_key() != 5491) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_verifiable_credential_public_key() != 57213) {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_verifiable_credential_public_key() != 47622) {
         return InitializationResult.apiChecksumMismatch
     }
-    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_verifiable_credential_signing_key() != 59666) {
+    if (uniffi_concordium_wallet_crypto_uniffi_checksum_func_verifiable_credential_signing_key() != 63938) {
         return InitializationResult.apiChecksumMismatch
     }
 
