@@ -11,6 +11,6 @@ let package = Package(
     ],
     dependencies: [],
     targets: [
-        .binaryTarget(name: "libmobile_wallet", url: "https://s3.eu-west-1.amazonaws.com/static-libraries.concordium.com/iOS/libmobile_wallet_0.25.0.xcframework.zip", checksum: "c8cfc429f2ed99c807327ddb70f498624634bb8c0ab01904844005095eb80993")
+        .binaryTarget(name: "libmobile_wallet", url: "https://s3.eu-west-1.amazonaws.com/static-libraries.concordium.com/iOS/libmobile_wallet_0.25.0.xcframework.zip", checksum: "1b3155390cff94eaccd4230ecbdc5a081ead505c3ccdaf0b87a2279f1b05dfc8")
     ]
 )
