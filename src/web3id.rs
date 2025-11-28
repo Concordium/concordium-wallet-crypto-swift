@@ -636,8 +636,9 @@ mod tests {
 
         let converted: Vec<web3id::Web3IdAttribute> =
             serde_convert(attributes.clone()).expect("Can convert to base type");
+
         let expected = vec![
-            web3id::Web3IdAttribute::String(AttributeKind("Random".into())),
+            web3id::Web3IdAttribute::String(AttributeKind::try_new("Random".to_string()).unwrap()),
             web3id::Web3IdAttribute::Numeric(123456),
             web3id::Web3IdAttribute::Timestamp(8095752239636000.into()),
         ];
