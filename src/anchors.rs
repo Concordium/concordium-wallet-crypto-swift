@@ -1,7 +1,8 @@
-use concordium_base::web3id::v1::anchor::VerificationRequestData;
+use concordium_base::{ 
+    web3id::v1::anchor::VerificationRequestData};
 use wallet_library::proofs::{PresentationV1Input, VerificationRequestV1Input};
 
-use crate::{ConcordiumWalletCryptoError, ConvertError};
+use crate::{ConcordiumWalletCryptoError, ConvertError, Bytes};
 
 // #[uniffi::export]
 pub fn create_presentation(input: String) -> Result<String, ConcordiumWalletCryptoError> {
@@ -18,17 +19,20 @@ pub fn create_presentation(input: String) -> Result<String, ConcordiumWalletCryp
     Ok(String::new())
 }
 
-// #[uniffi::export]
-pub fn compute_anchor_hash(input: String) -> Result<String, ConcordiumWalletCryptoError> {
+#[uniffi::export]
+pub fn compute_anchor_hash(input: String) -> Result<Bytes, ConcordiumWalletCryptoError> {
     let fn_desc = "compute_anchor_hash(input={input})";
-    let verification_request_v1_input: VerificationRequestV1Input =
+    let input: VerificationRequestV1Input =
         serde_json::from_str(&input).map_err(|e| e.to_call_failed(fn_desc.to_string()))?;
+
     let verification_request_data = VerificationRequestData {
-        context: verification_request_v1_input.context,
-        subject_claims: verification_request_v1_input.subject_claims,
+        context: input.context,
+        subject_claims: input.subject_claims,
     };
 
-    let _hash = verification_request_data.hash();
+    let hash= verification_request_data.hash();
 
-    Ok(String::new())
+    Ok(hash.into())
 }
+
+

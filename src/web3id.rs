@@ -10,7 +10,7 @@ use concordium_base::{
         constants::{ArCurve, AttributeKind},
         types::IpIdentity,
     },
-    web3id::{self, Presentation, v1::IdentityCredentialEphemeralId},
+    web3id::{self, v1::IdentityCredentialEphemeralId, Presentation},
 };
 use uniffi::deps::anyhow::{self, Context};
 
@@ -55,7 +55,9 @@ impl TryFrom<web3id::Web3IdAttribute> for Web3IdAttribute {
 
     fn try_from(value: web3id::Web3IdAttribute) -> Result<Self, Self::Error> {
         let converted = match value {
-            web3id::Web3IdAttribute::String(value) => Web3IdAttribute::String { value: value.as_ref().to_owned() },
+            web3id::Web3IdAttribute::String(value) => Web3IdAttribute::String {
+                value: value.as_ref().to_owned(),
+            },
             web3id::Web3IdAttribute::Numeric(value) => Web3IdAttribute::Numeric { value },
             web3id::Web3IdAttribute::Timestamp(_) => {
                 let dt = chrono::DateTime::<Utc>::try_from(&value)?;
@@ -282,7 +284,7 @@ pub enum IdentifierType {
     /// Reference to a specific identity provider.
     Idp { idp_identity: u32 },
     /// Encrypted, ephemeral identifier for an identity credential. It is the encryption of IdCredPub.
-    EncryptedIdentityCredentialId {cred_id: Vec<u8>},
+    EncryptedIdentityCredentialId { cred_id: Vec<u8> },
 }
 
 impl TryFrom<IdentifierType> for web3id::did::IdentifierType {
@@ -311,7 +313,11 @@ impl TryFrom<IdentifierType> for web3id::did::IdentifierType {
             IdentifierType::Idp { idp_identity } => Self::Idp {
                 idp_identity: IpIdentity(idp_identity),
             },
-            IdentifierType::EncryptedIdentityCredentialId { cred_id } => Self::EncryptedIdentityCredentialId { cred_id: IdentityCredentialEphemeralId(cred_id) },
+            IdentifierType::EncryptedIdentityCredentialId { cred_id } => {
+                Self::EncryptedIdentityCredentialId {
+                    cred_id: IdentityCredentialEphemeralId(cred_id),
+                }
+            }
         };
         Ok(converted)
     }
@@ -341,7 +347,9 @@ impl From<web3id::did::IdentifierType> for IdentifierType {
             web3id::did::IdentifierType::Idp { idp_identity } => Self::Idp {
                 idp_identity: idp_identity.0,
             },
-            web3id::did::IdentifierType::EncryptedIdentityCredentialId { cred_id } => Self::EncryptedIdentityCredentialId {cred_id: cred_id.0},
+            web3id::did::IdentifierType::EncryptedIdentityCredentialId { cred_id } => {
+                Self::EncryptedIdentityCredentialId { cred_id: cred_id.0 }
+            }
         }
     }
 }

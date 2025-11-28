@@ -4,6 +4,7 @@ use crate::UniffiCustomTypeConverter;
 use concordium_base::{
     contracts_common::{AccountAddressParseError, Amount},
     id::constants::ArCurve,
+    hashes::HashBytes,
 };
 use rand::thread_rng;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -64,6 +65,12 @@ impl TryFrom<&str> for Bytes {
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         let bytes = hex::decode(value)?;
         Ok(bytes.into())
+    }
+}
+
+impl<T> From<HashBytes<T>> for Bytes {
+    fn from(value: HashBytes<T>) -> Self {
+        Self(value.bytes.to_vec())
     }
 }
 
