@@ -680,6 +680,8 @@ interface IdentifierType {
     PublicKey(bytes key);
     /// Reference to a specific identity provider.
     Idp(u32 idp_identity);
+    /// Encrypted, ephemeral identifier for an identity credential. It is the encryption of IdCredPub.
+    EncryptedIdentityCredentialId(bytes cred_id);
 };
 
 dictionary DID {
