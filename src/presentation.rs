@@ -9,10 +9,9 @@ pub fn create_presentation(input: String) -> Result<String, ConcordiumWalletCryp
     let proof_input: PresentationV1Input =
         serde_json::from_str(&input).map_err(|e| e.to_call_failed(fn_desc.to_string()))?;
 
-    let presentation = match proof_input.prove() {
-        Ok(val) => val,
-        Err(_err) => todo!(),
-    };
+    let presentation = proof_input
+        .prove()
+        .map_err(|e| e.to_call_failed(fn_desc.to_string()))?;
 
     serde_json::to_string(&presentation).map_err(|e| e.to_call_failed(fn_desc.to_string()))
 }

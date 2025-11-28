@@ -5,6 +5,7 @@ use concordium_base::{
     contracts_common::{AccountAddressParseError, Amount},
     hashes::HashBytes,
     id::constants::ArCurve,
+    web3id::v1::ProveError,
 };
 use rand::thread_rng;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -37,6 +38,7 @@ impl ConvertError for serde_json::Error {}
 impl ConvertError for uniffi::deps::anyhow::Error {}
 impl ConvertError for AccountAddressParseError {}
 impl ConvertError for hex::FromHexError {}
+impl ConvertError for ProveError {}
 
 pub(crate) fn serde_convert<S: Serialize, D: DeserializeOwned>(
     value: S,
