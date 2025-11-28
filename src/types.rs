@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use crate::UniffiCustomTypeConverter;
 use concordium_base::{
     contracts_common::{AccountAddressParseError, Amount},
-    id::constants::ArCurve,
     hashes::HashBytes,
+    id::constants::ArCurve,
 };
 use rand::thread_rng;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};

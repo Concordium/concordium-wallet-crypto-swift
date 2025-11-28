@@ -1,4 +1,4 @@
-rust_toolchain = 1.73
+rust_toolchain = 1.91
 cargo = cargo +$(rust_toolchain)
 
 # Targets from building the individual components to assembling a complete framework.
