@@ -27,6 +27,18 @@ pub struct RevealAttributeStatement<Tag: Clone> {
 /// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::RevealAttributeStatement<AttributeTag>`]
 pub type RevealAttributeIdentityStatement = RevealAttributeStatement<AttributeTag>;
 
+#[derive(Serialize, Deserialize, Clone)]
+#[serde(rename_all = "camelCase")]
+/// For the case where the verifier wants the user to prove that an attribute is
+/// equal to a public value. The statement is that the attribute value is equal to `attribute_value`.
+pub struct AttributeValueStatement<Tag: Clone, Value: Clone> {
+    pub attribute_tag: Tag,
+    pub attribute_value: Value,
+}
+
+/// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::AttributeValueStatement<ArCurve, AttributeTag, AttributeKind>`]
+pub type AttributeValueIdentityStatement = AttributeValueStatement<AttributeTag, String>;
+
 /// For the case where the verifier wants the user to prove that an attribute is
 /// in a range. The statement is that the attribute value lies in `[lower,
 /// upper)` in the scalar field.
