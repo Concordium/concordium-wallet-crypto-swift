@@ -1,16 +1,26 @@
-use std::time::SystemTime;
+use std::{collections::HashMap, time::SystemTime};
 
 use crate::{
-    AttributeInSetIdentityStatement, AttributeNotInSetIdentityStatement, AttributeTag, AttributeValueIdentityStatement, Bytes, ConcordiumWalletCryptoError, ConvertError, Network, id_proofs::AttributeInRangeIdentityStatement
+    id_proofs::AttributeInRangeIdentityStatement, AttributeInSetIdentityStatement,
+    AttributeNotInSetIdentityStatement, AttributeTag, AttributeValueIdentityStatement, Bytes,
+    ConcordiumWalletCryptoError, ConvertError, Network,
 };
-use concordium_base::web3id::v1::anchor::VerificationRequestData;
+use concordium_base::{
+    id::constants::{ArCurve, IpPairing},
+    web3id::{
+        v1::{anchor::VerificationRequestData, PresentationV1 as PresV1},
+        Web3IdAttribute,
+    },
+};
+use serde::Deserialize;
 use wallet_library::proofs::{PresentationV1Input, VerificationRequestV1Input};
 
+#[derive(Clone, Deserialize)]
 pub struct AttributeValueProof {
     pub proof: Bytes,
 }
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Deserialize, Clone)]
 #[serde(tag = "type")]
 pub enum AtomicProofV1 {
     AttributeValue { proof: AttributeValueProof }, // todo: serde flatten
@@ -20,14 +30,27 @@ pub enum AtomicProofV1 {
     AttributeNotInSet { proof: Bytes },
 }
 
+#[derive(Clone)]
 pub enum IdentityAttribute {
-    Committed(Bytes),
-    Revealed(String),
+    Committed { commited: Bytes },
+    Revealed { revealed: String },
     Known,
 }
 
-pub struct IdentityAttributesCredentialsProofs {}
+#[derive(Clone)]
+pub struct IdentityAttributesCredentialsProofs {
+    pub signature: Bytes,
+    pub cmm_id_cred_sec_sharing_coeff: Vec<Bytes>,
+    pub challenge: Bytes,
+    pub proof_id_cred_pub: HashMap<u32, Bytes>,
+    pub proof_ip_signature: Bytes,
+}
 
+pub type ConcordiumIdentityCredentialZKProofs = ConcordiumZKProof<IdentityCredentialProofs>;
+
+pub type ConcordiumAccountCredentialZKProofs = ConcordiumZKProof<AccountCredentialProofs>;
+
+#[derive(Clone)]
 pub struct IdentityCredentialProofs {
     pub identity_attributes: HashMap<AttributeTag, IdentityAttribute>,
     pub identity_attributes_proofs: IdentityAttributesCredentialsProofs,
@@ -50,17 +73,22 @@ pub struct ConcordiumZKProof<T: Clone> {
 }
 
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::AtomicStatementV1].
+#[derive(Deserialize, Clone)]
 pub enum AtomicStatementV1 {
     AttributeValue {
+        #[serde(flatten)]
         statement: AttributeValueIdentityStatement,
     },
     AttributeInRange {
+        #[serde(flatten)]
         statement: AttributeInRangeIdentityStatement,
     },
     AttributeInSet {
+        #[serde(flatten)]
         statement: AttributeInSetIdentityStatement,
     },
     AttributeNotInSet {
+        #[serde(flatten)]
         statement: AttributeNotInSetIdentityStatement,
     },
 }
@@ -83,7 +111,7 @@ pub struct AccountCredentialSubject {
 pub struct AccountBasedCredentialV1 {
     pub issuer: u32,
     pub subject: AccountCredentialSubject,
-    pub proof: ConcordiumZKProof<AccountCredentialProofs>,
+    pub proof: ConcordiumAccountCredentialZKProofs,
 }
 
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::IdentityBasedCredentialV1].
@@ -91,7 +119,7 @@ pub struct IdentityBasedCredentialV1 {
     pub issuer: u32,
     pub validity: SystemTime,
     pub subject: IdentityCredentialSubject,
-    // pub proof: ConcordiumZKProof<T>,
+    pub proof: ConcordiumIdentityCredentialZKProofs,
 }
 
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::CredentialV1].
@@ -118,16 +146,25 @@ pub struct PresentationV1 {
     pub verifiable_credentials: Vec<CredentialV1>,
 }
 
+impl TryFrom<PresV1<IpPairing, ArCurve, Web3IdAttribute>> for PresentationV1 {
+    type Error = serde_json::Error;
+
+    fn try_from(value: PresV1<IpPairing, ArCurve, Web3IdAttribute>) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
+
 /// Implements UDL definition of the same name.
-pub fn create_presentation(input: String) -> Result<(), ConcordiumWalletCryptoError> {
+pub fn create_presentation(input: String) -> Result<PresentationV1, ConcordiumWalletCryptoError> {
     let fn_desc = "create_presentation(input={input})";
     let proof_input: PresentationV1Input =
         serde_json::from_str(&input).map_err(|e| e.to_call_failed(fn_desc.to_string()))?;
 
-    proof_input
+    let presentation = proof_input
         .prove()
         .map_err(|e| e.to_call_failed(fn_desc.to_string()))?;
-    Ok(())
+
+    PresentationV1::try_from(presentation).map_err(|e| e.to_call_failed(fn_desc.to_string()))
 }
 
 /// Implements UDL definition of the same name.

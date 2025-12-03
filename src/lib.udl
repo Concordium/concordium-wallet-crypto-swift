@@ -768,6 +768,60 @@ dictionary AccountCredentialSubject {
     sequence<AtomicStatementV1> statements;
 };
 
+dictionary AttributeValueProof {
+    Bytes proof;
+};
+
+[Enum]
+interface IdentityAttribute {
+    Committed(Bytes commited);
+    Revealed(string revealed);
+    Known();
+};
+
+[Enum]
+interface AtomicProofV1 {
+    AttributeValue(AttributeValueProof proof);
+    AttributeValueAlreadyRevealed();
+    AttributeInRange(Bytes proof);
+    AttributeInSet(Bytes proof);
+    AttributeNotInSet(Bytes proof);
+};
+
+dictionary IdentityAttributesCredentialsProofs {
+    Bytes signature;
+    sequence<Bytes> cmm_id_cred_sec_sharing_coeff;
+    Bytes challenge;
+    record<u32, Bytes> proof_id_cred_pub;
+    Bytes proof_ip_signature;
+};
+
+dictionary IdentityCredentialProofs {
+    record<AttributeTag, IdentityAttribute> identity_attributes;
+    IdentityAttributesCredentialsProofs identity_attributes_proofs;
+    sequence<AtomicProofV1> statement_proofs;
+};
+
+dictionary AccountCredentialProofs {
+    sequence<AtomicProofV1> statement_proofs;
+};
+
+enum ConcordiumZKProofVersion {
+    "ConcordiumZKProofV4",
+};
+
+dictionary ConcordiumIdentityCredentialZKProofs {
+    timestamp created_at;
+    IdentityCredentialProofs proof_value;
+    ConcordiumZKProofVersion proof_version;
+};
+
+dictionary ConcordiumAccountCredentialZKProofs {
+    timestamp created_at;
+    AccountCredentialProofs proof_value;
+    ConcordiumZKProofVersion proof_version;
+};
+
 dictionary IdentityCredentialSubject {
     Network network;
     Bytes cred_id;
@@ -777,12 +831,14 @@ dictionary IdentityCredentialSubject {
 dictionary AccountBasedCredentialV1 {
     u32 issuer;
     AccountCredentialSubject subject;
+    ConcordiumAccountCredentialZKProofs proof;
 };
 
 dictionary IdentityBasedCredentialV1 {
     u32 issuer;
     timestamp validity;
     IdentityCredentialSubject subject;
+    ConcordiumIdentityCredentialZKProofs proof;
 };
 
 [Enum]
@@ -960,8 +1016,8 @@ namespace crypto {
     string did_method_as_string(DID did);
 
     /// Create PresentationV1 for the given statement
-    /// [Throws=ConcordiumWalletCryptoError]
-    /// PresentationV1 create_presentation(string input);
+    [Throws=ConcordiumWalletCryptoError]
+    PresentationV1 create_presentation(string input);
 
     /// Compute the anchor hash for VerificationRequestData
     [Throws=ConcordiumWalletCryptoError]
