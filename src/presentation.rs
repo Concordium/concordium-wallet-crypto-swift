@@ -30,14 +30,14 @@ pub enum AtomicProofV1 {
     AttributeNotInSet { proof: Bytes },
 }
 
-#[derive(Clone)]
+#[derive(Clone, Deserialize)]
 pub enum IdentityAttribute {
     Committed { commited: Bytes },
     Revealed { revealed: String },
     Known,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Deserialize)]
 pub struct IdentityAttributesCredentialsProofs {
     pub signature: Bytes,
     pub cmm_id_cred_sec_sharing_coeff: Vec<Bytes>,
@@ -50,22 +50,24 @@ pub type ConcordiumIdentityCredentialZKProofs = ConcordiumZKProof<IdentityCreden
 
 pub type ConcordiumAccountCredentialZKProofs = ConcordiumZKProof<AccountCredentialProofs>;
 
-#[derive(Clone)]
+#[derive(Clone, Deserialize)]
 pub struct IdentityCredentialProofs {
     pub identity_attributes: HashMap<AttributeTag, IdentityAttribute>,
     pub identity_attributes_proofs: IdentityAttributesCredentialsProofs,
     pub statement_proofs: Vec<AtomicProofV1>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Deserialize)]
 pub struct AccountCredentialProofs {
     pub statement_proofs: Vec<AtomicProofV1>,
 }
 
+#[derive(Deserialize)]
 pub enum ConcordiumZKProofVersion {
     ConcordiumZKProofV4,
 }
 
+#[derive(Deserialize)]
 pub struct ConcordiumZKProof<T: Clone> {
     pub created_at: SystemTime,
     pub proof_value: T,
@@ -94,6 +96,7 @@ pub enum AtomicStatementV1 {
 }
 
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::IdentityCredentialSubject].
+#[derive(Deserialize)]
 pub struct IdentityCredentialSubject {
     pub network: Network,
     pub cred_id: Bytes,
@@ -101,6 +104,7 @@ pub struct IdentityCredentialSubject {
 }
 
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::AccountCredentialSubject].
+#[derive(Deserialize)]
 pub struct AccountCredentialSubject {
     pub network: Network,
     pub cred_id: Bytes,
@@ -108,6 +112,7 @@ pub struct AccountCredentialSubject {
 }
 
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::AccountBasedCredentialV1].
+#[derive(Deserialize)]
 pub struct AccountBasedCredentialV1 {
     pub issuer: u32,
     pub subject: AccountCredentialSubject,
@@ -115,6 +120,7 @@ pub struct AccountBasedCredentialV1 {
 }
 
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::IdentityBasedCredentialV1].
+#[derive(Deserialize)]
 pub struct IdentityBasedCredentialV1 {
     pub issuer: u32,
     pub validity: SystemTime,
@@ -123,24 +129,28 @@ pub struct IdentityBasedCredentialV1 {
 }
 
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::CredentialV1].
+#[derive(Deserialize)]
 pub enum CredentialV1 {
     Account { account: AccountBasedCredentialV1 },
     Identity { identity: IdentityBasedCredentialV1 },
 }
 
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::ContextProperty].
+#[derive(Deserialize)]
 pub struct ContextProperty {
     pub label: String,
     pub context: String,
 }
 
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::ContextInformation].
+#[derive(Deserialize)]
 pub struct ContextInformation {
     pub given: Vec<ContextProperty>,
     pub requested: Vec<ContextProperty>,
 }
 
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::PresentationV1].
+#[derive(Deserialize)]
 pub struct PresentationV1 {
     pub presentation_context: ContextInformation,
     pub verifiable_credentials: Vec<CredentialV1>,
@@ -150,7 +160,7 @@ impl TryFrom<PresV1<IpPairing, ArCurve, Web3IdAttribute>> for PresentationV1 {
     type Error = serde_json::Error;
 
     fn try_from(value: PresV1<IpPairing, ArCurve, Web3IdAttribute>) -> Result<Self, Self::Error> {
-        todo!()
+        serde_json::to_value(value).and_then(serde_json::from_value)
     }
 }
 

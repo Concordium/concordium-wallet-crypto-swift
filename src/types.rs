@@ -147,7 +147,7 @@ impl From<Amount> for MicroCCDAmount {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
 pub enum Network {
     Testnet,
     Mainnet,
