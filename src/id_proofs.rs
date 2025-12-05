@@ -36,9 +36,6 @@ pub struct AttributeValueStatement<Tag: Clone, Value: Clone> {
     pub attribute_value: Value,
 }
 
-/// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::AttributeValueStatement<ArCurve, AttributeTag, AttributeKind>`]
-pub type AttributeValueIdentityStatement = AttributeValueStatement<AttributeTag, String>;
-
 /// For the case where the verifier wants the user to prove that an attribute is
 /// in a range. The statement is that the attribute value lies in `[lower,
 /// upper)` in the scalar field.

@@ -1,43 +1,55 @@
 use std::{collections::HashMap, time::SystemTime};
 
 use crate::{
-    id_proofs::AttributeInRangeIdentityStatement, AttributeInSetIdentityStatement,
-    AttributeNotInSetIdentityStatement, AttributeTag, AttributeValueIdentityStatement, Bytes,
-    ConcordiumWalletCryptoError, ConvertError, Network,
+    AttributeInRangeStatement, AttributeInSetStatement, AttributeNotInSetStatement, AttributeTag,
+    AttributeValueStatement, Bytes, ConcordiumWalletCryptoError, ConvertError, Network,
+    Web3IdAttribute,
 };
 use concordium_base::{
     id::constants::{ArCurve, IpPairing},
     web3id::{
         v1::{anchor::VerificationRequestData, PresentationV1 as PresV1},
-        Web3IdAttribute,
+        Web3IdAttribute as W3IdAttr,
     },
 };
 use serde::Deserialize;
 use wallet_library::proofs::{PresentationV1Input, VerificationRequestV1Input};
 
-#[derive(Clone, Deserialize)]
+#[derive(Deserialize)]
 pub struct AttributeValueProof {
     pub proof: Bytes,
 }
 
-#[derive(Deserialize, Clone)]
+#[derive(Deserialize)]
 #[serde(tag = "type")]
 pub enum AtomicProofV1 {
-    AttributeValue { proof: AttributeValueProof }, // todo: serde flatten
+    AttributeValue {
+        #[serde(flatten)]
+        proof: AttributeValueProof,
+    }, // todo: serde flatten
     AttributeValueAlreadyRevealed,
-    AttributeInRange { proof: Bytes },
-    AttributeInSet { proof: Bytes },
-    AttributeNotInSet { proof: Bytes },
+    AttributeInRange {
+        #[serde(flatten)]
+        proof: Bytes,
+    },
+    AttributeInSet {
+        #[serde(flatten)]
+        proof: Bytes,
+    },
+    AttributeNotInSet {
+        #[serde(flatten)]
+        proof: Bytes,
+    },
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Deserialize)]
 pub enum IdentityAttribute {
     Committed { commited: Bytes },
     Revealed { revealed: String },
     Known,
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Deserialize)]
 pub struct IdentityAttributesCredentialsProofs {
     pub signature: Bytes,
     pub cmm_id_cred_sec_sharing_coeff: Vec<Bytes>,
@@ -50,14 +62,14 @@ pub type ConcordiumIdentityCredentialZKProofs = ConcordiumZKProof<IdentityCreden
 
 pub type ConcordiumAccountCredentialZKProofs = ConcordiumZKProof<AccountCredentialProofs>;
 
-#[derive(Clone, Deserialize)]
+#[derive(Deserialize)]
 pub struct IdentityCredentialProofs {
     pub identity_attributes: HashMap<AttributeTag, IdentityAttribute>,
     pub identity_attributes_proofs: IdentityAttributesCredentialsProofs,
     pub statement_proofs: Vec<AtomicProofV1>,
 }
 
-#[derive(Clone, Deserialize)]
+#[derive(Deserialize)]
 pub struct AccountCredentialProofs {
     pub statement_proofs: Vec<AtomicProofV1>,
 }
@@ -68,30 +80,41 @@ pub enum ConcordiumZKProofVersion {
 }
 
 #[derive(Deserialize)]
-pub struct ConcordiumZKProof<T: Clone> {
+pub struct ConcordiumZKProof<T> {
     pub created_at: SystemTime,
     pub proof_value: T,
     pub proof_version: ConcordiumZKProofVersion,
 }
 
+/// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::AttributeValueStatement<ArCurve, AttributeTag, Web3IdAttribute>`]
+pub type AttributeValueIdentityStatementV1 = AttributeValueStatement<AttributeTag, Web3IdAttribute>;
+/// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::AttributeInRangeStatement<ArCurve, AttributeTag, Web3IdAttribute>`]
+pub type AttributeInRangeIdentityStatementV1 =
+    AttributeInRangeStatement<AttributeTag, Web3IdAttribute>;
+/// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::AttributeInSetStatement<ArCurve, AttributeTag, Web3IdAttribute>`]
+pub type AttributeInSetIdentityStatementV1 = AttributeInSetStatement<AttributeTag, Web3IdAttribute>;
+/// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::AttributeNotInSetStatement<ArCurve, AttributeTag, Web3IdAttribute>`]
+pub type AttributeNotInSetIdentityStatementV1 =
+    AttributeNotInSetStatement<AttributeTag, Web3IdAttribute>;
+
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::AtomicStatementV1].
-#[derive(Deserialize, Clone)]
+#[derive(Deserialize)]
 pub enum AtomicStatementV1 {
     AttributeValue {
         #[serde(flatten)]
-        statement: AttributeValueIdentityStatement,
+        statement: AttributeValueIdentityStatementV1,
     },
     AttributeInRange {
         #[serde(flatten)]
-        statement: AttributeInRangeIdentityStatement,
+        statement: AttributeInRangeIdentityStatementV1,
     },
     AttributeInSet {
         #[serde(flatten)]
-        statement: AttributeInSetIdentityStatement,
+        statement: AttributeInSetIdentityStatementV1,
     },
     AttributeNotInSet {
         #[serde(flatten)]
-        statement: AttributeNotInSetIdentityStatement,
+        statement: AttributeNotInSetIdentityStatementV1,
     },
 }
 
@@ -128,7 +151,8 @@ pub struct IdentityBasedCredentialV1 {
     pub proof: ConcordiumIdentityCredentialZKProofs,
 }
 
-/// UniFFI compatible bridge to [concordium_base::web3id::v1::CredentialV1].
+/// UniFFI compatible bridge to [concordium_base::web3id::v1::CredentialV1<IpPairing, ArCurve, Web3IdAttribute>].
+#[allow(clippy::large_enum_variant)]
 #[derive(Deserialize)]
 pub enum CredentialV1 {
     Account { account: AccountBasedCredentialV1 },
@@ -156,10 +180,10 @@ pub struct PresentationV1 {
     pub verifiable_credentials: Vec<CredentialV1>,
 }
 
-impl TryFrom<PresV1<IpPairing, ArCurve, Web3IdAttribute>> for PresentationV1 {
+impl TryFrom<PresV1<IpPairing, ArCurve, W3IdAttr>> for PresentationV1 {
     type Error = serde_json::Error;
 
-    fn try_from(value: PresV1<IpPairing, ArCurve, Web3IdAttribute>) -> Result<Self, Self::Error> {
+    fn try_from(value: PresV1<IpPairing, ArCurve, W3IdAttr>) -> Result<Self, Self::Error> {
         serde_json::to_value(value).and_then(serde_json::from_value)
     }
 }

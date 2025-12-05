@@ -458,11 +458,6 @@ dictionary RevealAttributeIdentityStatement {
     AttributeTag attribute_tag;
 };
 
-dictionary AttributeValueIdentityStatement {
-    AttributeTag attribute_tag;
-    string attribute_value;
-};
-
 /// For the case where the verifier wants the user to prove that an attribute is
 /// in a range. The statement is that the attribute value lies in `[lower,
 /// upper)` in the scalar field.
@@ -754,12 +749,41 @@ dictionary VerifiablePresentation {
     LinkingProof linking_proof;
 };
 
+dictionary AttributeValueIdentityStatementV1 {
+    AttributeTag attribute_tag;
+    Web3IdAttribute attribute_value;
+};
+
+dictionary AttributeInRangeIdentityStatementV1 {
+    /// The attribute that the verifier wants the user to prove is in a range.
+    AttributeTag attribute_tag;
+    /// The lower bound on the range.
+    Web3IdAttribute lower;
+    /// The upper bound of the range.
+    Web3IdAttribute upper;
+};
+
+dictionary AttributeInSetIdentityStatementV1 {
+    /// The attribute that the verifier wants the user prove lies in a set.
+    AttributeTag attribute_tag;
+    /// The set that the attribute should lie in.
+    sequence<Web3IdAttribute> set;
+};
+
+dictionary AttributeNotInSetIdentityStatementV1{
+    /// The attribute that the verifier wants the user to prove does not lie in
+    /// a set.
+    AttributeTag attribute_tag;
+    /// The set that the attribute should not lie in.
+    sequence<Web3IdAttribute> set;
+};
+
 [Enum]
 interface AtomicStatementV1 {
-    AttributeValue(AttributeValueIdentityStatement statement);
-    AttributeInRange(AttributeInRangeIdentityStatement statement);
-    AttributeInSet(AttributeInSetIdentityStatement statement);
-    AttributeNotInSet(AttributeNotInSetIdentityStatement statement);
+    AttributeValue(AttributeValueIdentityStatementV1 statement);
+    AttributeInRange(AttributeInRangeIdentityStatementV1 statement);
+    AttributeInSet(AttributeInSetIdentityStatementV1 statement);
+    AttributeNotInSet(AttributeNotInSetIdentityStatementV1 statement);
 };
 
 dictionary AccountCredentialSubject {
