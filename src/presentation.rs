@@ -15,18 +15,20 @@ use concordium_base::{
 use serde::Deserialize;
 use wallet_library::proofs::{PresentationV1Input, VerificationRequestV1Input};
 
+/// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::AttributeValueProof<ArCurve>`]
 #[derive(Deserialize)]
 pub struct AttributeValueProof {
     pub proof: Bytes,
 }
 
+/// UniFFI compatible bridge to [concordium_base::web3id::v1::AtomicProofV1<ArCurve>].
 #[derive(Deserialize)]
 #[serde(tag = "type")]
 pub enum AtomicProofV1 {
     AttributeValue {
         #[serde(flatten)]
         proof: AttributeValueProof,
-    }, // todo: serde flatten
+    },
     AttributeValueAlreadyRevealed,
     AttributeInRange {
         #[serde(flatten)]
@@ -42,13 +44,21 @@ pub enum AtomicProofV1 {
     },
 }
 
+/// Serves as a uniFFI compatible bridge to [`concordium_base::id::types::IdentityAttribute<ArCurve, AttributeTag>`]
 #[derive(Deserialize)]
 pub enum IdentityAttribute {
-    Committed { commited: Bytes },
-    Revealed { revealed: String },
+    Committed {
+        #[serde(flatten)]
+        commited: Bytes,
+    },
+    Revealed {
+        #[serde(flatten)]
+        revealed: String,
+    },
     Known,
 }
 
+/// Serves as a uniFFI compatible bridge to [`concordium_base::id::types::IdentityAttributesCredentialsProofs<IpPairing, ArCurve>`]
 #[derive(Deserialize)]
 pub struct IdentityAttributesCredentialsProofs {
     pub signature: Bytes,
@@ -58,10 +68,13 @@ pub struct IdentityAttributesCredentialsProofs {
     pub proof_ip_signature: Bytes,
 }
 
+/// UniFFI compatible bridge to [concordium_base::web3id::v1::ConcordiumZKProof<IdentityCredentialProofs<ArCurve, AttributeTag, Web3IdAttribute>>].
 pub type ConcordiumIdentityCredentialZKProofs = ConcordiumZKProof<IdentityCredentialProofs>;
 
+/// UniFFI compatible bridge to [concordium_base::web3id::v1::ConcordiumZKProof<AccountCredentialProofs<ArCurve>>].
 pub type ConcordiumAccountCredentialZKProofs = ConcordiumZKProof<AccountCredentialProofs>;
 
+/// UniFFI compatible bridge to [concordium_base::web3id::v1::IdentityCredentialProofs<ArCurve, AttributeTag, Web3IdAttribute>].
 #[derive(Deserialize)]
 pub struct IdentityCredentialProofs {
     pub identity_attributes: HashMap<AttributeTag, IdentityAttribute>,
@@ -69,11 +82,13 @@ pub struct IdentityCredentialProofs {
     pub statement_proofs: Vec<AtomicProofV1>,
 }
 
+/// UniFFI compatible bridge to [concordium_base::web3id::v1::AccountCredentialProofs<ArCurve>].
 #[derive(Deserialize)]
 pub struct AccountCredentialProofs {
     pub statement_proofs: Vec<AtomicProofV1>,
 }
 
+/// UniFFI compatible bridge to [concordium_base::web3id::v1::ConcordiumZKProofVersion].
 #[derive(Deserialize)]
 pub enum ConcordiumZKProofVersion {
     ConcordiumZKProofV4,
@@ -97,7 +112,7 @@ pub type AttributeInSetIdentityStatementV1 = AttributeInSetStatement<AttributeTa
 pub type AttributeNotInSetIdentityStatementV1 =
     AttributeNotInSetStatement<AttributeTag, Web3IdAttribute>;
 
-/// UniFFI compatible bridge to [concordium_base::web3id::v1::AtomicStatementV1].
+/// UniFFI compatible bridge to [concordium_base::web3id::v1::AtomicStatementV1<ArCurve, AttributeTag, Web3IdAttribute>].
 #[derive(Deserialize)]
 pub enum AtomicStatementV1 {
     AttributeValue {
@@ -118,7 +133,7 @@ pub enum AtomicStatementV1 {
     },
 }
 
-/// UniFFI compatible bridge to [concordium_base::web3id::v1::IdentityCredentialSubject].
+/// UniFFI compatible bridge to [concordium_base::web3id::v1::IdentityCredentialSubject<ArCurve, Web3IdAttribute>].
 #[derive(Deserialize)]
 pub struct IdentityCredentialSubject {
     pub network: Network,
@@ -126,7 +141,7 @@ pub struct IdentityCredentialSubject {
     pub statements: Vec<AtomicStatementV1>,
 }
 
-/// UniFFI compatible bridge to [concordium_base::web3id::v1::AccountCredentialSubject].
+/// UniFFI compatible bridge to [concordium_base::web3id::v1::AccountCredentialSubject<ArCurve, Web3IdAttribute>].
 #[derive(Deserialize)]
 pub struct AccountCredentialSubject {
     pub network: Network,
@@ -134,7 +149,7 @@ pub struct AccountCredentialSubject {
     pub statements: Vec<AtomicStatementV1>,
 }
 
-/// UniFFI compatible bridge to [concordium_base::web3id::v1::AccountBasedCredentialV1].
+/// UniFFI compatible bridge to [concordium_base::web3id::v1::AccountBasedCredentialV1<ArCurve, Web3IdAttribute>].
 #[derive(Deserialize)]
 pub struct AccountBasedCredentialV1 {
     pub issuer: u32,
@@ -142,7 +157,7 @@ pub struct AccountBasedCredentialV1 {
     pub proof: ConcordiumAccountCredentialZKProofs,
 }
 
-/// UniFFI compatible bridge to [concordium_base::web3id::v1::IdentityBasedCredentialV1].
+/// UniFFI compatible bridge to [concordium_base::web3id::v1::IdentityBasedCredentialV1<IpPairing, ArCurve, Web3IdAttribute>].
 #[derive(Deserialize)]
 pub struct IdentityBasedCredentialV1 {
     pub issuer: u32,
@@ -155,8 +170,14 @@ pub struct IdentityBasedCredentialV1 {
 #[allow(clippy::large_enum_variant)]
 #[derive(Deserialize)]
 pub enum CredentialV1 {
-    Account { account: AccountBasedCredentialV1 },
-    Identity { identity: IdentityBasedCredentialV1 },
+    Account {
+        #[serde(flatten)]
+        account: AccountBasedCredentialV1,
+    },
+    Identity {
+        #[serde(flatten)]
+        identity: IdentityBasedCredentialV1,
+    },
 }
 
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::ContextProperty].
@@ -173,7 +194,7 @@ pub struct ContextInformation {
     pub requested: Vec<ContextProperty>,
 }
 
-/// UniFFI compatible bridge to [concordium_base::web3id::v1::PresentationV1].
+/// UniFFI compatible bridge to [concordium_base::web3id::v1::PresentationV1<IpPairing, ArCurve, Web3IdAttribute>].
 #[derive(Deserialize)]
 pub struct PresentationV1 {
     pub presentation_context: ContextInformation,

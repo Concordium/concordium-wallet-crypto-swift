@@ -749,11 +749,16 @@ dictionary VerifiablePresentation {
     LinkingProof linking_proof;
 };
 
+/// For the case where the verifier wants the user to prove that an attribute is
+/// equal to a public value. The statement is that the attribute value is equal to `attribute_value`.
 dictionary AttributeValueIdentityStatementV1 {
     AttributeTag attribute_tag;
     Web3IdAttribute attribute_value;
 };
 
+/// For the case where the verifier wants the user to prove that an attribute is
+/// in a range. The statement is that the attribute value lies in `[lower,
+/// upper)` in the scalar field.
 dictionary AttributeInRangeIdentityStatementV1 {
     /// The attribute that the verifier wants the user to prove is in a range.
     AttributeTag attribute_tag;
@@ -763,6 +768,8 @@ dictionary AttributeInRangeIdentityStatementV1 {
     Web3IdAttribute upper;
 };
 
+/// For the case where the verifier wants the user to prove that an attribute is
+/// in a set of attributes.
 dictionary AttributeInSetIdentityStatementV1 {
     /// The attribute that the verifier wants the user prove lies in a set.
     AttributeTag attribute_tag;
@@ -770,6 +777,8 @@ dictionary AttributeInSetIdentityStatementV1 {
     sequence<Web3IdAttribute> set;
 };
 
+/// For the case where the verifier wants the user to prove that an attribute is
+/// not in a set of attributes.
 dictionary AttributeNotInSetIdentityStatementV1{
     /// The attribute that the verifier wants the user to prove does not lie in
     /// a set.
@@ -778,6 +787,8 @@ dictionary AttributeNotInSetIdentityStatementV1{
     sequence<Web3IdAttribute> set;
 };
 
+
+/// The types of statements that can be used in subject claims
 [Enum]
 interface AtomicStatementV1 {
     AttributeValue(AttributeValueIdentityStatementV1 statement);
@@ -786,16 +797,20 @@ interface AtomicStatementV1 {
     AttributeNotInSet(AttributeNotInSetIdentityStatementV1 statement);
 };
 
+/// Subject of account based credential
 dictionary AccountCredentialSubject {
     Network network;
     Bytes cred_id;
     sequence<AtomicStatementV1> statements;
 };
 
+/// Proof that the attribute value in a commitment is equal to a public value
 dictionary AttributeValueProof {
     Bytes proof;
 };
 
+/// Attribute value as represented in the identity attribute credential values. An attribute value has either been committed to,
+/// revealed, or just proven known.
 [Enum]
 interface IdentityAttribute {
     Committed(Bytes commited);
@@ -803,6 +818,8 @@ interface IdentityAttribute {
     Known();
 };
 
+
+/// Proof of a `AtomicStatementV1`.
 [Enum]
 interface AtomicProofV1 {
     AttributeValue(AttributeValueProof proof);
@@ -812,6 +829,9 @@ interface AtomicProofV1 {
     AttributeNotInSet(Bytes proof);
 };
 
+
+/// This structure contains all proofs, which are required to prove identity attributes credentials created
+/// from identity credential.
 dictionary IdentityAttributesCredentialsProofs {
     Bytes signature;
     sequence<Bytes> cmm_id_cred_sec_sharing_coeff;
@@ -820,44 +840,55 @@ dictionary IdentityAttributesCredentialsProofs {
     Bytes proof_ip_signature;
 };
 
+/// Value of an identity based credential's proof
 dictionary IdentityCredentialProofs {
     record<AttributeTag, IdentityAttribute> identity_attributes;
     IdentityAttributesCredentialsProofs identity_attributes_proofs;
     sequence<AtomicProofV1> statement_proofs;
 };
 
+/// Value of an account based credential's proof
 dictionary AccountCredentialProofs {
     sequence<AtomicProofV1> statement_proofs;
 };
 
+/// Version of proof
 enum ConcordiumZKProofVersion {
     "ConcordiumZKProofV4",
 };
 
+/// Proof of identity based credential
 dictionary ConcordiumIdentityCredentialZKProofs {
     timestamp created_at;
     IdentityCredentialProofs proof_value;
     ConcordiumZKProofVersion proof_version;
 };
 
+/// Proof of account based credential
 dictionary ConcordiumAccountCredentialZKProofs {
     timestamp created_at;
     AccountCredentialProofs proof_value;
     ConcordiumZKProofVersion proof_version;
 };
 
+/// Subject of identity based credential
 dictionary IdentityCredentialSubject {
     Network network;
     Bytes cred_id;
     sequence<AtomicStatementV1> statements;
 };
 
+/// Account based credentials. This contains almost
+/// all the information needed to verify it, except the public commitments.
 dictionary AccountBasedCredentialV1 {
     u32 issuer;
     AccountCredentialSubject subject;
     ConcordiumAccountCredentialZKProofs proof;
 };
 
+/// Identity based credential. This type of credential is derived from identity credentials issued
+/// by an identity provider. The type contains almost
+/// all the information needed to verify it, except the identity provider and privacy guardian (anonymity revoker) public keys.
 dictionary IdentityBasedCredentialV1 {
     u32 issuer;
     timestamp validity;
@@ -865,27 +896,34 @@ dictionary IdentityBasedCredentialV1 {
     ConcordiumIdentityCredentialZKProofs proof;
 };
 
+/// Verifiable credential that contains subject claims and proofs of the claims.
 [Enum]
 interface CredentialV1 {
     Account(AccountBasedCredentialV1 account);
     Identity(IdentityBasedCredentialV1 identity);
 };
 
+
+/// Property value used in `ContextInformation`
 dictionary ContextProperty {
     string label;
     string context;
 };
 
+
+/// Verification context information that serves as a distinguishing context when requesting
+/// proofs.
 dictionary ContextInformation {
     sequence<ContextProperty> given;
     sequence<ContextProperty> requested;
 };
 
+/// Verifiable presentation that contains verifiable credentials each
+/// consisting of subject claims and proofs of them.
 dictionary PresentationV1 {
     ContextInformation presentation_context;
     sequence<CredentialV1> verifiable_credentials;
 };
-
 
 namespace crypto {
     /// Compute the IdCredSec for the provided seed and identity indexes.
