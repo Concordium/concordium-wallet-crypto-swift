@@ -27,7 +27,7 @@ pub struct RevealAttributeStatement<Tag: Clone> {
 /// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::RevealAttributeStatement<AttributeTag>`]
 pub type RevealAttributeIdentityStatement = RevealAttributeStatement<AttributeTag>;
 
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 /// For the case where the verifier wants the user to prove that an attribute is
 /// equal to a public value. The statement is that the attribute value is equal to `attribute_value`.
@@ -39,7 +39,7 @@ pub struct AttributeValueStatement<Tag: Clone, Value: Clone> {
 /// For the case where the verifier wants the user to prove that an attribute is
 /// in a range. The statement is that the attribute value lies in `[lower,
 /// upper)` in the scalar field.
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AttributeInRangeStatement<Tag: Clone, Value: Clone> {
     /// The attribute that the verifier wants the user to prove is in a range.
@@ -55,7 +55,7 @@ pub type AttributeInRangeIdentityStatement = AttributeInRangeStatement<Attribute
 
 /// For the case where the verifier wants the user to prove that an attribute is
 /// in a set of attributes.
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AttributeInSetStatement<Tag: Clone, Value: Clone> {
     /// The attribute that the verifier wants the user prove lies in a set.
@@ -69,7 +69,7 @@ pub type AttributeInSetIdentityStatement = AttributeInSetStatement<AttributeTag,
 
 /// For the case where the verifier wants the user to prove that an attribute is
 /// not in a set of attributes.
-#[derive(Serialize, Deserialize, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct AttributeNotInSetStatement<Tag: Clone, Value: Clone> {
     /// The attribute that the verifier wants the user to prove does not lie in

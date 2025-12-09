@@ -16,13 +16,13 @@ use serde::Deserialize;
 use wallet_library::proofs::{PresentationV1Input, VerificationRequestV1Input};
 
 /// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::AttributeValueProof<ArCurve>`]
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, PartialEq)]
 pub struct AttributeValueProof {
     pub proof: Bytes,
 }
 
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::AtomicProofV1<ArCurve>].
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, PartialEq)]
 #[serde(tag = "type")]
 pub enum AtomicProofV1 {
     AttributeValue {
@@ -45,7 +45,7 @@ pub enum AtomicProofV1 {
 }
 
 /// Serves as a uniFFI compatible bridge to [`concordium_base::id::types::IdentityAttribute<ArCurve, AttributeTag>`]
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, PartialEq)]
 pub enum IdentityAttribute {
     Committed {
         #[serde(flatten)]
@@ -59,7 +59,7 @@ pub enum IdentityAttribute {
 }
 
 /// Serves as a uniFFI compatible bridge to [`concordium_base::id::types::IdentityAttributesCredentialsProofs<IpPairing, ArCurve>`]
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, PartialEq)]
 pub struct IdentityAttributesCredentialsProofs {
     pub signature: Bytes,
     pub cmm_id_cred_sec_sharing_coeff: Vec<Bytes>,
@@ -75,7 +75,7 @@ pub type ConcordiumIdentityCredentialZKProofs = ConcordiumZKProof<IdentityCreden
 pub type ConcordiumAccountCredentialZKProofs = ConcordiumZKProof<AccountCredentialProofs>;
 
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::IdentityCredentialProofs<ArCurve, AttributeTag, Web3IdAttribute>].
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, PartialEq)]
 pub struct IdentityCredentialProofs {
     pub identity_attributes: HashMap<AttributeTag, IdentityAttribute>,
     pub identity_attributes_proofs: IdentityAttributesCredentialsProofs,
@@ -83,18 +83,18 @@ pub struct IdentityCredentialProofs {
 }
 
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::AccountCredentialProofs<ArCurve>].
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, PartialEq)]
 pub struct AccountCredentialProofs {
     pub statement_proofs: Vec<AtomicProofV1>,
 }
 
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::ConcordiumZKProofVersion].
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, PartialEq)]
 pub enum ConcordiumZKProofVersion {
     ConcordiumZKProofV4,
 }
 
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, PartialEq)]
 pub struct ConcordiumZKProof<T> {
     pub created_at: SystemTime,
     pub proof_value: T,
@@ -113,7 +113,7 @@ pub type AttributeNotInSetIdentityStatementV1 =
     AttributeNotInSetStatement<AttributeTag, Web3IdAttribute>;
 
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::AtomicStatementV1<ArCurve, AttributeTag, Web3IdAttribute>].
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, PartialEq)]
 pub enum AtomicStatementV1 {
     AttributeValue {
         #[serde(flatten)]
@@ -134,7 +134,7 @@ pub enum AtomicStatementV1 {
 }
 
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::IdentityCredentialSubject<ArCurve, Web3IdAttribute>].
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, PartialEq)]
 pub struct IdentityCredentialSubject {
     pub network: Network,
     pub cred_id: Bytes,
@@ -142,7 +142,7 @@ pub struct IdentityCredentialSubject {
 }
 
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::AccountCredentialSubject<ArCurve, Web3IdAttribute>].
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, PartialEq)]
 pub struct AccountCredentialSubject {
     pub network: Network,
     pub cred_id: Bytes,
@@ -150,7 +150,7 @@ pub struct AccountCredentialSubject {
 }
 
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::AccountBasedCredentialV1<ArCurve, Web3IdAttribute>].
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, PartialEq)]
 pub struct AccountBasedCredentialV1 {
     pub issuer: u32,
     pub subject: AccountCredentialSubject,
@@ -158,7 +158,7 @@ pub struct AccountBasedCredentialV1 {
 }
 
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::IdentityBasedCredentialV1<IpPairing, ArCurve, Web3IdAttribute>].
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, PartialEq)]
 pub struct IdentityBasedCredentialV1 {
     pub issuer: u32,
     pub validity: SystemTime,
@@ -168,7 +168,7 @@ pub struct IdentityBasedCredentialV1 {
 
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::CredentialV1<IpPairing, ArCurve, Web3IdAttribute>].
 #[allow(clippy::large_enum_variant)]
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, PartialEq)]
 pub enum CredentialV1 {
     Account {
         #[serde(flatten)]
@@ -181,23 +181,25 @@ pub enum CredentialV1 {
 }
 
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::ContextProperty].
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, PartialEq)]
 pub struct ContextProperty {
     pub label: String,
     pub context: String,
 }
 
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::ContextInformation].
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, PartialEq)]
 pub struct ContextInformation {
     pub given: Vec<ContextProperty>,
     pub requested: Vec<ContextProperty>,
 }
 
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::PresentationV1<IpPairing, ArCurve, Web3IdAttribute>].
-#[derive(Deserialize)]
+#[derive(Debug, Deserialize, PartialEq)]
 pub struct PresentationV1 {
+    #[serde(rename = "presentationContext")]
     pub presentation_context: ContextInformation,
+    #[serde(rename = "verifiableCredential")]
     pub verifiable_credentials: Vec<CredentialV1>,
 }
 
@@ -236,4 +238,59 @@ pub fn compute_anchor_hash(input: String) -> Result<Bytes, ConcordiumWalletCrypt
     let hash = verification_request_data.hash();
 
     Ok(hash.into())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use concordium_base::web3id::v1;
+
+    fn create_base_presntation_v1() -> PresV1<IpPairing, ArCurve, W3IdAttr> {
+        let presentation_context = v1::ContextInformation {
+            given: vec![v1::ContextProperty {
+                label: "label".into(),
+                context: "context".into(),
+            }],
+            requested: vec![],
+        };
+
+        let linking_proof = v1::LinkingProofV1 {
+            created_at: chrono::DateTime::from_timestamp_secs(0).unwrap(),
+            proof_value: [0u8; 0],
+            proof_type: v1::ConcordiumLinkingProofVersion::ConcordiumWeakLinkingProofV1,
+        };
+
+        let verifiable_credentials = vec![];
+
+        PresV1 {
+            presentation_context,
+            verifiable_credentials,
+            linking_proof,
+        }
+    }
+
+    fn create_crate_presentation_v1() -> PresentationV1 {
+        let presentation_context = ContextInformation {
+            given: vec![ContextProperty {
+                label: "label".into(),
+                context: "context".into(),
+            }],
+            requested: vec![],
+        };
+        let verifiable_credentials = vec![];
+        PresentationV1 {
+            presentation_context,
+            verifiable_credentials,
+        }
+    }
+
+    #[test]
+    fn convert_presentation_v1() {
+        let base_pres_v1 = create_base_presntation_v1();
+        let crate_pres_v1 = create_crate_presentation_v1();
+
+        let converted = PresentationV1::try_from(base_pres_v1)
+            .expect("Could not convert from base's PresentationV1");
+        assert_eq!(crate_pres_v1, converted);
+    }
 }
