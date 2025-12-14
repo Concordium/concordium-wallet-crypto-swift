@@ -859,14 +859,14 @@ enum ConcordiumZKProofVersion {
 
 /// Proof of identity based credential
 dictionary ConcordiumIdentityCredentialZKProofs {
-    timestamp created_at;
+    string created_at;
     IdentityCredentialProofs proof_value;
     ConcordiumZKProofVersion proof_version;
 };
 
 /// Proof of account based credential
 dictionary ConcordiumAccountCredentialZKProofs {
-    timestamp created_at;
+    string created_at;
     AccountCredentialProofs proof_value;
     ConcordiumZKProofVersion proof_version;
 };
@@ -883,7 +883,12 @@ dictionary IdentityCredentialSubject {
 dictionary AccountBasedCredentialV1 {
     u32 issuer;
     AccountCredentialSubject subject;
-    ConcordiumAccountCredentialZKProofs proof;
+    ConcordiumAccountCredentialZKProofs proofs;
+};
+
+dictionary CredentialValidity {
+    string valid_to;
+    string created_at;
 };
 
 /// Identity based credential. This type of credential is derived from identity credentials issued
@@ -891,9 +896,9 @@ dictionary AccountBasedCredentialV1 {
 /// all the information needed to verify it, except the identity provider and privacy guardian (anonymity revoker) public keys.
 dictionary IdentityBasedCredentialV1 {
     u32 issuer;
-    timestamp validity;
+    CredentialValidity validity;
     IdentityCredentialSubject subject;
-    ConcordiumIdentityCredentialZKProofs proof;
+    ConcordiumIdentityCredentialZKProofs proofs;
 };
 
 /// Verifiable credential that contains subject claims and proofs of the claims.
