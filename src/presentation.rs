@@ -496,25 +496,6 @@ mod tests {
         serde_json::from_str(s).unwrap()
     }
 
-    fn _create_crate_presentation_v1() -> PresentationV1 {
-        let presentation_context = ContextInformation {
-            given: vec![ContextProperty {
-                label: "label".into(),
-                context: "context".into(),
-            }],
-            requested: vec![ContextProperty {
-                label: "label".into(),
-                context: "context".into(),
-            }],
-        };
-        let verifiable_credentials = vec![];
-
-        PresentationV1 {
-            presentation_context,
-            verifiable_credentials,
-        }
-    }
-
     #[test]
     fn convert_presentation_v1() {
         let base_pres_v1 = create_base_presntation_v1();
