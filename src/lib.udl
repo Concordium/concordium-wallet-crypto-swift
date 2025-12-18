@@ -858,16 +858,16 @@ enum ConcordiumZKProofVersion {
 };
 
 /// Proof of identity based credential
-dictionary ConcordiumIdentityCredentialZKProofs {
-    string created_at;
-    IdentityCredentialProofs proof_value;
-    ConcordiumZKProofVersion proof_version;
-};
+/// dictionary ConcordiumIdentityCredentialZKProofs {
+///     string created_at;
+///     string proof_value;
+///     ConcordiumZKProofVersion proof_version;
+/// };
 
 /// Proof of account based credential
-dictionary ConcordiumAccountCredentialZKProofs {
+dictionary ConcordiumCredentialZKProofs {
     string created_at;
-    AccountCredentialProofs proof_value;
+    string proof_value;
     ConcordiumZKProofVersion proof_version;
 };
 
@@ -883,12 +883,7 @@ dictionary IdentityCredentialSubject {
 dictionary AccountBasedCredentialV1 {
     u32 issuer;
     AccountCredentialSubject subject;
-    ConcordiumAccountCredentialZKProofs proofs;
-};
-
-dictionary CredentialValidity {
-    string valid_to;
-    string created_at;
+    ConcordiumCredentialZKProofs proofs;
 };
 
 /// Identity based credential. This type of credential is derived from identity credentials issued
@@ -896,9 +891,10 @@ dictionary CredentialValidity {
 /// all the information needed to verify it, except the identity provider and privacy guardian (anonymity revoker) public keys.
 dictionary IdentityBasedCredentialV1 {
     u32 issuer;
-    CredentialValidity validity;
+    timestamp valid_from;
+    timestamp valid_until;
     IdentityCredentialSubject subject;
-    ConcordiumIdentityCredentialZKProofs proofs;
+    ConcordiumCredentialZKProofs proofs;
 };
 
 /// Verifiable credential that contains subject claims and proofs of the claims.
@@ -923,11 +919,25 @@ dictionary ContextInformation {
     sequence<ContextProperty> requested;
 };
 
+/// Version of proof
+enum ConcordiumLinkingProofVersion {
+    "ConcordiumWeakLinkingProofV1",
+};
+
+/// Proof that the credential holder has created the presentation. Currently
+/// not used.
+dictionary LinkingProofV1 {
+    timestamp created_at;
+    bytes proof_value;
+    ConcordiumLinkingProofVersion proof_type;
+};
+
 /// Verifiable presentation that contains verifiable credentials each
 /// consisting of subject claims and proofs of them.
 dictionary PresentationV1 {
     ContextInformation presentation_context;
     sequence<CredentialV1> verifiable_credentials;
+    LinkingProofV1 linking_proof;
 };
 
 namespace crypto {

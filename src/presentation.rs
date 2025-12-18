@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, time::SystemTime};
 
 use crate::{
     serde_convert, AttributeInRangeStatement, AttributeInSetStatement, AttributeNotInSetStatement,
@@ -69,7 +69,7 @@ pub struct IdentityAttributesCredentialsProofs {
 }
 
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::ConcordiumZKProof<IdentityCredentialProofs<ArCurve, AttributeTag, Web3IdAttribute>>].
-pub type ConcordiumIdentityCredentialZKProofs = ConcordiumZKProof<IdentityCredentialProofs>;
+pub type ConcordiumIdentityCredentialZKProofs = ConcordiumZKProof<String>;
 
 impl TryFrom<v1::ConcordiumZKProof<v1::IdentityCredentialProofs<IpPairing, ArCurve, W3IdAttr>>>
     for ConcordiumIdentityCredentialZKProofs
@@ -84,10 +84,10 @@ impl TryFrom<v1::ConcordiumZKProof<v1::IdentityCredentialProofs<IpPairing, ArCur
 }
 
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::ConcordiumZKProof<AccountCredentialProofs<ArCurve>>].
-pub type ConcordiumAccountCredentialZKProofs = ConcordiumZKProof<AccountCredentialProofs>;
+pub type ConcordiumCredentialZKProofs = ConcordiumZKProof<String>;
 
 impl TryFrom<v1::ConcordiumZKProof<v1::AccountCredentialProofs<ArCurve>>>
-    for ConcordiumAccountCredentialZKProofs
+    for ConcordiumCredentialZKProofs
 {
     type Error = serde_json::Error;
 
@@ -230,7 +230,7 @@ impl TryFrom<v1::AccountCredentialSubject<ArCurve, W3IdAttr>> for AccountCredent
 pub struct AccountBasedCredentialV1 {
     pub issuer: u32,
     pub subject: AccountCredentialSubject,
-    pub proofs: ConcordiumAccountCredentialZKProofs,
+    pub proofs: ConcordiumCredentialZKProofs,
 }
 
 impl TryFrom<v1::AccountBasedCredentialV1<ArCurve, W3IdAttr>> for AccountBasedCredentialV1 {
@@ -247,29 +247,14 @@ impl TryFrom<v1::AccountBasedCredentialV1<ArCurve, W3IdAttr>> for AccountBasedCr
     }
 }
 
-/// UniFFI compatible bridge to [concordium_base::id::types::CredentialValidity].
-#[derive(Debug, PartialEq)]
-pub struct CredentialValidity {
-    pub valid_to: String,
-    pub created_at: String,
-}
-
-impl From<concordium_base::id::types::CredentialValidity> for CredentialValidity {
-    fn from(value: concordium_base::id::types::CredentialValidity) -> Self {
-        Self {
-            valid_to: value.valid_to.to_string(),
-            created_at: value.created_at.to_string(),
-        }
-    }
-}
-
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::IdentityBasedCredentialV1<IpPairing, ArCurve, Web3IdAttribute>].
 #[derive(Debug, PartialEq)]
 pub struct IdentityBasedCredentialV1 {
     pub issuer: u32,
-    pub validity: CredentialValidity,
+    pub valid_from: SystemTime,
+    pub valid_until: SystemTime,
     pub subject: IdentityCredentialSubject,
-    pub proofs: ConcordiumIdentityCredentialZKProofs,
+    pub proofs: ConcordiumCredentialZKProofs,
 }
 
 impl TryFrom<v1::IdentityBasedCredentialV1<IpPairing, ArCurve, W3IdAttr>>
@@ -282,7 +267,13 @@ impl TryFrom<v1::IdentityBasedCredentialV1<IpPairing, ArCurve, W3IdAttr>>
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             issuer: value.issuer.0,
-            validity: value.validity.into(),
+            valid_until: value
+                .validity
+                .valid_to
+                .upper_inclusive()
+                .unwrap_or_default()
+                .into(),
+            valid_from: value.validity.created_at.lower().unwrap_or_default().into(),
             subject: value.subject.try_into()?,
             proofs: value.proof.try_into()?,
         })
@@ -346,11 +337,35 @@ impl From<v1::ContextInformation> for ContextInformation {
     }
 }
 
+#[derive(Debug, PartialEq)]
+pub enum ConcordiumLinkingProofVersion {
+    ConcordiumWeakLinkingProofV1,
+}
+
+/// UniFFI compatible bridge to [concordium_base::web3id::v1::LinkingProofV1].
+#[derive(Debug, PartialEq)]
+pub struct LinkingProofV1 {
+    pub created_at: SystemTime,
+    pub proof_value: Vec<u8>,
+    pub proof_type: ConcordiumLinkingProofVersion,
+}
+
+impl From<v1::LinkingProofV1> for LinkingProofV1 {
+    fn from(value: v1::LinkingProofV1) -> Self {
+        Self {
+            created_at: value.created_at.into(),
+            proof_value: value.proof_value.into(),
+            proof_type: ConcordiumLinkingProofVersion::ConcordiumWeakLinkingProofV1,
+        }
+    }
+}
+
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::PresentationV1<IpPairing, ArCurve, Web3IdAttribute>].
 #[derive(Debug, PartialEq)]
 pub struct PresentationV1 {
     pub presentation_context: ContextInformation,
     pub verifiable_credentials: Vec<CredentialV1>,
+    pub linking_proof: LinkingProofV1,
 }
 
 impl TryFrom<v1::PresentationV1<IpPairing, ArCurve, W3IdAttr>> for PresentationV1 {
@@ -361,6 +376,7 @@ impl TryFrom<v1::PresentationV1<IpPairing, ArCurve, W3IdAttr>> for PresentationV
     ) -> Result<Self, Self::Error> {
         Ok(Self {
             presentation_context: value.presentation_context.into(),
+            linking_proof: value.linking_proof.into(),
             verifiable_credentials: value
                 .verifiable_credentials
                 .into_iter()
@@ -500,7 +516,7 @@ mod tests {
     fn convert_presentation_v1() {
         let base_pres_v1 = create_base_presntation_v1();
 
-        let _ = PresentationV1::try_from(base_pres_v1)
+        let _ = PresentationV1::try_from(base_pres_v1.clone())
             .expect("Could not convert from base's PresentationV1");
     }
 }
