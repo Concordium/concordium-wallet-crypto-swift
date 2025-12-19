@@ -6,7 +6,7 @@ use crate::{
     Network, Web3IdAttribute,
 };
 use concordium_base::{
-    common::base16_encode_string,
+    common::{base16_encode_string, Serialize},
     id::constants::{ArCurve, IpPairing},
     web3id::{
         v1::{self, anchor::VerificationRequestData},
@@ -16,35 +16,13 @@ use concordium_base::{
 use serde::Deserialize;
 use wallet_library::proofs::{PresentationV1Input, VerificationRequestV1Input};
 
-/// UniFFI compatible bridge to [concordium_base::web3id::v1::ConcordiumZKProof<AccountCredentialProofs<ArCurve>>].
+/// UniFFI compatible bridge to [concordium_base::web3id::v1::ConcordiumZKProof].
 pub type ConcordiumCredentialZKProofs = ConcordiumZKProof<Bytes>;
 
-impl TryFrom<v1::ConcordiumZKProof<v1::AccountCredentialProofs<ArCurve>>>
-    for ConcordiumCredentialZKProofs
-{
+impl<T: Serialize> TryFrom<v1::ConcordiumZKProof<T>> for ConcordiumCredentialZKProofs {
     type Error = uniffi::deps::anyhow::Error;
 
-    fn try_from(
-        value: v1::ConcordiumZKProof<v1::AccountCredentialProofs<ArCurve>>,
-    ) -> Result<Self, Self::Error> {
-        Ok(Self {
-            created_at: value.created_at.into(),
-            proof_value: base16_encode_string(&value.proof_value)
-                .as_str()
-                .try_into()?,
-            proof_version: ConcordiumZKProofVersion::ConcordiumZKProofV4,
-        })
-    }
-}
-
-impl TryFrom<v1::ConcordiumZKProof<v1::IdentityCredentialProofs<IpPairing, ArCurve, W3IdAttr>>>
-    for ConcordiumCredentialZKProofs
-{
-    type Error = uniffi::deps::anyhow::Error;
-
-    fn try_from(
-        value: v1::ConcordiumZKProof<v1::IdentityCredentialProofs<IpPairing, ArCurve, W3IdAttr>>,
-    ) -> Result<Self, Self::Error> {
+    fn try_from(value: v1::ConcordiumZKProof<T>) -> Result<Self, Self::Error> {
         Ok(Self {
             created_at: value.created_at.into(),
             proof_value: base16_encode_string(&value.proof_value)
