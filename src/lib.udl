@@ -804,70 +804,15 @@ dictionary AccountCredentialSubject {
     sequence<AtomicStatementV1> statements;
 };
 
-/// Proof that the attribute value in a commitment is equal to a public value
-dictionary AttributeValueProof {
-    Bytes proof;
-};
-
-/// Attribute value as represented in the identity attribute credential values. An attribute value has either been committed to,
-/// revealed, or just proven known.
-[Enum]
-interface IdentityAttribute {
-    Committed(Bytes commited);
-    Revealed(string revealed);
-    Known();
-};
-
-
-/// Proof of a `AtomicStatementV1`.
-[Enum]
-interface AtomicProofV1 {
-    AttributeValue(AttributeValueProof proof);
-    AttributeValueAlreadyRevealed();
-    AttributeInRange(Bytes proof);
-    AttributeInSet(Bytes proof);
-    AttributeNotInSet(Bytes proof);
-};
-
-
-/// This structure contains all proofs, which are required to prove identity attributes credentials created
-/// from identity credential.
-dictionary IdentityAttributesCredentialsProofs {
-    Bytes signature;
-    sequence<Bytes> cmm_id_cred_sec_sharing_coeff;
-    Bytes challenge;
-    record<u32, Bytes> proof_id_cred_pub;
-    Bytes proof_ip_signature;
-};
-
-/// Value of an identity based credential's proof
-dictionary IdentityCredentialProofs {
-    record<AttributeTag, IdentityAttribute> identity_attributes;
-    IdentityAttributesCredentialsProofs identity_attributes_proofs;
-    sequence<AtomicProofV1> statement_proofs;
-};
-
-/// Value of an account based credential's proof
-dictionary AccountCredentialProofs {
-    sequence<AtomicProofV1> statement_proofs;
-};
-
 /// Version of proof
 enum ConcordiumZKProofVersion {
     "ConcordiumZKProofV4",
 };
 
-/// Proof of identity based credential
-/// dictionary ConcordiumIdentityCredentialZKProofs {
-///     string created_at;
-///     string proof_value;
-///     ConcordiumZKProofVersion proof_version;
-/// };
-
 /// Proof of account based credential
 dictionary ConcordiumCredentialZKProofs {
-    string created_at;
-    string proof_value;
+    timestamp created_at;
+    Bytes proof_value;
     ConcordiumZKProofVersion proof_version;
 };
 
@@ -1094,7 +1039,7 @@ namespace crypto {
 
     /// Create PresentationV1 for the given statement
     [Throws=ConcordiumWalletCryptoError]
-    PresentationV1 create_presentation(string input);
+    PresentationV1 create_verifiable_presentation_v1(string input);
 
     /// Compute the anchor hash for VerificationRequestData
     [Throws=ConcordiumWalletCryptoError]

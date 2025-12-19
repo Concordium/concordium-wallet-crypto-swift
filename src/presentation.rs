@@ -1,4 +1,4 @@
-use std::{collections::HashMap, time::SystemTime};
+use std::time::SystemTime;
 
 use crate::{
     serde_convert, AttributeInRangeStatement, AttributeInSetStatement, AttributeNotInSetStatement,
@@ -6,6 +6,7 @@ use crate::{
     Network, Web3IdAttribute,
 };
 use concordium_base::{
+    common::base16_encode_string,
     id::constants::{ArCurve, IpPairing},
     web3id::{
         v1::{self, anchor::VerificationRequestData},
@@ -15,101 +16,43 @@ use concordium_base::{
 use serde::Deserialize;
 use wallet_library::proofs::{PresentationV1Input, VerificationRequestV1Input};
 
-/// Serves as a uniFFI compatible bridge to [`concordium_base::id::id_proof_types::AttributeValueProof<ArCurve>`]
-#[derive(Debug, Deserialize, PartialEq)]
-pub struct AttributeValueProof {
-    pub proof: Bytes,
-}
-
-/// UniFFI compatible bridge to [concordium_base::web3id::v1::AtomicProofV1<ArCurve>].
-#[derive(Debug, Deserialize, PartialEq)]
-#[serde(tag = "type")]
-pub enum AtomicProofV1 {
-    AttributeValue {
-        #[serde(flatten)]
-        proof: AttributeValueProof,
-    },
-    AttributeValueAlreadyRevealed,
-    AttributeInRange {
-        #[serde(flatten)]
-        proof: Bytes,
-    },
-    AttributeInSet {
-        #[serde(flatten)]
-        proof: Bytes,
-    },
-    AttributeNotInSet {
-        #[serde(flatten)]
-        proof: Bytes,
-    },
-}
-
-/// Serves as a uniFFI compatible bridge to [`concordium_base::id::types::IdentityAttribute<ArCurve, AttributeTag>`]
-#[derive(Debug, Deserialize, PartialEq)]
-pub enum IdentityAttribute {
-    Committed {
-        #[serde(flatten)]
-        commited: Bytes,
-    },
-    Revealed {
-        #[serde(flatten)]
-        revealed: String,
-    },
-    Known,
-}
-
-/// Serves as a uniFFI compatible bridge to [`concordium_base::id::types::IdentityAttributesCredentialsProofs<IpPairing, ArCurve>`]
-#[derive(Debug, Deserialize, PartialEq)]
-pub struct IdentityAttributesCredentialsProofs {
-    pub signature: Bytes,
-    pub cmm_id_cred_sec_sharing_coeff: Vec<Bytes>,
-    pub challenge: Bytes,
-    pub proof_id_cred_pub: HashMap<u32, Bytes>,
-    pub proof_ip_signature: Bytes,
-}
-
-/// UniFFI compatible bridge to [concordium_base::web3id::v1::ConcordiumZKProof<IdentityCredentialProofs<ArCurve, AttributeTag, Web3IdAttribute>>].
-pub type ConcordiumIdentityCredentialZKProofs = ConcordiumZKProof<String>;
-
-impl TryFrom<v1::ConcordiumZKProof<v1::IdentityCredentialProofs<IpPairing, ArCurve, W3IdAttr>>>
-    for ConcordiumIdentityCredentialZKProofs
-{
-    type Error = serde_json::Error;
-
-    fn try_from(
-        value: v1::ConcordiumZKProof<v1::IdentityCredentialProofs<IpPairing, ArCurve, W3IdAttr>>,
-    ) -> Result<Self, Self::Error> {
-        serde_convert(value)
-    }
-}
-
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::ConcordiumZKProof<AccountCredentialProofs<ArCurve>>].
-pub type ConcordiumCredentialZKProofs = ConcordiumZKProof<String>;
+pub type ConcordiumCredentialZKProofs = ConcordiumZKProof<Bytes>;
 
 impl TryFrom<v1::ConcordiumZKProof<v1::AccountCredentialProofs<ArCurve>>>
     for ConcordiumCredentialZKProofs
 {
-    type Error = serde_json::Error;
+    type Error = uniffi::deps::anyhow::Error;
 
     fn try_from(
         value: v1::ConcordiumZKProof<v1::AccountCredentialProofs<ArCurve>>,
     ) -> Result<Self, Self::Error> {
-        serde_convert(value)
+        Ok(Self {
+            created_at: value.created_at.into(),
+            proof_value: base16_encode_string(&value.proof_value)
+                .as_str()
+                .try_into()?,
+            proof_version: ConcordiumZKProofVersion::ConcordiumZKProofV4,
+        })
     }
 }
 
-/// UniFFI compatible bridge to [concordium_base::web3id::v1::IdentityCredentialProofs<ArCurve, AttributeTag, Web3IdAttribute>].
-#[derive(Debug, Deserialize, PartialEq)]
-pub struct IdentityCredentialProofs {
-    pub identity_attributes: HashMap<AttributeTag, IdentityAttribute>,
-    pub identity_attributes_proofs: IdentityAttributesCredentialsProofs,
-    pub statement_proofs: Vec<AtomicProofV1>,
-}
+impl TryFrom<v1::ConcordiumZKProof<v1::IdentityCredentialProofs<IpPairing, ArCurve, W3IdAttr>>>
+    for ConcordiumCredentialZKProofs
+{
+    type Error = uniffi::deps::anyhow::Error;
 
-/// UniFFI compatible bridge to [concordium_base::web3id::v1::AccountCredentialProofs<ArCurve>].
-#[derive(Debug, Deserialize, PartialEq)]
-pub struct AccountCredentialProofs {
-    pub statement_proofs: Vec<AtomicProofV1>,
+    fn try_from(
+        value: v1::ConcordiumZKProof<v1::IdentityCredentialProofs<IpPairing, ArCurve, W3IdAttr>>,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            created_at: value.created_at.into(),
+            proof_value: base16_encode_string(&value.proof_value)
+                .as_str()
+                .try_into()?,
+            proof_version: ConcordiumZKProofVersion::ConcordiumZKProofV4,
+        })
+    }
 }
 
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::ConcordiumZKProofVersion].
@@ -121,7 +64,7 @@ pub enum ConcordiumZKProofVersion {
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct ConcordiumZKProof<T> {
     #[serde(rename = "created")]
-    pub created_at: String,
+    pub created_at: SystemTime,
     #[serde(rename = "proofValue")]
     pub proof_value: T,
     #[serde(rename = "type")]
@@ -387,7 +330,9 @@ impl TryFrom<v1::PresentationV1<IpPairing, ArCurve, W3IdAttr>> for PresentationV
 }
 
 /// Implements UDL definition of the same name.
-pub fn create_presentation(input: String) -> Result<PresentationV1, ConcordiumWalletCryptoError> {
+pub fn create_verifiable_presentation_v1(
+    input: String,
+) -> Result<PresentationV1, ConcordiumWalletCryptoError> {
     let fn_desc = "create_presentation(input={input})";
     let proof_input: PresentationV1Input =
         serde_json::from_str(&input).map_err(|e| e.to_call_failed(fn_desc.to_string()))?;
