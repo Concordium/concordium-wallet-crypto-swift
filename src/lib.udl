@@ -885,6 +885,78 @@ dictionary PresentationV1 {
     LinkingProofV1 linking_proof;
 };
 
+enum IdentityCredentialType {
+    "IdentityCredential",
+    "AccountCredential",
+};
+
+dictionary IdentityProviderDid {
+    /// The network part of the method.
+    Network network;
+    /// The on-chain identifier of the Concordium Identity Provider.
+    u32 identity_provider;
+};
+
+[Enum]
+interface RequestedStatement{
+    RevealAttribute(RevealAttributeIdentityStatement statement);
+    AttributeInRange(AttributeInRangeIdentityStatementV1 statement);
+    AttributeInSet(AttributeInSetIdentityStatementV1 statement);
+    AttributeNotInSet(AttributeNotInSetIdentityStatementV1 statement);
+};
+
+dictionary RequestedIdentitySubjectClaims{
+    sequence<RequestedStatement> statements;
+    sequence<IdentityProviderDid> issuers;
+    sequence<IdentityCredentialType> source;
+};
+
+[Enum]
+interface RequestedSubjectClaims {
+    Identity(RequestedIdentitySubjectClaims identity);
+};
+
+[Enum]
+interface LabeledContextProperty {
+    /// Cryptographic nonce context which should be of length 32 bytes. Should be randomly generated.
+    Nonce(Bytes nonce);
+    /// Payment hash context (Concordium transaction hash).
+    PaymentHash(Bytes payment_hash);
+    /// Concordium block hash context.
+    BlockHash(Bytes block_hash);
+    /// Identifier for some connection (e.g. wallet-connect topic).
+    ConnectionId(string connection_id);
+    /// Identifier for some resource (e.g. Website URL or fingerprint of TLS certificate).
+    ResourceId(string resouce_id);
+    /// String value for general purposes.
+    ContextString(string context_string);
+};
+
+enum ContextLabel {
+    /// A nonce which should be at least of lenth bytes32.
+    "Nonce",
+    /// Payment hash (Concordium transaction hash).
+    "PaymentHash",
+    /// Concordium block hash.
+    "BlockHash",
+    /// Identifier for some connection (e.g. wallet-connect topic).
+    "ConnectionId",
+    /// Identifier for some resource (e.g. Website URL or fingerprint of TLS certificate).
+    "ResourceId",
+    /// String value for general purposes.
+    "ContextString",
+};
+
+dictionary UnfilledContextInformation {
+    sequence<LabeledContextProperty> given;
+    sequence<ContextLabel> requested;
+};
+
+dictionary VerificationRequestData {
+    UnfilledContextInformation context;
+    sequence<RequestedSubjectClaims> subject_claims;
+};
+
 namespace crypto {
     /// Compute the IdCredSec for the provided seed and identity indexes.
     [Throws=ConcordiumWalletCryptoError]
@@ -1043,5 +1115,5 @@ namespace crypto {
 
     /// Compute the anchor hash for VerificationRequestData
     [Throws=ConcordiumWalletCryptoError]
-    Bytes compute_anchor_hash(string input);
+    Bytes compute_anchor_hash(VerificationRequestData verification_request_data);
 };

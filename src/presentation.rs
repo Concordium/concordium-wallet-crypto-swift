@@ -1,20 +1,20 @@
-use std::time::SystemTime;
+use std::{collections::HashMap, time::SystemTime};
 
 use crate::{
     serde_convert, AttributeInRangeStatement, AttributeInSetStatement, AttributeNotInSetStatement,
     AttributeTag, AttributeValueStatement, Bytes, ConcordiumWalletCryptoError, ConvertError,
-    Network, Web3IdAttribute,
+    Network, RevealAttributeIdentityStatement, Web3IdAttribute,
 };
 use concordium_base::{
     common::{base16_encode_string, Serialize},
-    id::constants::{ArCurve, IpPairing},
-    web3id::{
-        v1::{self, anchor::VerificationRequestData},
-        Web3IdAttribute as W3IdAttr,
+    id::{
+        constants::{ArCurve, IpPairing},
+        types,
     },
+    web3id::{v1, Web3IdAttribute as W3IdAttr},
 };
 use serde::Deserialize;
-use wallet_library::proofs::{PresentationV1Input, VerificationRequestV1Input};
+use wallet_library::proofs;
 
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::ConcordiumZKProof].
 pub type ConcordiumCredentialZKProofs = ConcordiumZKProof<Bytes>;
@@ -307,12 +307,193 @@ impl TryFrom<v1::PresentationV1<IpPairing, ArCurve, W3IdAttr>> for PresentationV
     }
 }
 
+pub struct PresentationInputV1 {
+    request: RequestV1<ArCurve, Web3IdAttribute>,
+    inputs: Vec<OwnedCredentialProofPrivateInputs<IpPairing, ArCurve, Web3IdAttribute>>,
+    global: GlobalContext<ArCurve>,
+}
+
+pub enum ContextLabel {
+    /// A nonce which should be at least of lenth bytes32.
+    Nonce,
+    /// Payment hash (Concordium transaction hash).
+    PaymentHash,
+    /// Concordium block hash.
+    BlockHash,
+    /// Identifier for some connection (e.g. wallet-connect topic).
+    ConnectionId,
+    /// Identifier for some resource (e.g. Website URL or fingerprint of TLS certificate).
+    ResourceId,
+    /// String value for general purposes.
+    ContextString,
+}
+
+pub enum LabeledContextProperty {
+    /// Cryptographic nonce context which should be of length 32 bytes. Should be randomly
+    /// generated.
+    Nonce { nonce: Bytes },
+    /// Payment hash context (Concordium transaction hash).
+    PaymentHash { payment_hash: Bytes },
+    /// Concordium block hash context.
+    BlockHash { block_hash: Bytes },
+    /// Identifier for some connection (e.g. wallet-connect topic).
+    ConnectionId { connection_id: String },
+    /// Identifier for some resource (e.g. Website URL or fingerprint of TLS certificate).
+    ResourceId { resouce_id: String },
+    /// String value for general purposes.
+    ContextString { context_string: String },
+}
+
+pub struct UnfilledContextInformation {
+    /// Context information that is already provided.
+    pub given: Vec<LabeledContextProperty>,
+    /// Context information that must be provided by the credential holder.
+    pub requested: Vec<ContextLabel>,
+}
+
+impl From<UnfilledContextInformation> for v1::anchor::UnfilledContextInformation {
+    fn from(value: UnfilledContextInformation) -> Self {
+        Self {
+            given: value.given.into_iter().map(|val| val.into()).collect(),
+            requested: value.requested.into_iter().map(|val| val.into()).collect(),
+        }
+    }
+}
+
+/// UniFFI compatible bridge to [concordium_base::web3id::v1::anchor::RequestedStatement].
+pub enum RequestedStatement {
+    /// The atomic statement stating that an attribute should be revealed.
+    RevealAttribute {
+        statement: RevealAttributeIdentityStatement,
+    },
+    /// The atomic statement stating that an attribute is in a range.
+    AttributeInRange {
+        statement: AttributeInRangeIdentityStatementV1,
+    },
+    /// The atomic statement stating that an attribute is in a set.
+    AttributeInSet {
+        statement: AttributeInSetIdentityStatementV1,
+    },
+    /// The atomic statement stating that an attribute is not in a set.
+    AttributeNotInSet {
+        statement: AttributeNotInSetIdentityStatementV1,
+    },
+}
+
+impl TryFrom<RequestedStatement> for v1::anchor::RequestedStatement<AttributeTag> {
+    type Error = serde_json::Error;
+
+    fn try_from(value: RequestedStatement) -> Result<Self, Self::Error> {
+        match value {
+            RequestedStatement::RevealAttribute { statement } => {
+                v1::anchor::RequestedStatement::RevealAttribute(serde_convert(statement)?)
+            }
+            RequestedStatement::AttributeInRange { statement } => {
+                v1::anchor::RequestedStatement::AttributeInRange(serde_convert(statement)?)
+            }
+            RequestedStatement::AttributeInSet { statement } => {
+                v1::anchor::RequestedStatement::AttributeInSet(serde_convert(statement)?)
+            }
+            RequestedStatement::AttributeNotInSet { statement } => {
+                v1::anchor::RequestedStatement::AttributeNotInSet(serde_convert(statement)?)
+            }
+        }
+    }
+}
+
+/// UniFFI compatible bridge to [concordium_base::web3id::v1::anchor::IdentityProviderDid].
+pub struct IdentityProviderDid {
+    /// The network part of the method.
+    pub network: Network,
+    /// The on-chain identifier of the Concordium Identity Provider.
+    pub identity_provider: u32,
+}
+
+impl From<IdentityProviderDid> for v1::anchor::IdentityProviderDid {
+    fn from(value: IdentityProviderDid) -> Self {
+        Self {
+            network: value.network.into(),
+            identity_provider: types::IpIdentity(value.identity_provider),
+        }
+    }
+}
+
+/// UniFFI compatible bridge to [concordium_base::web3id::v1::anchor::IdentityCredentialType].
+pub enum IdentityCredentialType {
+    IdentityCredential,
+    AccountCredential,
+}
+
+impl From<IdentityCredentialType> for v1::anchor::IdentityCredentialType {
+    fn from(value: IdentityCredentialType) -> Self {
+        match value {
+            IdentityCredentialType::IdentityCredential => Self::IdentityCredential,
+            IdentityCredentialType::AccountCredential => Self::AccountCredential,
+        }
+    }
+}
+
+/// UniFFI compatible bridge to [concordium_base::web3id::v1::anchor::RequestedIdentitySubjectClaims].
+pub struct RequestedIdentitySubjectClaims {
+    pub statements: Vec<RequestedStatement>,
+    pub issuers: Vec<IdentityProviderDid>,
+    pub source: Vec<IdentityCredentialType>,
+}
+
+impl From<RequestedIdentitySubjectClaims> for v1::anchor::RequestedIdentitySubjectClaims {
+    fn from(value: RequestedIdentitySubjectClaims) -> Self {
+        Self {
+            statements: value.statements.into_iter().map(|val| val.into()).collect(),
+            issuers: value.issuers.into_iter().map(|val| val.into()).collect(),
+            source: value.source.into_iter().map(|val| val.into()).collect(),
+        }
+    }
+}
+
+/// UniFFI compatible bridge to [concordium_base::web3id::v1::anchor::RequestedSubjectClaims].
+pub enum RequestedSubjectClaims {
+    Identity {
+        identity: RequestedIdentitySubjectClaims,
+    },
+}
+
+impl From<RequestedSubjectClaims> for v1::anchor::RequestedSubjectClaims {
+    fn from(value: RequestedSubjectClaims) -> Self {
+        match value {
+            RequestedSubjectClaims::Identity { identity } => {
+                v1::anchor::RequestedSubjectClaims::Identity(identity.into())
+            }
+        }
+    }
+}
+
+/// UniFFI compatible bridge to [concordium_base::web3id::v1::anchor::VerificationRequestData].
+pub struct VerificationRequestData {
+    /// Context information for a verifiable presentation request.
+    pub context: UnfilledContextInformation,
+    /// The claims for a list of subjects containing requested statements about the subjects.
+    pub subject_claims: Vec<RequestedSubjectClaims>,
+}
+
+impl From<VerificationRequestData> for v1::anchor::VerificationRequestData {
+    fn from(value: VerificationRequestData) -> Self {
+        Self {
+            context: value.context.into(),
+            subject_claims: value
+                .subject_claims
+                .into_iter()
+                .map(|val| val.into())
+                .collect(),
+        }
+    }
+}
+
 /// Implements UDL definition of the same name.
 pub fn create_verifiable_presentation_v1(
     input: String,
 ) -> Result<PresentationV1, ConcordiumWalletCryptoError> {
     let fn_desc = "create_presentation(input={input})";
-    let proof_input: PresentationV1Input =
+    let proof_input: proofs::PresentationV1Input =
         serde_json::from_str(&input).map_err(|e| e.to_call_failed(fn_desc.to_string()))?;
 
     let presentation = proof_input
@@ -323,17 +504,12 @@ pub fn create_verifiable_presentation_v1(
 }
 
 /// Implements UDL definition of the same name.
-pub fn compute_anchor_hash(input: String) -> Result<Bytes, ConcordiumWalletCryptoError> {
-    let fn_desc = "compute_anchor_hash(input={input})";
-    let input: VerificationRequestV1Input =
-        serde_json::from_str(&input).map_err(|e| e.to_call_failed(fn_desc.to_string()))?;
+pub fn compute_anchor_hash(
+    verification_request_data: VerificationRequestData,
+) -> Result<Bytes, ConcordiumWalletCryptoError> {
+    let _fn_desc = "compute_anchor_hash(data={VerificationRequestData})";
 
-    let verification_request_data = VerificationRequestData {
-        context: input.context,
-        subject_claims: input.subject_claims,
-    };
-
-    let hash = verification_request_data.hash();
+    let hash = v1::anchor::VerificationRequestData::from(verification_request_data).hash();
     Ok(hash.into())
 }
 
