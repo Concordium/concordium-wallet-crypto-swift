@@ -1,9 +1,7 @@
 use std::time::SystemTime;
 
 use crate::{
-    serde_convert, AttributeInRangeStatement, AttributeInSetStatement, AttributeNotInSetStatement,
-    AttributeTag, AttributeValueStatement, Bytes, ConcordiumWalletCryptoError, ConvertError,
-    Network, RevealAttributeIdentityStatement, Web3IdAttribute,
+    AttributeInRangeStatement, AttributeInSetStatement, AttributeNotInSetStatement, AttributeTag, AttributeValueStatement, Bytes, ConcordiumWalletCryptoError, ConvertError, GlobalContext, Network, RevealAttributeIdentityStatement, Web3IdAttribute, serde_convert
 };
 use concordium_base::{
     common::{base16_encode_string, Serialize},
@@ -307,11 +305,95 @@ impl TryFrom<v1::PresentationV1<IpPairing, ArCurve, W3IdAttr>> for PresentationV
     }
 }
 
-// pub struct PresentationInputV1 {
-//     request: RequestV1<ArCurve, Web3IdAttribute>,
-//     inputs: Vec<OwnedCredentialProofPrivateInputs<IpPairing, ArCurve, Web3IdAttribute>>,
-//     global: GlobalContext<ArCurve>,
-// }
+/// UniFFI compatible bridge to [concordium_base::web3id::v1::IdentityBasedSubjectClaims<ArCurve, Web3IdAttribute>].
+pub struct IdentityBasedSubjectClaims {
+    /// Network to which the identity credentials are issued
+    pub network: Network,
+    /// Identity provider which issued the credentials
+    pub issuer: u32,
+    /// Attribute statements
+    pub statements: Vec<AtomicStatementV1>,
+}
+
+impl TryFrom<IdentityBasedSubjectClaims> for v1::IdentityBasedSubjectClaims<ArCurve, W3IdAttr> {
+    type Error = uniffi::deps::anyhow::Error;
+
+    fn try_from(value: IdentityBasedSubjectClaims) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
+
+/// UniFFI compatible bridge to [concordium_base::web3id::v1::AccountBasedSubjectClaims<ArCurve, Web3IdAttribute>].
+pub struct AccountBasedSubjectClaims {
+    /// Network on which the account exists
+    pub network: Network,
+    /// Identity provider which issued the credentials
+    pub issuer: u32,
+    /// Account registration id
+    pub cred_id: Bytes,
+    /// Attribute statements
+    pub statements: Vec<AtomicStatementV1>,
+}
+
+impl TryFrom<AccountBasedSubjectClaims> for v1::AccountBasedSubjectClaims<ArCurve, W3IdAttr> {
+    type Error = uniffi::deps::anyhow::Error;
+
+    fn try_from(value: AccountBasedSubjectClaims) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
+
+
+/// UniFFI compatible bridge to [concordium_base::web3id::v1::SubjectClaims<ArCurve, Web3IdAttribute>].
+pub enum SubjectClaims {
+    Account{account: AccountBasedSubjectClaims},
+    Identity{identity: IdentityBasedSubjectClaims},
+}
+
+impl TryFrom<SubjectClaims> for v1::SubjectClaims<ArCurve, W3IdAttr> {
+    type Error = uniffi::deps::anyhow::Error;
+
+    fn try_from(value: SubjectClaims) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
+
+/// UniFFI compatible bridge to [concordium_base::web3id::v1::RequestV1<C: Curve, AttributeType>].
+pub struct RequestV1 {
+    /// Context challenge for the proof
+    pub context: ContextInformation,
+    /// Claims to prove
+    pub subject_claims: Vec<SubjectClaims>,
+}
+
+impl TryFrom<RequestV1> for v1::RequestV1<ArCurve, W3IdAttr> {
+    type Error = uniffi::deps::anyhow::Error;
+
+    fn try_from(value: RequestV1) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
+
+/// UniFFI compatible bridge to [concordium_base::web3id::v1::OwnedCredentialProofPrivateInputs<IpPairing, ArCurve, Web3IdAttribute>].
+pub enum OwnedCredentialProofPrivateInputs {
+
+}
+
+/// UniFFI compatible bridge to [wallet_library::proofs::PresentationV1Input].
+pub struct PresentationV1Input {
+    request: RequestV1,
+    inputs: Vec<OwnedCredentialProofPrivateInputs>,
+    global: GlobalContext,
+}
+
+impl TryFrom<PresentationV1Input> for proofs::PresentationV1Input {
+    type Error = uniffi::deps::anyhow::Error;
+
+    fn try_from(value: PresentationV1Input) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
+
 
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::anchor::ContextLabel].
 pub enum ContextLabel {
