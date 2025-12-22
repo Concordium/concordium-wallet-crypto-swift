@@ -1,4 +1,4 @@
-use std::{collections::HashMap, time::SystemTime};
+use std::time::SystemTime;
 
 use crate::{
     serde_convert, AttributeInRangeStatement, AttributeInSetStatement, AttributeNotInSetStatement,
@@ -307,12 +307,13 @@ impl TryFrom<v1::PresentationV1<IpPairing, ArCurve, W3IdAttr>> for PresentationV
     }
 }
 
-pub struct PresentationInputV1 {
-    request: RequestV1<ArCurve, Web3IdAttribute>,
-    inputs: Vec<OwnedCredentialProofPrivateInputs<IpPairing, ArCurve, Web3IdAttribute>>,
-    global: GlobalContext<ArCurve>,
-}
+// pub struct PresentationInputV1 {
+//     request: RequestV1<ArCurve, Web3IdAttribute>,
+//     inputs: Vec<OwnedCredentialProofPrivateInputs<IpPairing, ArCurve, Web3IdAttribute>>,
+//     global: GlobalContext<ArCurve>,
+// }
 
+/// UniFFI compatible bridge to [concordium_base::web3id::v1::anchor::ContextLabel].
 pub enum ContextLabel {
     /// A nonce which should be at least of lenth bytes32.
     Nonce,
@@ -328,6 +329,21 @@ pub enum ContextLabel {
     ContextString,
 }
 
+impl From<ContextLabel> for v1::anchor::ContextLabel {
+    fn from(value: ContextLabel) -> Self {
+        match value {
+            ContextLabel::Nonce => Self::Nonce,
+            ContextLabel::PaymentHash => Self::PaymentHash,
+            ContextLabel::BlockHash => Self::BlockHash,
+            ContextLabel::ConnectionId => Self::ConnectionId,
+            ContextLabel::ResourceId => Self::ResourceId,
+            ContextLabel::ContextString => Self::ContextString,
+        }
+    }
+}
+
+/// UniFFI compatible bridge to [concordium_base::web3id::v1::anchor::LabeledContextProperty].
+#[derive(serde::Serialize)]
 pub enum LabeledContextProperty {
     /// Cryptographic nonce context which should be of length 32 bytes. Should be randomly
     /// generated.
@@ -344,6 +360,15 @@ pub enum LabeledContextProperty {
     ContextString { context_string: String },
 }
 
+impl TryFrom<LabeledContextProperty> for v1::anchor::LabeledContextProperty {
+    type Error = serde_json::Error;
+
+    fn try_from(value: LabeledContextProperty) -> Result<Self, Self::Error> {
+        serde_convert(value)
+    }
+}
+
+/// UniFFI compatible bridge to [concordium_base::web3id::v1::anchor::UnfilledContextInformation].
 pub struct UnfilledContextInformation {
     /// Context information that is already provided.
     pub given: Vec<LabeledContextProperty>,
@@ -351,12 +376,18 @@ pub struct UnfilledContextInformation {
     pub requested: Vec<ContextLabel>,
 }
 
-impl From<UnfilledContextInformation> for v1::anchor::UnfilledContextInformation {
-    fn from(value: UnfilledContextInformation) -> Self {
-        Self {
-            given: value.given.into_iter().map(|val| val.into()).collect(),
+impl TryFrom<UnfilledContextInformation> for v1::anchor::UnfilledContextInformation {
+    type Error = serde_json::Error;
+
+    fn try_from(value: UnfilledContextInformation) -> Result<Self, Self::Error> {
+        Ok(Self {
+            given: value
+                .given
+                .into_iter()
+                .map(|val| val.try_into())
+                .collect::<Result<_, _>>()?,
             requested: value.requested.into_iter().map(|val| val.into()).collect(),
-        }
+        })
     }
 }
 
@@ -380,24 +411,24 @@ pub enum RequestedStatement {
     },
 }
 
-impl TryFrom<RequestedStatement> for v1::anchor::RequestedStatement<AttributeTag> {
+impl TryFrom<RequestedStatement> for v1::anchor::RequestedStatement<types::AttributeTag> {
     type Error = serde_json::Error;
 
     fn try_from(value: RequestedStatement) -> Result<Self, Self::Error> {
-        match value {
+        Ok(match value {
             RequestedStatement::RevealAttribute { statement } => {
-                v1::anchor::RequestedStatement::RevealAttribute(serde_convert(statement)?)
+                Self::RevealAttribute(serde_convert(statement)?)
             }
             RequestedStatement::AttributeInRange { statement } => {
-                v1::anchor::RequestedStatement::AttributeInRange(serde_convert(statement)?)
+                Self::AttributeInRange(serde_convert(statement)?)
             }
             RequestedStatement::AttributeInSet { statement } => {
-                v1::anchor::RequestedStatement::AttributeInSet(serde_convert(statement)?)
+                Self::AttributeInSet(serde_convert(statement)?)
             }
             RequestedStatement::AttributeNotInSet { statement } => {
-                v1::anchor::RequestedStatement::AttributeNotInSet(serde_convert(statement)?)
+                Self::AttributeNotInSet(serde_convert(statement)?)
             }
-        }
+        })
     }
 }
 
@@ -440,13 +471,19 @@ pub struct RequestedIdentitySubjectClaims {
     pub source: Vec<IdentityCredentialType>,
 }
 
-impl From<RequestedIdentitySubjectClaims> for v1::anchor::RequestedIdentitySubjectClaims {
-    fn from(value: RequestedIdentitySubjectClaims) -> Self {
-        Self {
-            statements: value.statements.into_iter().map(|val| val.into()).collect(),
+impl TryFrom<RequestedIdentitySubjectClaims> for v1::anchor::RequestedIdentitySubjectClaims {
+    type Error = serde_json::Error;
+
+    fn try_from(value: RequestedIdentitySubjectClaims) -> Result<Self, Self::Error> {
+        Ok(Self {
+            statements: value
+                .statements
+                .into_iter()
+                .map(|val| val.try_into())
+                .collect::<Result<_, _>>()?,
             issuers: value.issuers.into_iter().map(|val| val.into()).collect(),
             source: value.source.into_iter().map(|val| val.into()).collect(),
-        }
+        })
     }
 }
 
@@ -457,12 +494,13 @@ pub enum RequestedSubjectClaims {
     },
 }
 
-impl From<RequestedSubjectClaims> for v1::anchor::RequestedSubjectClaims {
-    fn from(value: RequestedSubjectClaims) -> Self {
+impl TryFrom<RequestedSubjectClaims> for v1::anchor::RequestedSubjectClaims {
+    type Error = serde_json::Error;
+    fn try_from(value: RequestedSubjectClaims) -> Result<Self, Self::Error> {
         match value {
-            RequestedSubjectClaims::Identity { identity } => {
-                v1::anchor::RequestedSubjectClaims::Identity(identity.into())
-            }
+            RequestedSubjectClaims::Identity { identity } => Ok(
+                v1::anchor::RequestedSubjectClaims::Identity(identity.try_into()?),
+            ),
         }
     }
 }
@@ -475,16 +513,17 @@ pub struct VerificationRequestData {
     pub subject_claims: Vec<RequestedSubjectClaims>,
 }
 
-impl From<VerificationRequestData> for v1::anchor::VerificationRequestData {
-    fn from(value: VerificationRequestData) -> Self {
-        Self {
-            context: value.context.into(),
+impl TryFrom<VerificationRequestData> for v1::anchor::VerificationRequestData {
+    type Error = serde_json::Error;
+    fn try_from(value: VerificationRequestData) -> Result<Self, Self::Error> {
+        Ok(Self {
+            context: value.context.try_into()?,
             subject_claims: value
                 .subject_claims
                 .into_iter()
-                .map(|val| val.into())
-                .collect(),
-        }
+                .map(|val| val.try_into())
+                .collect::<Result<_, _>>()?,
+        })
     }
 }
 
@@ -507,9 +546,11 @@ pub fn create_verifiable_presentation_v1(
 pub fn compute_anchor_hash(
     verification_request_data: VerificationRequestData,
 ) -> Result<Bytes, ConcordiumWalletCryptoError> {
-    let _fn_desc = "compute_anchor_hash(data={VerificationRequestData})";
+    let fn_desc = "compute_anchor_hash(data={VerificationRequestData})";
 
-    let hash = v1::anchor::VerificationRequestData::from(verification_request_data).hash();
+    let hash = v1::anchor::VerificationRequestData::try_from(verification_request_data)
+        .map_err(|e| e.to_call_failed(fn_desc.to_string()))?
+        .hash();
     Ok(hash.into())
 }
 
@@ -618,4 +659,9 @@ mod tests {
         let _ = PresentationV1::try_from(base_pres_v1.clone())
             .expect("Could not convert from base's PresentationV1");
     }
+
+    // #[test]
+    // fn convert_verification_request_data() {
+
+    // }
 }
