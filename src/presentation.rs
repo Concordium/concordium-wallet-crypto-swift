@@ -1,11 +1,10 @@
 use std::{collections::HashMap, time::SystemTime};
 
 use crate::{
-    serde_convert, AnonymityRevokerInfo, AttributeInRangeStatement,
-    AttributeInSetStatement, AttributeNotInSetStatement, AttributeTag,
-    AttributeValueStatement, Bytes, ConcordiumWalletCryptoError, ConvertError,
-    IdentityObject, IdentityProviderInfo, Network, RevealAttributeIdentityStatement,
-    Web3IdAttribute,
+    serde_convert, AnonymityRevokerInfo, AttributeInRangeStatement, AttributeInSetStatement,
+    AttributeNotInSetStatement, AttributeTag, AttributeValueStatement, Bytes,
+    ConcordiumWalletCryptoError, ConvertError, IdentityObject, IdentityProviderInfo, Network,
+    RevealAttributeIdentityStatement, Web3IdAttribute,
 };
 use concordium_base::{
     common::{base16_encode_string, Serialize},
