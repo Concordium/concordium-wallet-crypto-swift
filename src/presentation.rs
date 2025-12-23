@@ -536,6 +536,7 @@ impl TryFrom<OwnedAccountCredentialProofPrivateInputs>
 }
 
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::OwnedCredentialProofPrivateInputs<IpPairing, ArCurve, Web3IdAttribute>].
+#[allow(clippy::large_enum_variant)]
 pub enum OwnedCredentialProofPrivateInputs {
     /// Private inputs for account based credential
     Account(OwnedAccountCredentialProofPrivateInputs),
