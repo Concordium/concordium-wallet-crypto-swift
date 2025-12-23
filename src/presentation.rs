@@ -1,7 +1,11 @@
-use std::time::SystemTime;
+use std::{collections::HashMap, time::SystemTime};
 
 use crate::{
-    AttributeInRangeStatement, AttributeInSetStatement, AttributeNotInSetStatement, AttributeTag, AttributeValueStatement, Bytes, ConcordiumWalletCryptoError, ConvertError, GlobalContext, Network, RevealAttributeIdentityStatement, Web3IdAttribute, serde_convert
+    presentation, serde_convert, AnonymityRevokerInfo, AttributeInRangeStatement,
+    AttributeInSetStatement, AttributeList, AttributeNotInSetStatement, AttributeTag,
+    AttributeValueStatement, Bytes, ConcordiumWalletCryptoError, ConvertError, GlobalContext,
+    IdentityObject, IdentityProviderInfo, Network, RevealAttributeIdentityStatement,
+    Web3IdAttribute,
 };
 use concordium_base::{
     common::{base16_encode_string, Serialize},
@@ -343,11 +347,14 @@ impl TryFrom<AccountBasedSubjectClaims> for v1::AccountBasedSubjectClaims<ArCurv
     }
 }
 
-
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::SubjectClaims<ArCurve, Web3IdAttribute>].
 pub enum SubjectClaims {
-    Account{account: AccountBasedSubjectClaims},
-    Identity{identity: IdentityBasedSubjectClaims},
+    Account {
+        account: AccountBasedSubjectClaims,
+    },
+    Identity {
+        identity: IdentityBasedSubjectClaims,
+    },
 }
 
 impl TryFrom<SubjectClaims> for v1::SubjectClaims<ArCurve, W3IdAttr> {
@@ -374,26 +381,130 @@ impl TryFrom<RequestV1> for v1::RequestV1<ArCurve, W3IdAttr> {
     }
 }
 
-/// UniFFI compatible bridge to [concordium_base::web3id::v1::OwnedCredentialProofPrivateInputs<IpPairing, ArCurve, Web3IdAttribute>].
-pub enum OwnedCredentialProofPrivateInputs {
-
+/// UniFFI compatible bridge to [concordium_base::id::types::CredentialHolderInfo<ArCurve>]
+pub struct CredentialHolderInfo {
+    pub id_cred: Bytes,
 }
 
-/// UniFFI compatible bridge to [wallet_library::proofs::PresentationV1Input].
-pub struct PresentationV1Input {
-    request: RequestV1,
-    inputs: Vec<OwnedCredentialProofPrivateInputs>,
-    global: GlobalContext,
-}
-
-impl TryFrom<PresentationV1Input> for proofs::PresentationV1Input {
+impl TryFrom<CredentialHolderInfo> for types::AccCredentialInfo<ArCurve> {
     type Error = uniffi::deps::anyhow::Error;
 
-    fn try_from(value: PresentationV1Input) -> Result<Self, Self::Error> {
+    fn try_from(value: CredentialHolderInfo) -> Result<Self, Self::Error> {
         todo!()
     }
 }
 
+/// UniFFI compatible bridge to [concordium_base::id::types::AccCredentialInfo<ArCurve>]
+pub struct AccCredentialInfo {
+    pub cred_holder_info: CredentialHolderInfo,
+    pub prf_key: Bytes,
+}
+
+impl TryFrom<AccCredentialInfo> for types::AccCredentialInfo<ArCurve> {
+    type Error = uniffi::deps::anyhow::Error;
+
+    fn try_from(value: AccCredentialInfo) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
+
+/// UniFFI compatible bridge to [concordium_base::id::types::IdObjectUseData<IpPairing, ArCurve>]
+pub struct IdObjectUseData {
+    pub aci: AccCredentialInfo,
+    pub randomness: Bytes,
+}
+
+impl TryFrom<IdObjectUseData> for types::IdObjectUseData<IpPairing, ArCurve> {
+    type Error = uniffi::deps::anyhow::Error;
+
+    fn try_from(value: IdObjectUseData) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
+
+/// UniFFI compatible bridge to [concordium_base::id::types::ArInfos<ArCurve>]
+pub struct ArInfos {
+    pub anonymity_revokers: HashMap<u32, AnonymityRevokerInfo>,
+}
+
+impl TryFrom<ArInfos> for types::ArInfos<ArCurve> {
+    type Error = uniffi::deps::anyhow::Error;
+
+    fn try_from(value: ArInfos) -> Result<Self, Self::Error> {
+        todo!()
+    }
+}
+
+/// UniFFI compatible bridge to [concordium_base::web3id::v1::OwnedIdentityCredentialProofPrivateInputs<IpPairing, ArCurve, Web3IdAttribute>].
+pub struct OwnedIdentityCredentialProofPrivateInputs {
+    /// Identity provider information
+    pub ip_info: IdentityProviderInfo,
+    /// Public information on the __supported__ anonymity revokers.
+    /// Must include at least the anonymity revokers supported by the identity provider.
+    /// This is used to create and validate credential.
+    pub ars_infos: ArInfos,
+    /// Identity object. Together with `id_object_use_data`, it constitutes the identity credentials.
+    pub id_object: IdentityObject,
+    /// Parts of the identity credentials created locally and not by the identity provider
+    pub id_object_use_data: IdObjectUseData,
+}
+
+impl TryFrom<OwnedIdentityCredentialProofPrivateInputs>
+    for v1::OwnedIdentityCredentialProofPrivateInputs<IpPairing, ArCurve, W3IdAttr>
+{
+    type Error = uniffi::deps::anyhow::Error;
+
+    fn try_from(value: OwnedIdentityCredentialProofPrivateInputs) -> Result<Self, Self::Error> {
+        Ok(Self { ip_info: value.ip_info.try_into()?, ars_infos: value.ars_infos.try_into()?, id_object: value.id_object.try_into()?, id_object_use_data: value.id_object_use_data.try_into()? })
+    }
+}
+
+/// UniFFI compatible bridge to [concordium_base::web3id::v1::OwnedAccountCredentialProofPrivateInputs<IpPairing, ArCurve, Web3IdAttribute>].
+#[derive(serde::Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct OwnedAccountCredentialProofPrivateInputs {
+    /// Issuer of the identity credentials used to deploy the account credentials
+    pub issuer: u32,
+    #[serde(rename = "values")]
+    /// The attribute values that are committed to in the account credentials
+    pub attribute_values: HashMap<AttributeTag, Web3IdAttribute>,
+    /// The randomness of the attribute commitments in the account credentials
+    #[serde(rename = "randomness")]
+    pub attribute_randomness: HashMap<AttributeTag, Bytes>,
+}
+
+impl TryFrom<OwnedAccountCredentialProofPrivateInputs>
+    for v1::OwnedAccountCredentialProofPrivateInputs<ArCurve, W3IdAttr>
+{
+    type Error = serde_json::Error;
+
+    fn try_from(value: OwnedAccountCredentialProofPrivateInputs) -> Result<Self, Self::Error> {
+        serde_convert(value)
+    }
+}
+
+/// UniFFI compatible bridge to [concordium_base::web3id::v1::OwnedCredentialProofPrivateInputs<IpPairing, ArCurve, Web3IdAttribute>].
+pub enum OwnedCredentialProofPrivateInputs {
+    /// Private inputs for account based credential
+    Account(OwnedAccountCredentialProofPrivateInputs),
+    /// Private inputs for identity based credential
+    Identity(OwnedIdentityCredentialProofPrivateInputs),
+}
+
+impl TryFrom<OwnedCredentialProofPrivateInputs>
+    for v1::OwnedCredentialProofPrivateInputs<IpPairing, ArCurve, W3IdAttr>
+{
+    type Error = uniffi::deps::anyhow::Error;
+
+    fn try_from(value: OwnedCredentialProofPrivateInputs) -> Result<Self, Self::Error> {
+        Ok(match value {
+            OwnedCredentialProofPrivateInputs::Account(inputs) => Self::Account(inputs.try_into()?),
+            OwnedCredentialProofPrivateInputs::Identity(inputs) => {
+                Self::Identity(Box::new(inputs.try_into()?))
+            }
+        })
+    }
+}
 
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::anchor::ContextLabel].
 pub enum ContextLabel {
@@ -611,11 +722,23 @@ impl TryFrom<VerificationRequestData> for v1::anchor::VerificationRequestData {
 
 /// Implements UDL definition of the same name.
 pub fn create_verifiable_presentation_v1(
+    // request: RequestV1,
+    // global: GlobalContext,
+    // inputs: Vec<OwnedCredentialProofPrivateInputs>,
     input: String,
 ) -> Result<PresentationV1, ConcordiumWalletCryptoError> {
     let fn_desc = "create_presentation(input={input})";
     let proof_input: proofs::PresentationV1Input =
         serde_json::from_str(&input).map_err(|e| e.to_call_failed(fn_desc.to_string()))?;
+
+    // let request: v1::RequestV1<ArCurve, W3IdAttr> = request.try_into().map_err(|e| e.to_call_failed(fn_desc.to_string()))?;
+    // let borrowed = inputs.into_iter().map(|val| {
+    //     let owned = val.try_into()?;
+    //     owned.borrow();
+    // }).collect();
+    // let global = global.try_into().map_err(|e| e.to_call_failed(fn_desc.to_string()))?;
+
+    // let presentation = request.prove(&global, borrowed).map_err(|e| e.to_call_failed(fn_desc.to_string()))?;
 
     let presentation = proof_input
         .prove()
