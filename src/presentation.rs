@@ -346,7 +346,7 @@ impl TryFrom<IdentityBasedSubjectClaims> for v1::IdentityBasedSubjectClaims<ArCu
             statements: value
                 .statements
                 .into_iter()
-                .map(|val| serde_convert(val))
+                .map(serde_convert)
                 .collect::<Result<_, _>>()?,
         })
     }
@@ -375,7 +375,7 @@ impl TryFrom<AccountBasedSubjectClaims> for v1::AccountBasedSubjectClaims<ArCurv
             statements: value
                 .statements
                 .into_iter()
-                .map(|val| serde_convert(val))
+                .map(serde_convert)
                 .collect::<Result<_, _>>()?,
         })
     }
