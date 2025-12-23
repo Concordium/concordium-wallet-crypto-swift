@@ -1,9 +1,9 @@
 use std::{collections::HashMap, time::SystemTime};
 
 use crate::{
-    presentation, serde_convert, AnonymityRevokerInfo, AttributeInRangeStatement,
-    AttributeInSetStatement, AttributeList, AttributeNotInSetStatement, AttributeTag,
-    AttributeValueStatement, Bytes, ConcordiumWalletCryptoError, ConvertError, GlobalContext,
+    serde_convert, AnonymityRevokerInfo, AttributeInRangeStatement,
+    AttributeInSetStatement, AttributeNotInSetStatement, AttributeTag,
+    AttributeValueStatement, Bytes, ConcordiumWalletCryptoError, ConvertError,
     IdentityObject, IdentityProviderInfo, Network, RevealAttributeIdentityStatement,
     Web3IdAttribute,
 };
@@ -63,7 +63,7 @@ pub type AttributeNotInSetIdentityStatementV1 =
     AttributeNotInSetStatement<AttributeTag, Web3IdAttribute>;
 
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::AtomicStatementV1<ArCurve, AttributeTag, Web3IdAttribute>].
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, serde::Serialize, Deserialize, PartialEq)]
 #[serde(tag = "type")]
 pub enum AtomicStatementV1 {
     AttributeValue {
@@ -244,6 +244,15 @@ impl From<v1::ContextProperty> for ContextProperty {
     }
 }
 
+impl From<ContextProperty> for v1::ContextProperty {
+    fn from(value: ContextProperty) -> Self {
+        Self {
+            label: value.label,
+            context: value.context,
+        }
+    }
+}
+
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::ContextInformation].
 #[derive(Debug, PartialEq)]
 pub struct ContextInformation {
@@ -253,6 +262,15 @@ pub struct ContextInformation {
 
 impl From<v1::ContextInformation> for ContextInformation {
     fn from(value: v1::ContextInformation) -> Self {
+        Self {
+            given: value.given.into_iter().map(|val| val.into()).collect(),
+            requested: value.requested.into_iter().map(|val| val.into()).collect(),
+        }
+    }
+}
+
+impl From<ContextInformation> for v1::ContextInformation {
+    fn from(value: ContextInformation) -> Self {
         Self {
             given: value.given.into_iter().map(|val| val.into()).collect(),
             requested: value.requested.into_iter().map(|val| val.into()).collect(),
@@ -320,10 +338,18 @@ pub struct IdentityBasedSubjectClaims {
 }
 
 impl TryFrom<IdentityBasedSubjectClaims> for v1::IdentityBasedSubjectClaims<ArCurve, W3IdAttr> {
-    type Error = uniffi::deps::anyhow::Error;
+    type Error = serde_json::Error;
 
     fn try_from(value: IdentityBasedSubjectClaims) -> Result<Self, Self::Error> {
-        todo!()
+        Ok(Self {
+            network: value.network.into(),
+            issuer: types::IpIdentity(value.issuer),
+            statements: value
+                .statements
+                .into_iter()
+                .map(|val| serde_convert(val))
+                .collect::<Result<_, _>>()?,
+        })
     }
 }
 
@@ -340,10 +366,19 @@ pub struct AccountBasedSubjectClaims {
 }
 
 impl TryFrom<AccountBasedSubjectClaims> for v1::AccountBasedSubjectClaims<ArCurve, W3IdAttr> {
-    type Error = uniffi::deps::anyhow::Error;
+    type Error = serde_json::Error;
 
     fn try_from(value: AccountBasedSubjectClaims) -> Result<Self, Self::Error> {
-        todo!()
+        Ok(Self {
+            network: value.network.into(),
+            issuer: types::IpIdentity(value.issuer),
+            cred_id: serde_convert(value.cred_id)?,
+            statements: value
+                .statements
+                .into_iter()
+                .map(|val| serde_convert(val))
+                .collect::<Result<_, _>>()?,
+        })
     }
 }
 
@@ -361,7 +396,10 @@ impl TryFrom<SubjectClaims> for v1::SubjectClaims<ArCurve, W3IdAttr> {
     type Error = uniffi::deps::anyhow::Error;
 
     fn try_from(value: SubjectClaims) -> Result<Self, Self::Error> {
-        todo!()
+        Ok(match value {
+            SubjectClaims::Account { account } => Self::Account(account.try_into()?),
+            SubjectClaims::Identity { identity } => Self::Identity(identity.try_into()?),
+        })
     }
 }
 
@@ -377,61 +415,71 @@ impl TryFrom<RequestV1> for v1::RequestV1<ArCurve, W3IdAttr> {
     type Error = uniffi::deps::anyhow::Error;
 
     fn try_from(value: RequestV1) -> Result<Self, Self::Error> {
-        todo!()
+        Ok(Self {
+            context: value.context.into(),
+            subject_claims: value
+                .subject_claims
+                .into_iter()
+                .map(|val| val.try_into())
+                .collect::<Result<_, _>>()?,
+        })
     }
 }
 
 /// UniFFI compatible bridge to [concordium_base::id::types::CredentialHolderInfo<ArCurve>]
+#[derive(serde::Serialize)]
 pub struct CredentialHolderInfo {
+    #[serde(rename = "idCredSecret")]
     pub id_cred: Bytes,
 }
 
-impl TryFrom<CredentialHolderInfo> for types::AccCredentialInfo<ArCurve> {
-    type Error = uniffi::deps::anyhow::Error;
-
-    fn try_from(value: CredentialHolderInfo) -> Result<Self, Self::Error> {
-        todo!()
-    }
-}
-
 /// UniFFI compatible bridge to [concordium_base::id::types::AccCredentialInfo<ArCurve>]
+#[derive(serde::Serialize)]
 pub struct AccCredentialInfo {
+    #[serde(rename = "credentialHolderInformation")]
     pub cred_holder_info: CredentialHolderInfo,
+    #[serde(rename = "prfKey")]
     pub prf_key: Bytes,
 }
 
-impl TryFrom<AccCredentialInfo> for types::AccCredentialInfo<ArCurve> {
-    type Error = uniffi::deps::anyhow::Error;
-
-    fn try_from(value: AccCredentialInfo) -> Result<Self, Self::Error> {
-        todo!()
-    }
-}
-
 /// UniFFI compatible bridge to [concordium_base::id::types::IdObjectUseData<IpPairing, ArCurve>]
+#[derive(serde::Serialize)]
 pub struct IdObjectUseData {
+    #[serde(rename = "aci")]
     pub aci: AccCredentialInfo,
+    #[serde(rename = "randomness")]
     pub randomness: Bytes,
 }
 
 impl TryFrom<IdObjectUseData> for types::IdObjectUseData<IpPairing, ArCurve> {
-    type Error = uniffi::deps::anyhow::Error;
+    type Error = serde_json::Error;
 
     fn try_from(value: IdObjectUseData) -> Result<Self, Self::Error> {
-        todo!()
+        serde_convert(value)
     }
 }
 
 /// UniFFI compatible bridge to [concordium_base::id::types::ArInfos<ArCurve>]
+#[derive(serde::Serialize)]
 pub struct ArInfos {
     pub anonymity_revokers: HashMap<u32, AnonymityRevokerInfo>,
 }
 
 impl TryFrom<ArInfos> for types::ArInfos<ArCurve> {
-    type Error = uniffi::deps::anyhow::Error;
+    type Error = serde_json::Error;
 
     fn try_from(value: ArInfos) -> Result<Self, Self::Error> {
-        todo!()
+        serde_convert(value)
+    }
+}
+
+impl TryFrom<IdentityObject>
+    for concordium_base::id::types::IdentityObjectV1<IpPairing, ArCurve, W3IdAttr>
+{
+    type Error = serde_json::Error;
+
+    fn try_from(value: IdentityObject) -> Result<Self, Self::Error> {
+        serde_convert(value)
     }
 }
 
@@ -455,7 +503,12 @@ impl TryFrom<OwnedIdentityCredentialProofPrivateInputs>
     type Error = uniffi::deps::anyhow::Error;
 
     fn try_from(value: OwnedIdentityCredentialProofPrivateInputs) -> Result<Self, Self::Error> {
-        Ok(Self { ip_info: value.ip_info.try_into()?, ars_infos: value.ars_infos.try_into()?, id_object: value.id_object.try_into()?, id_object_use_data: value.id_object_use_data.try_into()? })
+        Ok(Self {
+            ip_info: value.ip_info.try_into()?,
+            ars_infos: value.ars_infos.try_into()?,
+            id_object: value.id_object.try_into()?,
+            id_object_use_data: value.id_object_use_data.try_into()?,
+        })
     }
 }
 
@@ -731,6 +784,7 @@ pub fn create_verifiable_presentation_v1(
     let proof_input: proofs::PresentationV1Input =
         serde_json::from_str(&input).map_err(|e| e.to_call_failed(fn_desc.to_string()))?;
 
+    // TODO: use proper conversion bellow
     // let request: v1::RequestV1<ArCurve, W3IdAttr> = request.try_into().map_err(|e| e.to_call_failed(fn_desc.to_string()))?;
     // let borrowed = inputs.into_iter().map(|val| {
     //     let owned = val.try_into()?;
