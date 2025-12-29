@@ -957,6 +957,83 @@ dictionary VerificationRequestData {
     sequence<RequestedSubjectClaims> subject_claims;
 };
 
+dictionary CredentialHolderInfo {
+    Bytes id_cred;
+};
+
+dictionary AccCredentialInfo {
+    CredentialHolderInfo cred_holder_info;
+    Bytes prf_key;
+};
+
+dictionary IdObjectUseData {
+    AccCredentialInfo aci;
+    Bytes randomness;
+};
+
+dictionary ArInfos {
+    record<u32, AnonymityRevokerInfo> anonymity_revokers;
+};
+
+dictionary OwnedIdentityCredentialProofPrivateInputs {
+    /// Identity provider information
+    IdentityProviderInfo ip_info;
+    /// Public information on the __supported__ anonymity revokers.
+    /// Must include at least the anonymity revokers supported by the identity provider.
+    /// This is used to create and validate credential.
+    ArInfos ars_infos;
+    /// Identity object. Together with `id_object_use_data`, it constitutes the identity credentials.
+    IdentityObject id_object;
+    /// Parts of the identity credentials created locally and not by the identity provider
+    IdObjectUseData id_object_use_data;
+};
+
+dictionary OwnedAccountCredentialProofPrivateInputs {
+    /// Issuer of the identity credentials used to deploy the account credentials
+    u32 issuer;
+    /// The attribute values that are committed to in the account credentials
+    record<AttributeTag, Web3IdAttribute> attribute_values;
+    /// The randomness of the attribute commitments in the account credentials
+    record<AttributeTag, Bytes> attribute_randomness;
+};
+
+[Enum]
+interface OwnedCredentialProofPrivateInputs {
+    Account(OwnedAccountCredentialProofPrivateInputs account);
+    Identity(OwnedIdentityCredentialProofPrivateInputs identity);
+};
+
+dictionary IdentityBasedSubjectClaims {
+    /// Network to which the identity credentials are issued
+    Network network;
+    /// Identity provider which issued the credentials
+    u32 issuer;
+    /// Attribute statements
+    sequence<AtomicStatementV1> statements;
+};
+
+dictionary AccountBasedSubjectClaims {
+    /// Network on which the account exists
+    Network network;
+    /// Identity provider which issued the credentials
+    u32 issuer;
+    /// Account registration id
+    Bytes cred_id;
+    /// Attribute statements
+    sequence<AtomicStatementV1> statements;
+};
+
+[Enum]
+interface SubjectClaims {
+    Account(AccountBasedSubjectClaims account);
+    Identity(IdentityBasedSubjectClaims identity);
+};
+
+dictionary RequestV1 {
+    ContextInformation context;
+    sequence<SubjectClaims> subject_claims;
+};
+
 namespace crypto {
     /// Compute the IdCredSec for the provided seed and identity indexes.
     [Throws=ConcordiumWalletCryptoError]
@@ -1111,7 +1188,7 @@ namespace crypto {
 
     /// Create PresentationV1 for the given statement
     [Throws=ConcordiumWalletCryptoError]
-    PresentationV1 create_verifiable_presentation_v1(string input);
+    PresentationV1 create_verifiable_presentation_v1(RequestV1 request, GlobalContext global, sequence<OwnedCredentialProofPrivateInputs> inputs);
 
     /// Compute the anchor hash for VerificationRequestData
     [Throws=ConcordiumWalletCryptoError]

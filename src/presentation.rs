@@ -3,8 +3,8 @@ use std::{collections::HashMap, time::SystemTime};
 use crate::{
     serde_convert, AnonymityRevokerInfo, AttributeInRangeStatement, AttributeInSetStatement,
     AttributeNotInSetStatement, AttributeTag, AttributeValueStatement, Bytes,
-    ConcordiumWalletCryptoError, ConvertError, IdentityObject, IdentityProviderInfo, Network,
-    RevealAttributeIdentityStatement, Web3IdAttribute,
+    ConcordiumWalletCryptoError, ConvertError, GlobalContext, IdentityObject, IdentityProviderInfo,
+    Network, RevealAttributeIdentityStatement, Web3IdAttribute,
 };
 use concordium_base::{
     common::{base16_encode_string, Serialize},
@@ -15,7 +15,6 @@ use concordium_base::{
     web3id::{v1, Web3IdAttribute as W3IdAttr},
 };
 use serde::Deserialize;
-use wallet_library::proofs;
 
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::ConcordiumZKProof].
 pub type ConcordiumCredentialZKProofs = ConcordiumZKProof<Bytes>;
@@ -539,9 +538,13 @@ impl TryFrom<OwnedAccountCredentialProofPrivateInputs>
 #[allow(clippy::large_enum_variant)]
 pub enum OwnedCredentialProofPrivateInputs {
     /// Private inputs for account based credential
-    Account(OwnedAccountCredentialProofPrivateInputs),
+    Account {
+        account: OwnedAccountCredentialProofPrivateInputs,
+    },
     /// Private inputs for identity based credential
-    Identity(OwnedIdentityCredentialProofPrivateInputs),
+    Identity {
+        identity: OwnedIdentityCredentialProofPrivateInputs,
+    },
 }
 
 impl TryFrom<OwnedCredentialProofPrivateInputs>
@@ -551,9 +554,11 @@ impl TryFrom<OwnedCredentialProofPrivateInputs>
 
     fn try_from(value: OwnedCredentialProofPrivateInputs) -> Result<Self, Self::Error> {
         Ok(match value {
-            OwnedCredentialProofPrivateInputs::Account(inputs) => Self::Account(inputs.try_into()?),
-            OwnedCredentialProofPrivateInputs::Identity(inputs) => {
-                Self::Identity(Box::new(inputs.try_into()?))
+            OwnedCredentialProofPrivateInputs::Account { account } => {
+                Self::Account(account.try_into()?)
+            }
+            OwnedCredentialProofPrivateInputs::Identity { identity } => {
+                Self::Identity(Box::new(identity.try_into()?))
             }
         })
     }
@@ -775,27 +780,28 @@ impl TryFrom<VerificationRequestData> for v1::anchor::VerificationRequestData {
 
 /// Implements UDL definition of the same name.
 pub fn create_verifiable_presentation_v1(
-    // request: RequestV1,
-    // global: GlobalContext,
-    // inputs: Vec<OwnedCredentialProofPrivateInputs>,
-    input: String,
+    request: RequestV1,
+    global: GlobalContext,
+    inputs: Vec<OwnedCredentialProofPrivateInputs>,
 ) -> Result<PresentationV1, ConcordiumWalletCryptoError> {
-    let fn_desc = "create_presentation(input={input})";
-    let proof_input: proofs::PresentationV1Input =
-        serde_json::from_str(&input).map_err(|e| e.to_call_failed(fn_desc.to_string()))?;
+    let fn_desc = "create_verifiable_presentation_v1";
+    let request: v1::RequestV1<ArCurve, W3IdAttr> = request
+        .try_into()
+        .map_err(|e: uniffi::deps::anyhow::Error| e.to_call_failed(fn_desc.to_string()))?;
 
-    // TODO: use proper conversion bellow
-    // let request: v1::RequestV1<ArCurve, W3IdAttr> = request.try_into().map_err(|e| e.to_call_failed(fn_desc.to_string()))?;
-    // let borrowed = inputs.into_iter().map(|val| {
-    //     let owned = val.try_into()?;
-    //     owned.borrow();
-    // }).collect();
-    // let global = global.try_into().map_err(|e| e.to_call_failed(fn_desc.to_string()))?;
+    let inputs = inputs
+        .into_iter()
+        .map(v1::OwnedCredentialProofPrivateInputs::try_from)
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e: uniffi::deps::anyhow::Error| e.to_call_failed(fn_desc.to_string()))?;
+    let borrowed = inputs.iter().map(|val| val.borrow());
 
-    // let presentation = request.prove(&global, borrowed).map_err(|e| e.to_call_failed(fn_desc.to_string()))?;
+    let global = global
+        .try_into()
+        .map_err(|e: serde_json::Error| e.to_call_failed(fn_desc.to_string()))?;
 
-    let presentation = proof_input
-        .prove()
+    let presentation = request
+        .prove(&global, borrowed)
         .map_err(|e| e.to_call_failed(fn_desc.to_string()))?;
 
     PresentationV1::try_from(presentation).map_err(|e| e.to_call_failed(fn_desc.to_string()))
