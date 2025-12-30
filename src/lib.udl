@@ -680,6 +680,8 @@ interface IdentifierType {
     PublicKey(bytes key);
     /// Reference to a specific identity provider.
     Idp(u32 idp_identity);
+    /// Encrypted, ephemeral identifier for an identity credential. It is the encryption of IdCredPub.
+    EncryptedIdentityCredentialId(bytes cred_id);
 };
 
 dictionary DID {
@@ -745,6 +747,291 @@ dictionary VerifiablePresentation {
     /// Signatures from keys of Web3 credentials (not from ID credentials).
     /// The order is the same as that in the `credential_proofs` field.
     LinkingProof linking_proof;
+};
+
+/// For the case where the verifier wants the user to prove that an attribute is
+/// equal to a public value. The statement is that the attribute value is equal to `attribute_value`.
+dictionary AttributeValueIdentityStatementV1 {
+    AttributeTag attribute_tag;
+    Web3IdAttribute attribute_value;
+};
+
+/// For the case where the verifier wants the user to prove that an attribute is
+/// in a range. The statement is that the attribute value lies in `[lower,
+/// upper)` in the scalar field.
+dictionary AttributeInRangeIdentityStatementV1 {
+    /// The attribute that the verifier wants the user to prove is in a range.
+    AttributeTag attribute_tag;
+    /// The lower bound on the range.
+    Web3IdAttribute lower;
+    /// The upper bound of the range.
+    Web3IdAttribute upper;
+};
+
+/// For the case where the verifier wants the user to prove that an attribute is
+/// in a set of attributes.
+dictionary AttributeInSetIdentityStatementV1 {
+    /// The attribute that the verifier wants the user prove lies in a set.
+    AttributeTag attribute_tag;
+    /// The set that the attribute should lie in.
+    sequence<Web3IdAttribute> set;
+};
+
+/// For the case where the verifier wants the user to prove that an attribute is
+/// not in a set of attributes.
+dictionary AttributeNotInSetIdentityStatementV1{
+    /// The attribute that the verifier wants the user to prove does not lie in
+    /// a set.
+    AttributeTag attribute_tag;
+    /// The set that the attribute should not lie in.
+    sequence<Web3IdAttribute> set;
+};
+
+
+/// The types of statements that can be used in subject claims
+[Enum]
+interface AtomicStatementV1 {
+    AttributeValue(AttributeValueIdentityStatementV1 statement);
+    AttributeInRange(AttributeInRangeIdentityStatementV1 statement);
+    AttributeInSet(AttributeInSetIdentityStatementV1 statement);
+    AttributeNotInSet(AttributeNotInSetIdentityStatementV1 statement);
+};
+
+/// Subject of account based credential
+dictionary AccountCredentialSubject {
+    Network network;
+    Bytes cred_id;
+    sequence<AtomicStatementV1> statements;
+};
+
+/// Version of proof
+enum ConcordiumZKProofVersion {
+    "ConcordiumZKProofV4",
+};
+
+/// Proof of account based credential
+dictionary ConcordiumCredentialZKProofs {
+    timestamp created_at;
+    Bytes proof_value;
+    ConcordiumZKProofVersion proof_version;
+};
+
+/// Subject of identity based credential
+dictionary IdentityCredentialSubject {
+    Network network;
+    Bytes cred_id;
+    sequence<AtomicStatementV1> statements;
+};
+
+/// Account based credentials. This contains almost
+/// all the information needed to verify it, except the public commitments.
+dictionary AccountBasedCredentialV1 {
+    u32 issuer;
+    AccountCredentialSubject subject;
+    ConcordiumCredentialZKProofs proofs;
+};
+
+/// Identity based credential. This type of credential is derived from identity credentials issued
+/// by an identity provider. The type contains almost
+/// all the information needed to verify it, except the identity provider and privacy guardian (anonymity revoker) public keys.
+dictionary IdentityBasedCredentialV1 {
+    u32 issuer;
+    timestamp valid_from;
+    timestamp valid_until;
+    IdentityCredentialSubject subject;
+    ConcordiumCredentialZKProofs proofs;
+};
+
+/// Verifiable credential that contains subject claims and proofs of the claims.
+[Enum]
+interface CredentialV1 {
+    Account(AccountBasedCredentialV1 account);
+    Identity(IdentityBasedCredentialV1 identity);
+};
+
+
+/// Property value used in `ContextInformation`
+dictionary ContextProperty {
+    string label;
+    string context;
+};
+
+
+/// Verification context information that serves as a distinguishing context when requesting
+/// proofs.
+dictionary ContextInformation {
+    sequence<ContextProperty> given;
+    sequence<ContextProperty> requested;
+};
+
+/// Version of proof
+enum ConcordiumLinkingProofVersion {
+    "ConcordiumWeakLinkingProofV1",
+};
+
+/// Proof that the credential holder has created the presentation. Currently
+/// not used.
+dictionary LinkingProofV1 {
+    timestamp created_at;
+    bytes proof_value;
+    ConcordiumLinkingProofVersion proof_type;
+};
+
+/// Verifiable presentation that contains verifiable credentials each
+/// consisting of subject claims and proofs of them.
+dictionary PresentationV1 {
+    ContextInformation presentation_context;
+    sequence<CredentialV1> verifiable_credentials;
+    LinkingProofV1 linking_proof;
+};
+
+enum IdentityCredentialType {
+    "IdentityCredential",
+    "AccountCredential",
+};
+
+dictionary IdentityProviderDid {
+    /// The network part of the method.
+    Network network;
+    /// The on-chain identifier of the Concordium Identity Provider.
+    u32 identity_provider;
+};
+
+[Enum]
+interface RequestedStatement{
+    RevealAttribute(RevealAttributeIdentityStatement statement);
+    AttributeInRange(AttributeInRangeIdentityStatementV1 statement);
+    AttributeInSet(AttributeInSetIdentityStatementV1 statement);
+    AttributeNotInSet(AttributeNotInSetIdentityStatementV1 statement);
+};
+
+dictionary RequestedIdentitySubjectClaims{
+    sequence<RequestedStatement> statements;
+    sequence<IdentityProviderDid> issuers;
+    sequence<IdentityCredentialType> source;
+};
+
+[Enum]
+interface RequestedSubjectClaims {
+    Identity(RequestedIdentitySubjectClaims identity);
+};
+
+[Enum]
+interface LabeledContextProperty {
+    /// Cryptographic nonce context which should be of length 32 bytes. Should be randomly generated.
+    Nonce(Bytes nonce);
+    /// Payment hash context (Concordium transaction hash).
+    PaymentHash(Bytes payment_hash);
+    /// Concordium block hash context.
+    BlockHash(Bytes block_hash);
+    /// Identifier for some connection (e.g. wallet-connect topic).
+    ConnectionId(string connection_id);
+    /// Identifier for some resource (e.g. Website URL or fingerprint of TLS certificate).
+    ResourceId(string resouce_id);
+    /// String value for general purposes.
+    ContextString(string context_string);
+};
+
+enum ContextLabel {
+    /// A nonce which should be at least of lenth bytes32.
+    "Nonce",
+    /// Payment hash (Concordium transaction hash).
+    "PaymentHash",
+    /// Concordium block hash.
+    "BlockHash",
+    /// Identifier for some connection (e.g. wallet-connect topic).
+    "ConnectionId",
+    /// Identifier for some resource (e.g. Website URL or fingerprint of TLS certificate).
+    "ResourceId",
+    /// String value for general purposes.
+    "ContextString",
+};
+
+dictionary UnfilledContextInformation {
+    sequence<LabeledContextProperty> given;
+    sequence<ContextLabel> requested;
+};
+
+dictionary VerificationRequestData {
+    UnfilledContextInformation context;
+    sequence<RequestedSubjectClaims> subject_claims;
+};
+
+dictionary CredentialHolderInfo {
+    Bytes id_cred;
+};
+
+dictionary AccCredentialInfo {
+    CredentialHolderInfo cred_holder_info;
+    Bytes prf_key;
+};
+
+dictionary IdObjectUseData {
+    AccCredentialInfo aci;
+    Bytes randomness;
+};
+
+dictionary ArInfos {
+    record<u32, AnonymityRevokerInfo> anonymity_revokers;
+};
+
+dictionary OwnedIdentityCredentialProofPrivateInputs {
+    /// Identity provider information
+    IdentityProviderInfo ip_info;
+    /// Public information on the __supported__ anonymity revokers.
+    /// Must include at least the anonymity revokers supported by the identity provider.
+    /// This is used to create and validate credential.
+    ArInfos ars_infos;
+    /// Identity object. Together with `id_object_use_data`, it constitutes the identity credentials.
+    IdentityObject id_object;
+    /// Parts of the identity credentials created locally and not by the identity provider
+    IdObjectUseData id_object_use_data;
+};
+
+dictionary OwnedAccountCredentialProofPrivateInputs {
+    /// Issuer of the identity credentials used to deploy the account credentials
+    u32 issuer;
+    /// The attribute values that are committed to in the account credentials
+    record<AttributeTag, Web3IdAttribute> attribute_values;
+    /// The randomness of the attribute commitments in the account credentials
+    record<AttributeTag, Bytes> attribute_randomness;
+};
+
+[Enum]
+interface OwnedCredentialProofPrivateInputs {
+    Account(OwnedAccountCredentialProofPrivateInputs account);
+    Identity(OwnedIdentityCredentialProofPrivateInputs identity);
+};
+
+dictionary IdentityBasedSubjectClaims {
+    /// Network to which the identity credentials are issued
+    Network network;
+    /// Identity provider which issued the credentials
+    u32 issuer;
+    /// Attribute statements
+    sequence<AtomicStatementV1> statements;
+};
+
+dictionary AccountBasedSubjectClaims {
+    /// Network on which the account exists
+    Network network;
+    /// Identity provider which issued the credentials
+    u32 issuer;
+    /// Account registration id
+    Bytes cred_id;
+    /// Attribute statements
+    sequence<AtomicStatementV1> statements;
+};
+
+[Enum]
+interface SubjectClaims {
+    Account(AccountBasedSubjectClaims account);
+    Identity(IdentityBasedSubjectClaims identity);
+};
+
+dictionary RequestV1 {
+    ContextInformation context;
+    sequence<SubjectClaims> subject_claims;
 };
 
 namespace crypto {
@@ -898,4 +1185,12 @@ namespace crypto {
     /// Format the given `Method` as a DID string
     [Throws=ConcordiumWalletCryptoError]
     string did_method_as_string(DID did);
+
+    /// Create PresentationV1 for the given statement
+    [Throws=ConcordiumWalletCryptoError]
+    PresentationV1 create_verifiable_presentation_v1(RequestV1 request, GlobalContext global, sequence<OwnedCredentialProofPrivateInputs> inputs);
+
+    /// Compute the anchor hash for VerificationRequestData
+    [Throws=ConcordiumWalletCryptoError]
+    Bytes compute_anchor_hash(VerificationRequestData verification_request_data);
 };

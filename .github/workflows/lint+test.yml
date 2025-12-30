@@ -16,7 +16,7 @@ jobs:
         - ubuntu-latest
         - windows-latest
         rust-version:
-        - "1.73"
+        - "1.91"
 
     runs-on: "${{matrix.runner}}"
 

@@ -3,7 +3,9 @@ use std::collections::HashMap;
 use crate::UniffiCustomTypeConverter;
 use concordium_base::{
     contracts_common::{AccountAddressParseError, Amount},
+    hashes::HashBytes,
     id::constants::ArCurve,
+    web3id::v1::ProveError,
 };
 use rand::thread_rng;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -36,6 +38,7 @@ impl ConvertError for serde_json::Error {}
 impl ConvertError for uniffi::deps::anyhow::Error {}
 impl ConvertError for AccountAddressParseError {}
 impl ConvertError for hex::FromHexError {}
+impl ConvertError for ProveError {}
 
 pub(crate) fn serde_convert<S: Serialize, D: DeserializeOwned>(
     value: S,
@@ -64,6 +67,12 @@ impl TryFrom<&str> for Bytes {
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         let bytes = hex::decode(value)?;
         Ok(bytes.into())
+    }
+}
+
+impl<T> From<HashBytes<T>> for Bytes {
+    fn from(value: HashBytes<T>) -> Self {
+        Self(value.bytes.to_vec())
     }
 }
 
@@ -138,7 +147,7 @@ impl From<Amount> for MicroCCDAmount {
 }
 
 #[repr(u8)]
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Deserialize)]
 pub enum Network {
     Testnet,
     Mainnet,

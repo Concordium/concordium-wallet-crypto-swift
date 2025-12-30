@@ -1,6 +1,7 @@
 mod creds;
 mod encrypted_amounts;
 mod id_proofs;
+mod presentation;
 mod schema;
 mod transactions;
 mod types;
@@ -12,6 +13,7 @@ uniffi::include_scaffolding!("lib");
 pub use creds::*;
 pub use encrypted_amounts::*;
 pub use id_proofs::*;
+pub use presentation::*;
 pub use schema::*;
 pub use transactions::*;
 pub use types::*;

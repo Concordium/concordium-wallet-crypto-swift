@@ -5591,6 +5591,12 @@ public enum IdentifierType {
     case idp(
         idpIdentity: UInt32
     )
+    /**
+     * Encrypted, ephemeral identifier for an identity credential. It is the encryption of IdCredPub.
+     */
+    case encryptedIdentityCredentialId(
+        credId: Data
+    )
 }
 
 public struct FfiConverterTypeIdentifierType: FfiConverterRustBuffer {
@@ -5620,6 +5626,10 @@ public struct FfiConverterTypeIdentifierType: FfiConverterRustBuffer {
         
         case 5: return .idp(
             idpIdentity: try FfiConverterUInt32.read(from: &buf)
+        )
+        
+        case 6: return .encryptedIdentityCredentialId(
+            credId: try FfiConverterData.read(from: &buf)
         )
         
         default: throw UniffiInternalError.unexpectedEnumCase
@@ -5655,6 +5665,11 @@ public struct FfiConverterTypeIdentifierType: FfiConverterRustBuffer {
         case let .idp(idpIdentity):
             writeInt(&buf, Int32(5))
             FfiConverterUInt32.write(idpIdentity, into: &buf)
+            
+        
+        case let .encryptedIdentityCredentialId(credId):
+            writeInt(&buf, Int32(6))
+            FfiConverterData.write(credId, into: &buf)
             
         }
     }
