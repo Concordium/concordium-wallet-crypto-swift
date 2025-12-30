@@ -823,8 +823,8 @@ pub fn compute_anchor_hash(
 mod tests {
     use std::str::FromStr;
 
-    use chrono::{DateTime, Utc};
     use super::*;
+    use chrono::{DateTime, Utc};
 
     type DateTimeUtc = DateTime<Utc>;
     const PRESENTATION_V1_JSON: &str = r#"{
