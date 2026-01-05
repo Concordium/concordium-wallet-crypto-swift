@@ -856,7 +856,6 @@ dictionary ContextProperty {
     string context;
 };
 
-
 /// Verification context information that serves as a distinguishing context when requesting
 /// proofs.
 dictionary ContextInformation {
@@ -885,11 +884,13 @@ dictionary PresentationV1 {
     LinkingProofV1 linking_proof;
 };
 
+/// Identity based credential types.
 enum IdentityCredentialType {
     "IdentityCredential",
     "AccountCredential",
 };
 
+/// DID for a Concordium Identity Provider.
 dictionary IdentityProviderDid {
     /// The network part of the method.
     Network network;
@@ -897,6 +898,7 @@ dictionary IdentityProviderDid {
     u32 identity_provider;
 };
 
+/// Statement that is requested to be proven.
 [Enum]
 interface RequestedStatement{
     RevealAttribute(RevealAttributeIdentityStatement statement);
@@ -905,17 +907,21 @@ interface RequestedStatement{
     AttributeNotInSet(AttributeNotInSetIdentityStatementV1 statement);
 };
 
+/// A subject claims request concerning the Concordium ID object (held by the credential holder
+/// in the wallet).
 dictionary RequestedIdentitySubjectClaims{
     sequence<RequestedStatement> statements;
     sequence<IdentityProviderDid> issuers;
     sequence<IdentityCredentialType> source;
 };
 
+/// The subject claims being requested proven.
 [Enum]
 interface RequestedSubjectClaims {
     Identity(RequestedIdentitySubjectClaims identity);
 };
 
+/// A statically labeled and statically typed context value.
 [Enum]
 interface LabeledContextProperty {
     /// Cryptographic nonce context which should be of length 32 bytes. Should be randomly generated.
@@ -932,6 +938,8 @@ interface LabeledContextProperty {
     ContextString(string context_string);
 };
 
+/// Labels for different types of context information that can be provided in verifiable
+/// presentation requests and proofs.
 enum ContextLabel {
     /// A nonce which should be at least of lenth bytes32.
     "Nonce",
@@ -947,34 +955,45 @@ enum ContextLabel {
     "ContextString",
 };
 
+/// Context information for a verification request.
 dictionary UnfilledContextInformation {
     sequence<LabeledContextProperty> given;
     sequence<ContextLabel> requested;
 };
 
+/// Data that constitutes a verification request to create a verifiable presentation.
+/// Described the subject claims being requested from a credential holder.
 dictionary VerificationRequestData {
     UnfilledContextInformation context;
     sequence<RequestedSubjectClaims> subject_claims;
 };
 
+/// Private credential holder information. A user maintaints these
+/// through many different interactions with the identity provider and
+/// the chain.
 dictionary CredentialHolderInfo {
     Bytes id_cred;
 };
 
+/// Private and public data chosen by the credential holder before the
+/// interaction with the identity provider. 
 dictionary AccCredentialInfo {
     CredentialHolderInfo cred_holder_info;
     Bytes prf_key;
 };
 
+/// Data needed to use the retrieved identity object to generate credentials.
 dictionary IdObjectUseData {
     AccCredentialInfo aci;
     Bytes randomness;
 };
 
+/// Collection of anonymity revokers.
 dictionary ArInfos {
     record<u32, AnonymityRevokerInfo> anonymity_revokers;
 };
 
+/// Private inputs for an identity credential proof.
 dictionary OwnedIdentityCredentialProofPrivateInputs {
     /// Identity provider information
     IdentityProviderInfo ip_info;
@@ -988,6 +1007,7 @@ dictionary OwnedIdentityCredentialProofPrivateInputs {
     IdObjectUseData id_object_use_data;
 };
 
+/// Private inputs for an account credential proof.
 dictionary OwnedAccountCredentialProofPrivateInputs {
     /// Issuer of the identity credentials used to deploy the account credentials
     u32 issuer;
@@ -997,12 +1017,16 @@ dictionary OwnedAccountCredentialProofPrivateInputs {
     record<AttributeTag, Bytes> attribute_randomness;
 };
 
+/// The additional private inputs (mostly secrets), needed to prove the claims
+/// in a RequestV1.
 [Enum]
 interface OwnedCredentialProofPrivateInputs {
     Account(OwnedAccountCredentialProofPrivateInputs account);
     Identity(OwnedIdentityCredentialProofPrivateInputs identity);
 };
 
+/// Claims about a single identity based subject. Identity credentials
+/// are issued by identity providers.
 dictionary IdentityBasedSubjectClaims {
     /// Network to which the identity credentials are issued
     Network network;
@@ -1012,6 +1036,8 @@ dictionary IdentityBasedSubjectClaims {
     sequence<AtomicStatementV1> statements;
 };
 
+/// Claims about a single account based subject. Accounts are on-chain credentials
+/// deployed from identity credentials.
 dictionary AccountBasedSubjectClaims {
     /// Network on which the account exists
     Network network;
@@ -1023,12 +1049,15 @@ dictionary AccountBasedSubjectClaims {
     sequence<AtomicStatementV1> statements;
 };
 
+/// Claims about a subject.
+/// To prove the claims and create a credential, the corresponding private input [`CredentialProofPrivateInputs`] is needed.
 [Enum]
 interface SubjectClaims {
     Account(AccountBasedSubjectClaims account);
     Identity(IdentityBasedSubjectClaims identity);
 };
 
+/// A request to prove a verifiable presentation [`PresentationV1`]
 dictionary RequestV1 {
     ContextInformation context;
     sequence<SubjectClaims> subject_claims;
