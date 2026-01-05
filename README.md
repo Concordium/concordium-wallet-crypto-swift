@@ -42,7 +42,7 @@ The version is defined by the Rust/Cargo project.
 
 ## Build
 
-Supported Rust version: 1.72
+Supported Rust version: 1.92
 
 *Prerequisites*
 
