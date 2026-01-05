@@ -425,6 +425,10 @@ fileprivate struct FfiConverterTimestamp: FfiConverterRustBuffer {
 }
 
 
+/**
+ * Private and public data chosen by the credential holder before the
+ * interaction with the identity provider. 
+ */
 public struct AccCredentialInfo {
     public var credHolderInfo: CredentialHolderInfo
     public var prfKey: Bytes
@@ -554,6 +558,10 @@ public func FfiConverterTypeAccountBasedCredentialV1_lower(_ value: AccountBased
 }
 
 
+/**
+ * Claims about a single account based subject. Accounts are on-chain credentials
+ * deployed from identity credentials.
+ */
 public struct AccountBasedSubjectClaims {
     /**
      * Network on which the account exists
@@ -1309,6 +1317,9 @@ public func FfiConverterTypeArData_lower(_ value: ArData) -> RustBuffer {
 }
 
 
+/**
+ * Collection of anonymity revokers.
+ */
 public struct ArInfos {
     public var anonymityRevokers: [UInt32: AnonymityRevokerInfo]
 
@@ -2963,6 +2974,11 @@ public func FfiConverterTypeCredentialDeploymentInfo_lower(_ value: CredentialDe
 }
 
 
+/**
+ * Private credential holder information. A user maintaints these
+ * through many different interactions with the identity provider and
+ * the chain.
+ */
 public struct CredentialHolderInfo {
     public var idCred: Bytes
 
@@ -3379,6 +3395,9 @@ public func FfiConverterTypeGlobalContext_lower(_ value: GlobalContext) -> RustB
 }
 
 
+/**
+ * Data needed to use the retrieved identity object to generate credentials.
+ */
 public struct IdObjectUseData {
     public var aci: AccCredentialInfo
     public var randomness: Bytes
@@ -3527,6 +3546,10 @@ public func FfiConverterTypeIdentityBasedCredentialV1_lower(_ value: IdentityBas
 }
 
 
+/**
+ * Claims about a single identity based subject. Identity credentials
+ * are issued by identity providers.
+ */
 public struct IdentityBasedSubjectClaims {
     /**
      * Network to which the identity credentials are issued
@@ -3916,6 +3939,9 @@ public func FfiConverterTypeIdentityProof_lower(_ value: IdentityProof) -> RustB
 }
 
 
+/**
+ * DID for a Concordium Identity Provider.
+ */
 public struct IdentityProviderDid {
     /**
      * The network part of the method.
@@ -4516,6 +4542,9 @@ public func FfiConverterTypeModuleSchema_lower(_ value: ModuleSchema) -> RustBuf
 }
 
 
+/**
+ * Private inputs for an account credential proof.
+ */
 public struct OwnedAccountCredentialProofPrivateInputs {
     /**
      * Issuer of the identity credentials used to deploy the account credentials
@@ -4601,6 +4630,9 @@ public func FfiConverterTypeOwnedAccountCredentialProofPrivateInputs_lower(_ val
 }
 
 
+/**
+ * Private inputs for an identity credential proof.
+ */
 public struct OwnedIdentityCredentialProofPrivateInputs {
     /**
      * Identity provider information
@@ -5271,6 +5303,9 @@ public func FfiConverterTypeRandomness_lower(_ value: Randomness) -> RustBuffer 
 }
 
 
+/**
+ * A request to prove a verifiable presentation [`PresentationV1`]
+ */
 public struct RequestV1 {
     public var context: ContextInformation
     public var subjectClaims: [SubjectClaims]
@@ -5329,6 +5364,10 @@ public func FfiConverterTypeRequestV1_lower(_ value: RequestV1) -> RustBuffer {
 }
 
 
+/**
+ * A subject claims request concerning the Concordium ID object (held by the credential holder
+ * in the wallet).
+ */
 public struct RequestedIdentitySubjectClaims {
     public var statements: [RequestedStatement]
     public var issuers: [IdentityProviderDid]
@@ -5863,6 +5902,9 @@ public func FfiConverterTypeTypeSchema_lower(_ value: TypeSchema) -> RustBuffer 
 }
 
 
+/**
+ * Context information for a verification request.
+ */
 public struct UnfilledContextInformation {
     public var given: [LabeledContextProperty]
     public var requested: [ContextLabel]
@@ -6206,6 +6248,10 @@ public func FfiConverterTypeVerifiablePresentationRequest_lower(_ value: Verifia
 }
 
 
+/**
+ * Data that constitutes a verification request to create a verifiable presentation.
+ * Described the subject claims being requested from a credential holder.
+ */
 public struct VerificationRequestData {
     public var context: UnfilledContextInformation
     public var subjectClaims: [RequestedSubjectClaims]
@@ -7579,6 +7625,10 @@ extension ConcordiumZkProofVersion: Equatable, Hashable {}
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Labels for different types of context information that can be provided in verifiable
+ * presentation requests and proofs.
+ */
 public enum ContextLabel {
     
     /**
@@ -7876,6 +7926,9 @@ extension IdentifierType: Equatable, Hashable {}
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Identity based credential types.
+ */
 public enum IdentityCredentialType {
     
     case identityCredential
@@ -7928,6 +7981,9 @@ extension IdentityCredentialType: Equatable, Hashable {}
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * A statically labeled and statically typed context value.
+ */
 public enum LabeledContextProperty {
     
     /**
@@ -8177,6 +8233,10 @@ extension Network: Equatable, Hashable {}
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * The additional private inputs (mostly secrets), needed to prove the claims
+ * in a RequestV1.
+ */
 public enum OwnedCredentialProofPrivateInputs {
     
     case account(
@@ -8239,6 +8299,9 @@ extension OwnedCredentialProofPrivateInputs: Equatable, Hashable {}
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Statement that is requested to be proven.
+ */
 public enum RequestedStatement {
     
     case revealAttribute(
@@ -8325,6 +8388,9 @@ extension RequestedStatement: Equatable, Hashable {}
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * The subject claims being requested proven.
+ */
 public enum RequestedSubjectClaims {
     
     case identity(
@@ -8444,6 +8510,10 @@ extension SchemaError: Error { }
 
 // Note that we don't yet support `indirect` for enums.
 // See https://github.com/mozilla/uniffi-rs/issues/396 for further discussion.
+/**
+ * Claims about a subject.
+ * To prove the claims and create a credential, the corresponding private input [`CredentialProofPrivateInputs`] is needed.
+ */
 public enum SubjectClaims {
     
     case account(
