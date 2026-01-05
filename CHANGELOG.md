@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [5.1.0] - 2026-01-05
+
+### Added
+
+- `create_verifiable_presentation_v1` for producing verifiable presenentation in V1 flow.
+- `compute_anchor_hash` to compute the anchor hash of verification request data.
+- `PresentationV1` type to represent presentation for account/identity based credentials.
+
 ## [5.0.0] - 2024-10-09
 
 ### Changed
