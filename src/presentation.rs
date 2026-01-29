@@ -665,7 +665,7 @@ impl TryFrom<LabeledContextProperty> for v1::anchor::LabeledContextProperty {
                 (v1::anchor::ContextLabel::ContextString, context_string)
             }
         };
-        
+
         // Use the base library's method to create from label and value string
         v1::anchor::LabeledContextProperty::try_from_label_and_value_str(label, &context_str)
             .map_err(|e| {
