@@ -481,8 +481,8 @@ impl TryFrom<ArInfos> for types::ArInfos<ArCurve> {
 
         for (id, info) in value.anonymity_revokers {
             // Convert the numeric identity into ArIdentity (non-zero u32).
-            let ar_id = types::ArIdentity::try_from(id)
-                .map_err(|e| serde_json::Error::custom(e))?;
+            let ar_id =
+                types::ArIdentity::try_from(id).map_err(|e| serde_json::Error::custom(e))?;
 
             // Convert the public AR info structure.
             let ar_info: types::ArInfo<ArCurve> = serde_convert(info)?;
@@ -647,12 +647,14 @@ impl TryFrom<LabeledContextProperty> for v1::anchor::LabeledContextProperty {
                 // Bytes implements Display which formats as hex
                 (v1::anchor::ContextLabel::Nonce, format!("{}", nonce))
             }
-            LabeledContextProperty::PaymentHash { payment_hash } => {
-                (v1::anchor::ContextLabel::PaymentHash, format!("{}", payment_hash))
-            }
-            LabeledContextProperty::BlockHash { block_hash } => {
-                (v1::anchor::ContextLabel::BlockHash, format!("{}", block_hash))
-            }
+            LabeledContextProperty::PaymentHash { payment_hash } => (
+                v1::anchor::ContextLabel::PaymentHash,
+                format!("{}", payment_hash),
+            ),
+            LabeledContextProperty::BlockHash { block_hash } => (
+                v1::anchor::ContextLabel::BlockHash,
+                format!("{}", block_hash),
+            ),
             LabeledContextProperty::ConnectionId { connection_id } => {
                 (v1::anchor::ContextLabel::ConnectionId, connection_id)
             }
@@ -666,7 +668,12 @@ impl TryFrom<LabeledContextProperty> for v1::anchor::LabeledContextProperty {
         
         // Use the base library's method to create from label and value string
         v1::anchor::LabeledContextProperty::try_from_label_and_value_str(label, &context_str)
-            .map_err(|e| serde_json::Error::from(DeError::custom(format!("Failed to parse context property: {}", e))))
+            .map_err(|e| {
+                serde_json::Error::from(DeError::custom(format!(
+                    "Failed to parse context property: {}",
+                    e
+                )))
+            })
     }
 }
 
@@ -839,11 +846,12 @@ pub fn create_verifiable_presentation_v1(
 
     // Convert high-level RequestV1 into the internal web3Id v1 type.
     // If this fails we want a precise error message to see which stage broke.
-    let request: v1::RequestV1<ArCurve, W3IdAttr> = request.try_into().map_err(
-        |e: uniffi::deps::anyhow::Error| {
-            e.to_call_failed(format!("{fn_desc}: request conversion failed: {e}"))
-        },
-    )?;
+    let request: v1::RequestV1<ArCurve, W3IdAttr> =
+        request
+            .try_into()
+            .map_err(|e: uniffi::deps::anyhow::Error| {
+                e.to_call_failed(format!("{fn_desc}: request conversion failed: {e}"))
+            })?;
 
     // Convert the UniFFI-friendly private inputs into the internal representation.
     let inputs = inputs
@@ -861,16 +869,13 @@ pub fn create_verifiable_presentation_v1(
     })?;
 
     // Run the actual prover.
-    let presentation = request.prove(&global, borrowed).map_err(|e| {
-        e.to_call_failed(format!("{fn_desc}: prove failed: {e}"))
-    })?;
+    let presentation = request
+        .prove(&global, borrowed)
+        .map_err(|e| e.to_call_failed(format!("{fn_desc}: prove failed: {e}")))?;
 
     // Convert internal presentation back into the UniFFI bridge type.
-    PresentationV1::try_from(presentation).map_err(|e| {
-        e.to_call_failed(format!(
-            "{fn_desc}: presentation conversion failed: {e}"
-        ))
-    })
+    PresentationV1::try_from(presentation)
+        .map_err(|e| e.to_call_failed(format!("{fn_desc}: presentation conversion failed: {e}")))
 }
 
 /// Implements UDL definition of the same name.
