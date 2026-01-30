@@ -481,8 +481,7 @@ impl TryFrom<ArInfos> for types::ArInfos<ArCurve> {
 
         for (id, info) in value.anonymity_revokers {
             // Convert the numeric identity into ArIdentity (non-zero u32).
-            let ar_id =
-                types::ArIdentity::try_from(id).map_err(|e| serde_json::Error::custom(e))?;
+            let ar_id = types::ArIdentity::try_from(id).map_err(serde_json::Error::custom)?;
 
             // Convert the public AR info structure.
             let ar_info: types::ArInfo<ArCurve> = serde_convert(info)?;
@@ -669,10 +668,7 @@ impl TryFrom<LabeledContextProperty> for v1::anchor::LabeledContextProperty {
         // Use the base library's method to create from label and value string
         v1::anchor::LabeledContextProperty::try_from_label_and_value_str(label, &context_str)
             .map_err(|e| {
-                serde_json::Error::from(DeError::custom(format!(
-                    "Failed to parse context property: {}",
-                    e
-                )))
+                DeError::custom(format!("Failed to parse context property: {}", e))
             })
     }
 }
