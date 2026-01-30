@@ -667,9 +667,7 @@ impl TryFrom<LabeledContextProperty> for v1::anchor::LabeledContextProperty {
 
         // Use the base library's method to create from label and value string
         v1::anchor::LabeledContextProperty::try_from_label_and_value_str(label, &context_str)
-            .map_err(|e| {
-                DeError::custom(format!("Failed to parse context property: {}", e))
-            })
+            .map_err(|e| DeError::custom(format!("Failed to parse context property: {}", e)))
     }
 }
 
