@@ -14,7 +14,7 @@ use concordium_base::{
     },
     web3id::{v1, Web3IdAttribute as W3IdAttr},
 };
-use serde::Deserialize;
+use serde::{de::Error as DeError, Deserialize};
 
 /// UniFFI compatible bridge to [concordium_base::web3id::v1::ConcordiumZKProof].
 pub type ConcordiumCredentialZKProofs = ConcordiumZKProof<Bytes>;
@@ -467,7 +467,31 @@ impl TryFrom<ArInfos> for types::ArInfos<ArCurve> {
     type Error = serde_json::Error;
 
     fn try_from(value: ArInfos) -> Result<Self, Self::Error> {
-        serde_convert(value)
+        // Manually convert the UniFFI-friendly ArInfos into the internal representation
+        // to avoid going through a JSON map with string keys (which relies on
+        // `ArIdentity::from_str` and can fail with "Could not read u32.").
+        //
+        // Here we:
+        // - convert each u32 key into `ArIdentity` via TryFrom<u32>
+        // - convert each `AnonymityRevokerInfo` into the internal `ArInfo<ArCurve>`
+        //   using `serde_convert`, which operates on the value only.
+        use std::collections::BTreeMap;
+
+        let mut map: BTreeMap<types::ArIdentity, types::ArInfo<ArCurve>> = BTreeMap::new();
+
+        for (id, info) in value.anonymity_revokers {
+            // Convert the numeric identity into ArIdentity (non-zero u32).
+            let ar_id = types::ArIdentity::try_from(id).map_err(serde_json::Error::custom)?;
+
+            // Convert the public AR info structure.
+            let ar_info: types::ArInfo<ArCurve> = serde_convert(info)?;
+
+            map.insert(ar_id, ar_info);
+        }
+
+        Ok(types::ArInfos {
+            anonymity_revokers: map,
+        })
     }
 }
 
@@ -615,7 +639,35 @@ impl TryFrom<LabeledContextProperty> for v1::anchor::LabeledContextProperty {
     type Error = serde_json::Error;
 
     fn try_from(value: LabeledContextProperty) -> Result<Self, Self::Error> {
-        serde_convert(value)
+        // Convert UniFFI bridge enum to base library format
+        // The base library expects {"label": "...", "context": "..."} format
+        let (label, context_str) = match value {
+            LabeledContextProperty::Nonce { nonce } => {
+                // Bytes implements Display which formats as hex
+                (v1::anchor::ContextLabel::Nonce, format!("{}", nonce))
+            }
+            LabeledContextProperty::PaymentHash { payment_hash } => (
+                v1::anchor::ContextLabel::PaymentHash,
+                format!("{}", payment_hash),
+            ),
+            LabeledContextProperty::BlockHash { block_hash } => (
+                v1::anchor::ContextLabel::BlockHash,
+                format!("{}", block_hash),
+            ),
+            LabeledContextProperty::ConnectionId { connection_id } => {
+                (v1::anchor::ContextLabel::ConnectionId, connection_id)
+            }
+            LabeledContextProperty::ResourceId { resouce_id } => {
+                (v1::anchor::ContextLabel::ResourceId, resouce_id)
+            }
+            LabeledContextProperty::ContextString { context_string } => {
+                (v1::anchor::ContextLabel::ContextString, context_string)
+            }
+        };
+
+        // Use the base library's method to create from label and value string
+        v1::anchor::LabeledContextProperty::try_from_label_and_value_str(label, &context_str)
+            .map_err(|e| DeError::custom(format!("Failed to parse context property: {}", e)))
     }
 }
 
@@ -785,26 +837,39 @@ pub fn create_verifiable_presentation_v1(
     inputs: Vec<OwnedCredentialProofPrivateInputs>,
 ) -> Result<PresentationV1, ConcordiumWalletCryptoError> {
     let fn_desc = "create_verifiable_presentation_v1";
-    let request: v1::RequestV1<ArCurve, W3IdAttr> = request
-        .try_into()
-        .map_err(|e: uniffi::deps::anyhow::Error| e.to_call_failed(fn_desc.to_string()))?;
 
+    // Convert high-level RequestV1 into the internal web3Id v1 type.
+    // If this fails we want a precise error message to see which stage broke.
+    let request: v1::RequestV1<ArCurve, W3IdAttr> =
+        request
+            .try_into()
+            .map_err(|e: uniffi::deps::anyhow::Error| {
+                e.to_call_failed(format!("{fn_desc}: request conversion failed: {e}"))
+            })?;
+
+    // Convert the UniFFI-friendly private inputs into the internal representation.
     let inputs = inputs
         .into_iter()
         .map(v1::OwnedCredentialProofPrivateInputs::try_from)
         .collect::<Result<Vec<_>, _>>()
-        .map_err(|e: uniffi::deps::anyhow::Error| e.to_call_failed(fn_desc.to_string()))?;
+        .map_err(|e: uniffi::deps::anyhow::Error| {
+            e.to_call_failed(format!("{fn_desc}: inputs conversion failed: {e}"))
+        })?;
     let borrowed = inputs.iter().map(|val| val.borrow());
 
-    let global = global
-        .try_into()
-        .map_err(|e: serde_json::Error| e.to_call_failed(fn_desc.to_string()))?;
+    // Convert global context as well.
+    let global = global.try_into().map_err(|e: serde_json::Error| {
+        e.to_call_failed(format!("{fn_desc}: global context conversion failed: {e}"))
+    })?;
 
+    // Run the actual prover.
     let presentation = request
         .prove(&global, borrowed)
-        .map_err(|e| e.to_call_failed(fn_desc.to_string()))?;
+        .map_err(|e| e.to_call_failed(format!("{fn_desc}: prove failed: {e}")))?;
 
-    PresentationV1::try_from(presentation).map_err(|e| e.to_call_failed(fn_desc.to_string()))
+    // Convert internal presentation back into the UniFFI bridge type.
+    PresentationV1::try_from(presentation)
+        .map_err(|e| e.to_call_failed(format!("{fn_desc}: presentation conversion failed: {e}")))
 }
 
 /// Implements UDL definition of the same name.
