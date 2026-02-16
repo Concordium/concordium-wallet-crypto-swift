@@ -18,8 +18,6 @@ pub enum SchemaError {
     ParseSchema(String),
 }
 
-impl uniffi::Error for SchemaError {}
-
 impl From<schema_json::ToJsonError> for SchemaError {
     fn from(value: schema_json::ToJsonError) -> Self {
         Self::Convert(format!("{}", value))
