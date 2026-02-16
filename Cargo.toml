@@ -1,11 +1,11 @@
 [package]
 name = "concordium-wallet-crypto-uniffi"
-version = "5.1.1"
+version = "5.1.2"
 edition = "2021"
 
 [dependencies]
 thiserror = "1"
-uniffi = { version = "0.26", features = ["cli"] }
+uniffi = { version = "0.31.0", features = ["cli"] }
 serde = "1.0"
 serde_json = "1.0"
 rand = "0.8.5"
@@ -24,7 +24,7 @@ path = "./concordium-base/rust-src/wallet_library"
 path = "./concordium-base/rust-src/key_derivation"
 
 [build-dependencies]
-uniffi = { version = "0.26", features = ["build"] }
+uniffi = { version = "0.31.0", features = ["build"] }
 
 [build-dependencies.concordium_base]
 path = "./concordium-base/rust-src/concordium_base"
