@@ -19,6 +19,8 @@ pub enum ConcordiumWalletCryptoError {
     CallFailed { call: String, msg: String },
 }
 
+impl uniffi::Error for ConcordiumWalletCryptoError {}
+
 /// Used to enable easy conversion of errors into the (currently single) error type returned by any
 /// function in the library.
 pub trait ConvertError
