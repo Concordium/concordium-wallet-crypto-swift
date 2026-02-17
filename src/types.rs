@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use crate::UniffiCustomTypeConverter;
 use concordium_base::{
     contracts_common::{AccountAddressParseError, Amount},
     hashes::HashBytes,
@@ -82,18 +81,46 @@ impl AsRef<[u8]> for Bytes {
     }
 }
 
-impl UniffiCustomTypeConverter for Bytes {
-    type Builtin = Vec<u8>;
+unsafe impl<UT> uniffi::Lift<UT> for Bytes
+where
+    Vec<u8>: uniffi::Lift<UT>,
+{
+    type FfiType = <Vec<u8> as uniffi::Lift<UT>>::FfiType;
 
-    fn into_custom(val: Self::Builtin) -> uniffi::Result<Self>
-    where
-        Self: Sized,
-    {
-        Ok(Bytes(val))
+    fn try_lift(val: Self::FfiType) -> uniffi::Result<Self> {
+        let builtin: Vec<u8> = uniffi::Lift::try_lift(val)?;
+        Ok(Bytes(builtin))
     }
 
-    fn from_custom(obj: Self) -> Self::Builtin {
-        obj.0
+    fn try_read(buf: &mut &[u8]) -> Result<Self, uniffi::deps::anyhow::Error> {
+        let builtin: Vec<u8> = uniffi::Lift::try_read(buf)?;
+        Ok(Bytes(builtin))
+    }
+}
+
+unsafe impl<UT> uniffi::Lower<UT> for Bytes
+where
+    Vec<u8>: uniffi::Lower<UT>,
+{
+    type FfiType = <Vec<u8> as uniffi::Lower<UT>>::FfiType;
+
+    fn lower(val: Self) -> Self::FfiType {
+        uniffi::Lower::lower(val.0)
+    }
+
+    fn write(val: Self, buf: &mut Vec<u8>) {
+        uniffi::Lower::write(val.0, buf)
+    }
+}
+
+unsafe impl<UT> uniffi::LowerReturn<UT> for Bytes
+where
+    Vec<u8>: uniffi::LowerReturn<UT>,
+{
+    type ReturnType = <Vec<u8> as uniffi::LowerReturn<UT>>::ReturnType;
+
+    fn lower_return(val: Self) -> Result<Self::ReturnType, uniffi::RustCallError> {
+        uniffi::LowerReturn::lower_return(val.0)
     }
 }
 
@@ -119,18 +146,46 @@ impl<'de> serde::Deserialize<'de> for MicroCCDAmount {
     }
 }
 
-impl UniffiCustomTypeConverter for MicroCCDAmount {
-    type Builtin = u64;
+unsafe impl<UT> uniffi::Lift<UT> for MicroCCDAmount
+where
+    u64: uniffi::Lift<UT>,
+{
+    type FfiType = <u64 as uniffi::Lift<UT>>::FfiType;
 
-    fn into_custom(val: Self::Builtin) -> uniffi::Result<Self>
-    where
-        Self: Sized,
-    {
-        Ok(MicroCCDAmount(val))
+    fn try_lift(val: Self::FfiType) -> uniffi::Result<Self> {
+        let builtin: u64 = uniffi::Lift::try_lift(val)?;
+        Ok(MicroCCDAmount(builtin))
     }
 
-    fn from_custom(obj: Self) -> Self::Builtin {
-        obj.0
+    fn try_read(buf: &mut &[u8]) -> Result<Self, uniffi::deps::anyhow::Error> {
+        let builtin: u64 = uniffi::Lift::try_read(buf)?;
+        Ok(MicroCCDAmount(builtin))
+    }
+}
+
+unsafe impl<UT> uniffi::Lower<UT> for MicroCCDAmount
+where
+    u64: uniffi::Lower<UT>,
+{
+    type FfiType = <u64 as uniffi::Lower<UT>>::FfiType;
+
+    fn lower(val: Self) -> Self::FfiType {
+        uniffi::Lower::lower(val.0)
+    }
+
+    fn write(val: Self, buf: &mut Vec<u8>) {
+        uniffi::Lower::write(val.0, buf)
+    }
+}
+
+unsafe impl<UT> uniffi::LowerReturn<UT> for MicroCCDAmount
+where
+    u64: uniffi::LowerReturn<UT>,
+{
+    type ReturnType = <u64 as uniffi::LowerReturn<UT>>::ReturnType;
+
+    fn lower_return(val: Self) -> Result<Self::ReturnType, uniffi::RustCallError> {
+        uniffi::LowerReturn::lower_return(val.0)
     }
 }
 
